@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Diagram check</title>
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/skins/default.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/wavedrom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+</head><body>
+<p>Renders every diagram in every solution and lists failures. Used by scripts/check_diagrams.sh.</p>
+<pre id="out">running…</pre><div id="scratch"></div>
+<script>
+(async () => {
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+  const sols = await (await fetch("/api/solutions")).json();
+  const fence = /```(mermaid|wavedrom)[^\n]*\n([\s\S]*?)```/g;
+  const fails = []; let n = 0, k = 0;
+  for (const [id, md] of Object.entries(sols)) {
+    for (const m of md.matchAll(fence)) {
+      n++;
+      try {
+        if (m[1] === "mermaid") await mermaid.render(`m${k++}`, m[2].replace(/`/g, "\u02CB"));
+        else {
+          const el = document.createElement("div"); el.id = `w${k}0`;
+          document.getElementById("scratch").appendChild(el);
+          WaveDrom.RenderWaveForm(0, JSON.parse(m[2]), `w${k++}`);
+        }
+      } catch (e) { fails.push(`${id}\t${m[1]}\t${String(e.message || e).split("\n").slice(0, 2).join(" | ")}`); }
+    }
+  }
+  document.getElementById("scratch").innerHTML = "";
+  document.getElementById("out").textContent = `CHECKED ${n} diagrams, ${fails.length} failed\n` + fails.join("\n");
+  document.title = "done";
+})();
+</script></body></html>

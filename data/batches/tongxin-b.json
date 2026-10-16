@@ -1,0 +1,902 @@
+[
+ {
+  "id": "tongxin-091",
+  "title": "Verilog Simulation Scheduling - initial Block Race",
+  "prompt": "",
+  "source_notes": "Two initial blocks at the same time have no defined active-region order. Track active events, inactive #0 events, nonblocking updates, and postponed printing separately. Use nonblocking assignments or explicit synchronization where appropriate. To give a specific output trace, the actual code and delays are needed; simulator-dependent ordering is not a portable answer.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-092",
+  "title": "Hardware Optimization - Loop Unrolling, Pipelining, Tiling, Array Partitioning",
+  "prompt": "",
+  "source_notes": "Unrolling creates parallel hardware and increases area/bandwidth demand. Pipelining inserts registers to improve throughput and timing but adds latency. Tiling reuses local data to reduce memory traffic. Array partitioning creates banks or registers for more simultaneous accesses. Choose based on dependency structure, memory ports, and resource limits; verify numerical equivalence and interface timing after changes.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-093",
+  "title": "IEEE 754 Floating Point - Format, Operations, Edge Cases",
+  "prompt": "",
+  "source_notes": "Binary32 has one sign bit, eight exponent bits, and 23 fraction bits. Normal values use an implicit leading 1; exponent-zero encodes zeros/subnormals and all-ones encodes infinities/NaNs. Operations align or multiply significands, normalize, round, and handle exceptions. Verify signed zero, subnormal boundaries, overflow, underflow, NaNs, infinities, and every supported rounding mode.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-094",
+  "title": "SRAM RTL Implementation and Why No Reset",
+  "prompt": "",
+  "source_notes": "Model SRAM as an array with specified synchronous read/write behavior. Memory cells usually have no whole-array reset; clearing every location can prevent SRAM inference and require large reset logic. Reset control/output-valid state instead, then initialize memory through writes if needed. Verify read latency, write masking, address range, uninitialized reads, and read-during-write semantics.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-095",
+  "title": "Synchronous FIFO Using SRAM with Counter",
+  "prompt": "",
+  "source_notes": "Use SRAM for payload and pointers/count for control. Gate push/pop with acceptance rules and explicitly wrap addresses. Align read responses with SRAM latency using a valid pipeline or output buffer. Update occupancy based on accepted operations, not raw requests. Check same-address simultaneous access against macro behavior and cover full/empty transitions and backpressure.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-096",
+  "title": "Sequential vs Combinational Logic",
+  "prompt": "",
+  "source_notes": "Combinational outputs depend on current inputs and contain no intended stored state. Sequential outputs depend on prior state plus inputs and update through flip-flops or latches. Describe combinational logic with complete assignments and sequential logic with explicit clocks/enables/reset. Propagation delay exists in both; storage is the distinguishing property.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-097",
+  "title": "UPF - Unified Power Format, Flow, and X Propagation",
+  "prompt": "",
+  "source_notes": "UPF describes supply networks, power domains, switches, power states, isolation, retention, and level shifting. Tools combine this intent with RTL and libraries for implementation and power-aware simulation. Off-domain state can become X; isolation and restore sequences prevent unsafe propagation. Verify legal transitions and expected corruption rather than globally suppressing X values.",
+  "category": "Puzzles",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-098",
+  "title": "4-bit Counter with Hold at 3, 6, 9",
+  "prompt": "",
+  "source_notes": "A counter that always holds at 3 can never naturally reach 6 or 9. Clarify whether it holds while an external signal is active or pauses for one cycle. For one-cycle pauses, add a pause flag so the next cycle advances. For external hold, update only when hold is absent. Check reachability, overflow, reset, and all pause points.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-099",
+  "title": "Jump Immediate vs Jump Register (ISA)",
+  "prompt": "",
+  "source_notes": "A jump-immediate target comes from an instruction-encoded displacement or address, often PC-relative. A jump-register target comes from a register, possibly plus an immediate, supporting indirect calls and returns. Encoding, alignment, and link-register behavior depend on the ISA. Verify sign extension, target alignment, and control-flow flushing; do not assume one ISA's formula applies universally.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-100",
+  "title": "Clock Mux Glitch - sel? clk1 : clk2 and Fix",
+  "prompt": "",
+  "source_notes": "A combinational clock mux can create extra edges or runt pulses when sel changes while clocks differ. Use a dedicated glitch-free clock mux or a proven mutually exclusive gating scheme that changes enables during safe clock phases. Handle stopped clocks and asynchronous switching explicitly. Define switching latency and constrain each clock mode in STA.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-101",
+  "title": "Implement NAND Gate Using 2-to-1 MUX",
+  "prompt": "",
+  "source_notes": "For `y=~(a&b)`, select a, connect input 0 to 1 and input 1 to ~b. A MUX plus an inverter works. If only MUXes and constants are allowed, form ~b with a first MUX whose select is b and inputs are 1 and 0. A single ordinary MUX with only a, b, and constants cannot directly supply ~b.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-102",
+  "title": "Pipeline Hazards and Cache Mapping",
+  "prompt": "",
+  "source_notes": "Data hazards involve dependencies; structural hazards involve competing resources; control hazards involve branches. Forward, stall, arbitrate, or flush according to the cause. Cache mapping divides the address into offset, set, and tag according to geometry. These are separate mechanisms that interact through memory latency and misses. A numerical mapping or cycle trace needs the actual cache/pipeline parameters.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-103",
+  "title": "APB FIFO Design - RTL Implementation",
+  "prompt": "",
+  "source_notes": "Accept APB accesses only at `PSEL && PENABLE && PREADY`. Decode write-to-push and read-to-pop addresses, report or stall disallowed operations according to the specification, and return stable PRDATA during the completed access. Account for FIFO/SRAM latency. Verify wait states, back-to-back transfers, full/empty handling, byte strobes where supported, and reset.",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-104",
+  "title": "Race Condition in Verilog - Blocking Assignment in always Block",
+  "prompt": "",
+  "source_notes": "A clocked blocking assignment can update a register before another same-edge process samples it, creating a race. Use nonblocking updates for shared sequential state and suitable clocking blocks for testbench drive/sample separation. Blocking assignments remain useful for local temporary calculations inside one process. Reproduce the failure with the actual code and inspect scheduling before changing it.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-105",
+  "title": "Verilog/SV Scheduling Regions - Complete Model",
+  "prompt": "",
+  "source_notes": "The major time-slot regions proceed through Preponed sampling; Active, Inactive, NBA design activity; Observed assertion evaluation; Reactive, Re-Inactive, Re-NBA program activity; and Postponed reporting. Additional PLI callback regions exist between these, and same-slot activity can iterate. #0 moves a module process to Inactive, not past NBA. Concurrent assertions normally sample in Preponed and evaluate in Observed.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-106",
+  "title": "Async FIFO from Scratch - Gray Code Pointer Design",
+  "prompt": "",
+  "source_notes": "For depth `2^A`, keep A+1-bit binary pointers. Increment only on accepted transfers, compute `gray=(binary>>1)^binary`, and synchronize Gray pointers through destination flops. Compute registered empty from next read Gray equality; full from next write Gray equality with the remote Gray top two bits inverted. Handle small parameter widths explicitly and verify resets, wrap, and independent clocks.",
+  "category": "CDC & Timing",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-107",
+  "title": "NAND2 Schematic - Why NMOS Series, PMOS Parallel",
+  "prompt": "",
+  "source_notes": "NAND output must be low only for A=B=1, so the NMOS pull-down needs both devices on in series. Output must be high if either input is zero, so PMOS pull-ups are in parallel. Device sizing compensates for series resistance. Transistor networks implement complementary pull-up/pull-down truth conditions.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-108",
+  "title": "Data Activity Monitor - RTL and Verification",
+  "prompt": "",
+  "source_notes": "Clarify whether activity means any transition, accepted transfers, or a count over a time window. For transition activity, compare the current sampled data with the previous valid sample using XOR; increment a widened counter if nonzero. For per-bit activity, accumulate popcount. Verify enable gaps, reset, counter overflow, unchanged values, and the first sample.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-109",
+  "title": "4-Input Comparator from 2-Input Comparators",
+  "prompt": "",
+  "source_notes": "For a maximum/minimum of four inputs, compare pairs in parallel, then compare their winners: three two-input comparators over two levels. Retain index metadata if the winning input must be identified, and define ties. Sorting all four inputs is a different problem and requires additional compare-and-swap operations.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-110",
+  "title": "req Rising Edge -> One-Cycle flag Pulse",
+  "prompt": "",
+  "source_notes": "Register the previous req and assign `flag <= req & ~req_d; req_d <= req;` on each edge, with both reset low. Flag is a one-cycle registered indication of a sampled rising edge. Synchronize req first if asynchronous. A pulse shorter than the sampling interval may be missed and needs a pulse-capture protocol.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-111",
+  "title": "1-bit D Flip-Flop and D Latch - Verilog RTL",
+  "prompt": "",
+  "source_notes": "DFF: `always_ff @(posedge clk) if (!rst_n) q<=0; else q<=d;` describes a synchronous active-low reset. Latch: `always_latch if (!rst_n) q<=0; else if (en) q<=d;`. The latch holds when en is low. Add reset to sensitivity only if asynchronous reset is intended, and choose reset polarity/behavior from requirements.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-112",
+  "title": "4-to-1 Multiplexer - Verilog RTL (Multiple Styles)",
+  "prompt": "",
+  "source_notes": "Use `assign y = data[sel];` for a packed four-element input, a complete `case(sel)` in `always_comb`, or nested 2:1 muxes. Each implements the same 4:1 Boolean selection if widths and unknown-selection semantics agree. Verify all selector values and decide how X/Z should be handled. Avoid incomplete case assignments.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-113",
+  "title": "Cache Address Structure - 32KB 4-Way 32B Cacheline",
+  "prompt": "",
+  "source_notes": "32KB / (4 ways * 32B) = 256 sets. A 32-byte line needs five offset bits, and 256 sets need eight index bits. For a W-bit byte address, tag width is W-13. For 32-bit addresses, offset=[4:0], index=[12:5], tag=[31:13]. State whether the design uses physical or virtual indexing/tagging.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-114",
+  "title": "AXI 4KB Boundary Restriction - Why and How",
+  "prompt": "",
+  "source_notes": "AXI bursts must remain within one 4KB region. For an aligned INCR burst, verify `addr[11:0] + (len+1)*(1<<size) <= 4096` with widened arithmetic. For an unaligned start, calculate the last actual byte using the beat-aligned base rather than blindly adding the entire span to addr. Validate FIXED/WRAP separately. Split requests at boundaries.\n\nReference: [Arm AXI protocol specification](https://documentation-service.arm.com/static/63ff0ebd56ea36189d4e7ee7)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-115",
+  "title": "Carry-Select Adder: Design and Timing Analysis",
+  "prompt": "",
+  "source_notes": "A carry-select adder computes each upper block twice, assuming carry-in 0 and 1, then selects using the real carry. The low block computes the first carry normally. This trades extra area/power for a shorter carry path. Select block sizes from actual gate delays; uniform blocks are not always optimal. Verify addition and carry-out across block boundaries.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-116",
+  "title": "1-bit D Flip-Flop Without always Block - Verilog RTL",
+  "prompt": "",
+  "source_notes": "An edge-triggered flip-flop cannot be described by a simple combinational assign. Instantiate a flip-flop cell or build a structural master-slave latch circuit with feedback and appropriate primitives. Synthesis support and timing depend on the technology. A latch-like feedback expression is not automatically a valid DFF. The exact permitted implementation depends on whether primitives or library cells are allowed.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-117",
+  "title": "Transaction Constraints and Burst Statistics",
+  "prompt": "",
+  "source_notes": "Put legality constraints in the transaction and traffic-distribution choices in the sequence/test. Bound burst length, size, address, and payload size; enforce alignment and boundary rules. Use `dist` for desired weights, but sample resulting distributions because constraints can bias outcomes. Coverage should include lengths, command types, alignment, and crossings. Exact constraints require the transaction fields and protocol.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-118",
+  "title": "Constraint: Address Alignment with CMD Signal",
+  "prompt": "",
+  "source_notes": "Use a conditional constraint, for example `if (cmd==WRITE) addr % ALIGN == 0;`, with ALIGN nonzero. For power-of-two alignment, constrain the low address bits to zero. If other commands need different alignment, state those branches explicitly. Bound command values and address range, check randomize return status, and cover each command/alignment combination.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-119",
+  "title": "Constraint: Dynamic Array Sum and 2D Array Row Constraint",
+  "prompt": "",
+  "source_notes": "Constrain dynamic-array size and elements, then use `a.sum() with (int'(item)) == target;` so small element widths do not truncate the total. For each 2D row, constrain its size/value range and sum if supported by the simulator, or use a compatible helper representation. Check feasibility before invoking the solver. The target and row rules are missing here.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-120",
+  "title": "Constraint: Various Array Constraints",
+  "prompt": "",
+  "source_notes": "Use `size()` for dynamic arrays, foreach for per-element/range relations, pairwise inequality or `unique` for uniqueness, and widened reduction methods for sums/counts. Bound sizes before applying pairwise constraints to control solver cost. Check feasibility, randomize success, and corner distributions. The title alone does not specify a unique set of constraints.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-121",
+  "title": "SV Constraint: 1D/2D Array Size, Value, and Ordering",
+  "prompt": "",
+  "source_notes": "Constrain dynamic dimensions first, values second, and ordering with adjacent relations such as `foreach(a[i]) if(i>0) a[i]>=a[i-1];`. For a 2D array, define whether ordering applies per row, per column, or flattened. Strict order needs enough distinct legal values. Fixed packed dimensions are declared in the type, not randomized with size().",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-122",
+  "title": "SV Constraint: Dynamic Array with Sum Equal to 20",
+  "prompt": "",
+  "source_notes": "Declare `rand int a[];`, constrain `a.size()` to a legal bounded range, constrain elements, and use `a.sum() with (longint'(item)) == 20;`. The widening avoids overflow for large values. Decide whether negative values are allowed; without bounds the solver has a much wider space. Test minimum/maximum lengths and check every randomization result.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-123",
+  "title": "SV Constraint: Non-Overlapping Rectangle Regions in 2D Array",
+  "prompt": "",
+  "source_notes": "For positive-width axis-aligned rectangles, constrain x/y bounds and require each pair to be disjoint: `x1+w1<=x2 || x2+w2<=x1 || y1+h1<=y2 || y2+h2<=y1`. These are half-open bounds, so touching edges is allowed. Change inequalities if touching is forbidden. Widen additions and check packing feasibility.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-124",
+  "title": "SV Constraint: Exactly One Consecutive Run of 1s in 16-bit Value",
+  "prompt": "",
+  "source_notes": "Choose start s and length l with `0<=s<16`, `1<=l<=16`, and `s+l<=16`, then constrain the vector to a widened mask `((32'h1<<l)-1)<<s`. This creates exactly one nonempty contiguous run. Alternatively, on a 17-bit zero-extended value, require exactly two transitions against its shifted copy. Specify whether the all-zero value is excluded.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-125",
+  "title": "SV Constraint: rand bit Array with Odd Number of 1s",
+  "prompt": "",
+  "source_notes": "For a bit array, constrain `a.sum() with (int'(item)) % 2 == 1`, plus a legal size. For a packed vector, `$countones(v)%2==1` or reduction XOR equal to 1 expresses odd parity. Widen array sums because summing bit elements without casting can truncate. Verify count parity independently after randomization.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-126",
+  "title": "SV Constraint: 300-Element Array, Values 0-5, Each = 40 Times, No Consecutive 0s",
+  "prompt": "",
+  "source_notes": "As stated, the constraint is impossible: six values appearing 40 times each account for only 240 elements, not 300. Clarify whether the array has 240 entries, each value occurs 50 times, or 60 entries may use additional values. Only then add count constraints and `if(i>0) !(a[i]==0 && a[i-1]==0)`. Do not hide the contradiction with a solver workaround.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-127",
+  "title": "SV Constraint: 300-Element Array, 0 May Repeat, Non-Zero Values Must Not Be Consecutive",
+  "prompt": "",
+  "source_notes": "Clarify whether adjacent nonzero values cannot be equal or whether no two nonzero elements may be adjacent. For no equal adjacent nonzero values, use `if(i>0 && a[i]!=0 && a[i-1]!=0) a[i]!=a[i-1];`. For no adjacent nonzeros at all, require `a[i]==0 || a[i-1]==0`. Zero repetition remains allowed in both interpretations.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-128",
+  "title": "SV Constraint: Memory Access with Excluded Range",
+  "prompt": "",
+  "source_notes": "For a forbidden half-open interval [L,H), a single address must satisfy `addr<L || addr>=H`. A whole access of n bytes must satisfy `addr+n<=L || addr>=H`, with n>0, widened addition, and address-space bounds. Merely excluding the starting address does not prevent overlap. Include alignment and legal transfer sizes.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-129",
+  "title": "SV Constraint: Repeatedly Randomize Non-Overlapping Memory Regions Until Full",
+  "prompt": "",
+  "source_notes": "Maintain allocated intervals outside the randomized transaction. Constrain each new positive-size region to fit the address space and not overlap any prior region, then update the allocator only after successful randomization. Stop when no legal fit remains, not only when total allocated bytes equals capacity. Random sizes can fragment space; use fixed slots or a free-interval allocator if exact filling is required.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-130",
+  "title": "SV Constraint: Symmetric Array Using Helper Function",
+  "prompt": "",
+  "source_notes": "If symmetry means transpose symmetry, constrain `a[i][j]==a[j][i]` on a square array. If it means mirror symmetry, use the correct reflected index. Prefer direct foreach relations. A helper function in a constraint can impose solve-order restrictions and must be side-effect free; do not assume the solver inverts arbitrary procedural code.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-131",
+  "title": "Constraint Inheritance and constraint_mode()",
+  "prompt": "",
+  "source_notes": "Inherited constraints are active together. A derived constraint block with the same name replaces the inherited block; a different name adds restrictions. `constraint_mode(0)` disables a selected block, while `rand_mode(0)` freezes a variable. Inline constraints add to active constraints and do not automatically override conflicting hard constraints. Inspect solver failure before changing modes.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-132",
+  "title": "Consecutive Uniqueness & Cross-Array Common Element",
+  "prompt": "",
+  "source_notes": "Adjacent uniqueness is `if(i>0) a[i]!=a[i-1]`; it is weaker than global uniqueness. For two arrays sharing exactly one distinct value, explicitly choose a shared value and constrain membership plus all other cross-array pairs to differ, accounting for duplicates within each array. If only at least one common element is required, a selected matching index pair suffices.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-133",
+  "title": "std::randomize Return Value Bug",
+  "prompt": "",
+  "source_notes": "`std::randomize(...)` returns 1 for success and 0 for failure. Write `if (!std::randomize(x) with {...}) $fatal(...)`; do not treat zero as success or ignore the result. Failure does not mean a legal new value was generated. Distinguish std::randomize variables from object.randomize and check which constraints are actually active.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-134",
+  "title": "Sudoku 9x9 Grid Constraint",
+  "prompt": "",
+  "source_notes": "Constrain every cell to 1..9. Require pairwise uniqueness within each row, column, and 3x3 box. For two distinct cells in the same unit, values must differ. Add clue constraints only where a given cell is nonzero. Check conflicting clues and solver performance. Multiple solutions are legal unless the task requires uniqueness of the entire puzzle.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-135",
+  "title": "Dynamic Array - Sum, Consecutive Ones, Unique in Range",
+  "prompt": "",
+  "source_notes": "Combine bounded size, widened sum, and value-range constraints. If exactly one run of consecutive ones is required, introduce start/length and map each position to 1 inside the run and 0 outside. If only a certain number of adjacent pairs is required, count that instead. Global uniqueness of a bit array severely limits size; confirm these are separate exercises before combining them.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-136",
+  "title": "Static Array Uniqueness - With and Without unique",
+  "prompt": "",
+  "source_notes": "For a fixed array, `unique {a};` expresses distinct elements when supported. Without unique, use `foreach(a[i]) foreach(a[j]) if(i<j) a[i]!=a[j];`. Bound the element range to contain at least as many values as elements. Pairwise constraints scale quadratically, so use a shuffled legal set for large permutation tasks if allowed.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-137",
+  "title": "Alternating READ/WRITE Transactions Using post_randomize",
+  "prompt": "",
+  "source_notes": "Keep a non-rand next-command state, constrain cmd to that state, then toggle the state in post_randomize. Successful calls alternate READ and WRITE. Do not overwrite cmd afterward in a way that breaks related randomized constraints. Define the initial command and reset behavior. Failed randomization must not advance the expected alternation.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-138",
+  "title": "1D Array - Unique Elements Without unique, Sum Constraint",
+  "prompt": "",
+  "source_notes": "Use pairwise `a[i]!=a[j]` for i<j, bound size/range, and a widened `a.sum()` constraint. Check that the requested sum lies between the minimum and maximum sums of the permitted number of distinct elements. Sorted construction plus shuffle can be an alternative if procedural generation is allowed; it may have a different distribution.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-139",
+  "title": "1KB Address Space - Non-Overlapping 32-byte Stride Regions",
+  "prompt": "",
+  "source_notes": "A 1KB space contains 32 aligned 32-byte slots. Represent a region by a slot index 0..31 and address `slot*32`. Unique slot indices guarantee nonoverlap for 32-byte regions. For variable lengths, constrain full interval disjointness instead. Limit the number of simultaneous regions and account for whether 1KB is the entire space or an offset within larger memory.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-140",
+  "title": "8-bit Vector - No Cyclic Right Shift",
+  "prompt": "",
+  "source_notes": "To reject rotations of reference r, constrain v different from each of its eight circular rotations, including rotation zero if equality is forbidden. If two generated values must not be rotations, compare all rotations of one against the other. Symmetric references can have fewer than eight distinct rotations.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-141",
+  "title": "Generate 4-bit Value with Exactly 4 Ones - No countones",
+  "prompt": "",
+  "source_notes": "A 4-bit vector with exactly four ones has only one legal value: `v==4'b1111`. If the intended width is larger, sum individually widened bits to four, or use an allowed helper count. Do not present a randomized distribution for a singleton solution.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-142",
+  "title": "Array with if-else Constraint, then shuffle()",
+  "prompt": "",
+  "source_notes": "Solve the conditional value constraints first, check success, then call `a.shuffle()`. Shuffling preserves the multiset and sum, but can violate ordering, adjacency, or index-dependent constraints. Use shuffle only when those positional conditions are irrelevant, or revalidate after it.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-143",
+  "title": "7x7 Pixel Image - No All-D 3x3 Submatrix (Parameterized)",
+  "prompt": "",
+  "source_notes": "For every legal top-left coordinate of a 3x3 window, require at least one of its nine pixels to differ from D. Bound the pixel alphabet and parameterized dimensions, and skip windows when either dimension is smaller than three. A nested constraint or explicit nine-term OR can express the condition. Verify every overlapping window independently.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-144",
+  "title": "Overriding a Constraint in Child Class - Three Methods",
+  "prompt": "",
+  "source_notes": "Three useful approaches are a same-name derived constraint block, disabling the inherited block with constraint_mode and adding a replacement, or declaring a base default as soft so an inline/derived constraint can supersede it. These have different semantics. An inline hard constraint alone cannot override a conflicting inherited hard constraint.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-145",
+  "title": "SVA: Analyze a Complex Property",
+  "prompt": "",
+  "source_notes": "Identify clock and disable condition, then expand each delay/repetition into sampled-cycle obligations. Distinguish implication, sequence concatenation, overlapping matches, and strong/weak completion. Check vacuous passes when the antecedent never occurs. Build a cycle table with one passing and one failing trace before claiming a specific interpretation.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-146",
+  "title": "SVA: Glitch Detection - Signal HIGH for Less Than 2.5 ns",
+  "prompt": "",
+  "source_notes": "Use event timestamps to measure actual pulse width: record `$realtime` on the rising edge and check `$realtime-rise_time >= 2.5ns` on the falling edge. Track whether a valid rise was observed, define reset and initial-high behavior, and use sufficient timeprecision. A posedge-clocked assertion misses glitches between samples. Add a watchdog if a maximum width is also required.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-147",
+  "title": "SVA: valid Must Remain High Until ready",
+  "prompt": "",
+  "source_notes": "A standard sampled rule is `valid && !ready |=> valid && $stable(payload)`, with reset disabled. It repeats for each stalled cycle and includes the cycle when ready finally rises. If only valid persistence is required, omit payload stability. Add a bounded-progress requirement only if the protocol guarantees eventual ready; otherwise indefinite backpressure can be legal.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-148",
+  "title": "SVA: Sequence Assertion - cat Followed by 3 or 4 dogs",
+  "prompt": "",
+  "source_notes": "Assuming cat and dog are one-cycle Boolean events and dogs must be consecutive starting next cycle: `cat |=> dog[*3:4]`. This allows a 3- or 4-cycle match; it does not forbid a fifth dog or force exactly four when a fourth occurs. Exact-length behavior needs an ending condition such as !dog plus clear overlap rules.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-149",
+  "title": "SVA: Clock Period Verification - Within 5% of Expected Period",
+  "prompt": "",
+  "source_notes": "On each eligible clock edge, measure the interval from the prior edge using realtime. Check `0.95*expected <= measured && measured <= 1.05*expected`. Skip the first edge, define reset and whether the expected period is fixed for the interval, and add a no-edge watchdog for a stopped clock. Period checking alone does not verify duty cycle.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-150",
+  "title": "SVA: Clock Period Check When expected_clock_period Is Async",
+  "prompt": "",
+  "source_notes": "An asynchronous expected period can change mid-interval. Define whether a change takes effect immediately, at the next edge, or only after a stable-mode handshake. Snapshot the accepted expectation for each interval or suppress the explicitly permitted transition interval. Do not compare a completed interval with an unrelated latest value.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-151",
+  "title": "SVA: APB Protocol Assertion - PSEL to PENABLE to PREADY",
+  "prompt": "",
+  "source_notes": "APB setup has PSEL=1 and PENABLE=0; the following cycle enters access with both high. While PREADY is low, keep address/control/write data stable and stay in access. Completion occurs when PSEL&&PENABLE&&PREADY. The next cycle must leave access, though PSEL may stay high for back-to-back transfers. Add PSLVERR and PSTRB rules for the relevant APB version.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-152",
+  "title": "SVA: B Toggles 2 Cycles After A Toggles",
+  "prompt": "",
+  "source_notes": "For a change in A requiring a change in B two sampled cycles later: `$changed(A) |-> ##2 $changed(B)`. This does not prohibit earlier or extra B toggles; add separate properties if required. Define simultaneous triggers, reset history, and whether X transitions count. Use `$rose`/`$fell` instead when only one edge polarity should trigger.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-153",
+  "title": "req => ack Handshake Protocol",
+  "prompt": "",
+  "source_notes": "Clarify whether req/ack are pulses or a four-phase level handshake. For a level protocol, req rises, ack eventually rises, req falls, then ack falls. Check bounded response latency if guaranteed, persistence before acknowledgement, and no unsolicited ack. For pipelined requests, an outstanding counter or tagged model is needed instead of a single pending bit.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-154",
+  "title": "AHB-Lite Burst Must Not Cross 1KB Boundary",
+  "prompt": "",
+  "source_notes": "AHB bursts must not cross a 1KB address boundary. Track accepted beats, HSIZE, HBURST, and start address, while accounting for HREADY stalls and address/control pipelining. Compute the last byte of incrementing bursts or each accepted address; wrapping bursts use their defined wrap window. A start-address-only assertion is insufficient.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-155",
+  "title": "Check Clock Frequency is 100 MHz",
+  "prompt": "",
+  "source_notes": "100MHz has a 10ns period. Measure successive edges with realtime and compare to 10ns using the specified tolerance and timeprecision. Check high and low widths separately for duty cycle, and add a timeout because a period checker triggered only by edges cannot detect a permanently stopped clock.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-156",
+  "title": "Simple Fell-Triggered Assertion",
+  "prompt": "",
+  "source_notes": "`$fell(a)` detects a sampled transition from 1 to 0 according to four-state sampling semantics. For example, `$fell(a) |=> b` requires b on the following sample. Define reset and establish valid past history before evaluating startup transitions.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-157",
+  "title": "Complete req-ack Handshake Suite",
+  "prompt": "",
+  "source_notes": "Check request detection, legal acknowledgement, required latency bounds, request persistence, acknowledgement pulse/level width, cleanup order, and reset cancellation. Add coverage for minimum/maximum latency and consecutive handshakes. Use a pending flag for one outstanding request or a queue/counter for several. Avoid claiming completion from a suite that permits vacuous passes with no requests.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-158",
+  "title": "Detect Short Glitch Pulses Shorter Than 2.5 ns",
+  "prompt": "",
+  "source_notes": "Measure rise-to-fall duration with realtime rather than only a slower reference clock. Flag widths below 2.5ns, including narrow pulses between reference edges. Specify startup/reset behavior, event polarity, and X/Z treatment. Sufficient timeprecision is necessary.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-159",
+  "title": "req/gnt 4-Way Handshake - Concurrent and always Block",
+  "prompt": "",
+  "source_notes": "For four-phase req/gnt, enforce req rise before gnt rise, req high until gnt, req fall after grant, then gnt fall before a new request. Encode sampled obligations with SVA and model states IDLE, WAIT_GRANT, WAIT_REQ_LOW, WAIT_GRANT_LOW procedurally. Specify timeouts and legal same-cycle transitions so both implementations check the same protocol.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-160",
+  "title": "Immediate assertion vs Concurrent Assertion",
+  "prompt": "",
+  "source_notes": "An immediate assertion executes procedurally when control reaches it and checks a Boolean expression, typically `assert(expr)`. A concurrent assertion describes behavior across sampled events using sequences/properties, such as `assert property (@(posedge clk) req |=> ack)`. It samples/evaluates in defined assertion regions. Choose immediate for local procedural checks and concurrent for temporal protocol rules.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-161",
+  "title": "Blocking vs Nonblocking Assignments and Race Avoidance",
+  "prompt": "",
+  "source_notes": "Blocking updates the variable immediately in the process. Nonblocking evaluates the RHS now and schedules the update in NBA, so clocked registers sample old values together. Use blocking for combinational calculations and nonblocking for sequential state. Avoid two processes writing the same variable and use clocking blocks for testbench races.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-162",
+  "title": "SystemVerilog Task vs Function",
+  "prompt": "",
+  "source_notes": "A function cannot consume simulation time and cannot call a time-consuming task. It may return a value or be void. A task may wait, delay, and return values through arguments. Both can be automatic and have input/output/ref arguments. Use functions for calculations and tasks for protocol activity.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-163",
+  "title": "display, strobe, monitor, and write",
+  "prompt": "",
+  "source_notes": "$display prints with a newline when executed; $write does the same without adding a newline. $strobe reports at the end of the time slot, after nonblocking updates. $monitor schedules end-of-slot reporting when its monitored arguments change, with one active monitor list.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-164",
+  "title": "case, casez, casex, and Priority Encoders",
+  "prompt": "",
+  "source_notes": "case matches four-state values exactly. casez treats Z and ? as wildcards; casex also masks X, which can hide bugs and is generally unsafe. Priority encoders need explicit ordering, often if/else or a qualified case. `unique`/`priority` add checking and synthesis assumptions but do not repair incomplete assignments. Define behavior for no request.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-165",
+  "title": "Streaming Operators and Flattening a 2D Packed Array",
+  "prompt": "",
+  "source_notes": "Packed multidimensional arrays are already one contiguous packed bit vector and can be assigned to an equal-width vector. Streaming operators reorder chunks: `{>>{a}}` preserves the stream direction and `{<<8{a}}` reverses byte-sized chunks. Unpacked arrays may need explicit packing, and endianness must match the interface.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-166",
+  "title": "Associative Arrays in a UVM Scoreboard",
+  "prompt": "",
+  "source_notes": "An associative array keyed by transaction ID or address supports sparse/out-of-order lookup. Store expected data plus metadata and timeout state; on an observed response, check exists(), compare, then delete after successful completion. Detect duplicate IDs, duplicate responses, and leftovers. If IDs can repeat while outstanding, store a queue per ID.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-167",
+  "title": "fork...join, join_any, join_none, and Safe Cleanup",
+  "prompt": "",
+  "source_notes": "join waits for every child; join_any waits for one; join_none lets the parent continue, with children starting when the parent blocks or ends. After join_any, remaining children keep running unless explicitly stopped. Put competing workers/timeouts inside an isolated wrapper process before disable fork so cleanup cannot kill unrelated descendants.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-168",
+  "title": "Unique Constraints for a 2D Random Array",
+  "prompt": "",
+  "source_notes": "Flatten index pairs or compare every distinct pair of cells with foreach and `a[i][j]!=a[k][l]` when their coordinates differ. The legal value range must contain at least rows*columns distinct values. If the requirement is row-only uniqueness, do not overconstrain across rows.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-169",
+  "title": "SystemVerilog cast: Purpose, Dynamic Downcast, and Failure Handling",
+  "prompt": "",
+  "source_notes": "A static cast such as `int'(x)` changes representation/type without a runtime check. `$cast(derived,base)` performs checked dynamic casting for class handles; it returns success in function form. On failure, do not use the target. Prefer an explicit failure report and avoid unnecessary downcasts by exposing needed virtual base methods.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-170",
+  "title": "OOP: Inheritance, Polymorphism, and Singleton Pattern",
+  "prompt": "",
+  "source_notes": "Inheritance reuses a base contract; virtual methods let derived implementations run through base handles. A singleton uses a static stored handle, a restricted (local/protected) constructor, and a static accessor that creates the instance once. In testbenches, global singleton state can contaminate tests.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-171",
+  "title": "OOP: UVM Sequence Bug Analysis",
+  "prompt": "",
+  "source_notes": "Common problems include reusing one item handle across asynchronous consumers, ignoring randomize failure, missing start_item/finish_item pairing, starting one sequence object concurrently, and using a sequencer with incompatible item type. Trace creation, handle ownership, arbitration, request delivery, and response routing before changing code.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-172",
+  "title": "OOP: Singleton Class and Abstract Class",
+  "prompt": "",
+  "source_notes": "A singleton ensures one accessible instance using a static handle/accessor and restricted construction. An abstract SV class is declared virtual and cannot be instantiated; pure virtual methods require concrete subclasses to implement the contract.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-173",
+  "title": "SV OOP: Class Handle - Pass by Value vs Pass by ref",
+  "prompt": "",
+  "source_notes": "Passing a class handle by value copies the handle, not the object. The callee can modify the shared object's fields, but assigning a new object to its local handle does not change the caller's handle. A ref argument aliases the caller's handle variable, so reassignment is visible.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-174",
+  "title": "SV Coding: Edge Detector (All Edges and Rising Edge)",
+  "prompt": "",
+  "source_notes": "Sample the previous value in a register. Rising edge is `sig & ~prev`, falling edge is `~sig & prev`, and either edge is `sig ^ prev`. Define whether output is combinational from the sampled register or registered. Synchronize asynchronous inputs first and define the first-sample behavior after reset.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-175",
+  "title": "SV Coding: Monitor and Testbench for Interrupt Protocol",
+  "prompt": "",
+  "source_notes": "Drive interrupt causes and observe the interrupt and acknowledgement/clear behavior independently. Track enabled, masked, pending, and serviced states. Test pulses and levels, simultaneous sources, priority, repeated causes, reset, and set/clear in the same cycle.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-176",
+  "title": "SV Coding: Covergroup for 8-bit Signal",
+  "prompt": "",
+  "source_notes": "Sample on the specified accepted event, then create bins for values or meaningful ranges, boundary values 0/255, and transitions if relevant. Cross with valid operation modes. Use iff to exclude reset/invalid cycles. Coverage sampling observes behavior; it does not verify correctness by itself.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-177",
+  "title": "SV Coding: AHB Interface with Clocking Blocks",
+  "prompt": "",
+  "source_notes": "Define AHB signals and modports in an interface. Driver and monitor clocking blocks provide explicit sample/drive skew, commonly input #1step. Track address and data phases separately and advance accepted phases using HREADY. Hold address/control during stalls.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-178",
+  "title": "SV Coding: fork/join_none Loop Variable Capture",
+  "prompt": "",
+  "source_notes": "In each loop iteration, create an automatic captured variable in the fork scope, e.g. `fork automatic int k=i; worker(k); join_none`. Capturing only inside the delayed child can read the final loop value. Children do not start until the parent suspends or terminates.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-179",
+  "title": "SV Coding: fork/join Variations and wait fork",
+  "prompt": "",
+  "source_notes": "join, join_any, and join_none control when the parent proceeds, not the lifetime of every remaining child. wait fork waits for outstanding immediate children of the calling process, potentially including unrelated children. Use a wrapper process to isolate a group.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-180",
+  "title": "SV Coding: fork/join - Call Function After Any Two of Three Tasks Complete",
+  "prompt": "",
+  "source_notes": "Use three worker branches that each send a completion token to a mailbox. The parent gets two tokens, then calls the function. This safely handles simultaneous completions without a racy shared increment. Specify whether the third worker must finish or be cancelled.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ }
+]

@@ -1,0 +1,902 @@
+[
+ {
+  "id": "tongxin-181",
+  "title": "Verilog: Falling Edge Detector and Its Synthesized Circuit",
+  "prompt": "",
+  "source_notes": "A synchronous falling-edge detector uses a previous-sample flip-flop and `fall=prev & ~sig`, optionally followed by an output register. Its synthesized circuit contains storage plus inversion/AND logic. An asynchronous signal should be synchronized before edge detection.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-182",
+  "title": "Disable Specific Named Fork Branch",
+  "prompt": "",
+  "source_notes": "Use a process handle for the specific child and call kill() when that handle is valid and the process is still active. A named block can be disabled, but static names can affect multiple activations. Do not use an unscoped disable fork when only one branch should stop.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-183",
+  "title": "fork-join_any for Task Timeout Detection",
+  "prompt": "",
+  "source_notes": "Run work and a timeout in an isolated fork/join_any group, record which completed, then cancel the remaining branch in that isolated scope. Define whether a completion exactly at the deadline passes or fails. Release protocol resources and report useful state on timeout.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-184",
+  "title": "Blocking vs Non-Blocking Assignment, Swap Without Temp",
+  "prompt": "",
+  "source_notes": "In a clocked block, `a<=b; b<=a;` swaps old a and b because both RHS values are sampled before NBA updates. Blocking `a=b; b=a;` does not swap: both become old b. Blocking code needs a temporary variable (or XOR swap / concatenation assignment `{a,b}={b,a}`).",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-185",
+  "title": "Nested fork-join_any with Delays - Print Order",
+  "prompt": "",
+  "source_notes": "Compute each branch's wakeup time, identify which join_any unblocks first, and include subsequent statements and any surviving children. Processes scheduled in the same region at the same time may print in unspecified order.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-186",
+  "title": "fork-join / join_any / join_none + Watchdog Timer",
+  "prompt": "",
+  "source_notes": "Give each parallel task a clear completion event or token. Use join for all completion, join_any for the first, or join_none plus explicit coordination. Add an independently bounded watchdog and isolate its cleanup. Raise/drop UVM objections around the intended test lifetime.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-187",
+  "title": "ISA Implementation - Struct vs OOP",
+  "prompt": "",
+  "source_notes": "A struct is useful for compact decoded instruction fields and value-style storage. Classes suit extensible behavioral instruction models, virtual execution/printing, and factory substitution. Synthesizable RTL generally uses structs/enums, while polymorphic instruction classes belong in verification/software.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-188",
+  "title": "2-to-1 MUX and 4-to-1 MUX Implementation",
+  "prompt": "",
+  "source_notes": "A 2:1 mux is `assign y=sel?b:a;`. A 4:1 mux can use three 2:1 muxes in two levels or one complete case/index selection. Parameterize the data width, define selector mapping, and test every input path.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-189",
+  "title": "Mixed Blocking/Nonblocking Cycle-by-Cycle Value Analysis",
+  "prompt": "",
+  "source_notes": "For each clock edge, execute blocking statements in process order, record every NBA RHS at its execution time, then apply NBA updates later. Across independent active processes, blocking reads/writes can race. Build a table of pre-edge state, sampled RHS values, and final state.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-190",
+  "title": "Named fork-join Disable - Selective Process Killing",
+  "prompt": "",
+  "source_notes": "Named disable targets a named scope, which may include all children in that scope. For selective killing, capture each desired child's process handle and stop that instance. Isolate each group under a wrapper process to prevent broad disable-fork effects.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-191",
+  "title": "fork-join / join_any / join_none - Shared Variable Trace",
+  "prompt": "",
+  "source_notes": "Identify which variables are automatic captures and which are shared. join_none children begin after parent suspension; join_any leaves survivors active. If concurrent children write/read one variable in the same simulation region, final values can depend on scheduling. Use mailbox tokens or semaphores for deterministic ordering.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-192",
+  "title": "Polymorphism, Typecasting, and Virtual Functions",
+  "prompt": "",
+  "source_notes": "Virtual methods dispatch by runtime object type even through a base handle. Nonvirtual methods bind to the handle's static type. Assigning a derived handle to a base handle is safe; downcasting needs checked `$cast`. Casting does not change the underlying object's type.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-193",
+  "title": "Generate a Delay Signal 0-1.25x One Clock Cycle",
+  "prompt": "",
+  "source_notes": "Randomize an integer number of timeprecision ticks in the inclusive range 0..floor(1.25*T/tick), then delay by that many ticks. Define whether T is fixed or captured per transaction and record seeds.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-194",
+  "title": "Polymorphism and Virtual Functions - Output Trace",
+  "prompt": "",
+  "source_notes": "Resolve the runtime type for each handle, check whether the method is virtual, and then select the implementation. Derived overrides execute through a base handle only for virtual methods.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-195",
+  "title": "OOP - Shape / Circle / Rectangle with Virtual print_area()",
+  "prompt": "",
+  "source_notes": "Declare `virtual class Shape` with `pure virtual function real area();` and a virtual print method that calls area(). Circle returns `pi*r*r`; Rectangle returns `width*height`. Store derived objects in Shape handles to demonstrate dynamic dispatch.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-196",
+  "title": "fork-join_none Tasks with #Delay - Value Trace and Semaphore",
+  "prompt": "",
+  "source_notes": "join_none children start after the parent suspends, and all children may share handles/state unless captured. A semaphore can protect compound updates or serialize access, but it does not determine which eligible child acquires first.",
+  "category": "SystemVerilog",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-197",
+  "title": "fork-join_none in for Loop - Block Without Affecting Others",
+  "prompt": "",
+  "source_notes": "Create one wrapper process per loop group with automatic captured indices and locally scoped child processes. Use per-group semaphores/events rather than one global gate when isolation is required.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-198",
+  "title": "-> vs => - Overlapping vs Non-Overlapping Implication",
+  "prompt": "",
+  "source_notes": "The SVA implication operators are `|->` and `|=>`. Overlapped implication starts the consequent on the antecedent's ending sample; nonoverlapped starts on the next sample. A multicycle antecedent is measured from its end. Plain -> also appears in constraint implication and event triggering with different semantics.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-199",
+  "title": "OOP - Override vs Overload (C++ Comparison)",
+  "prompt": "",
+  "source_notes": "Override replaces an inherited virtual method with the same signature for runtime dispatch. Overload provides multiple functions with one name but different parameter lists, as in C++. SystemVerilog does not support C++-style method overloading; use distinct names or default arguments.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-200",
+  "title": "Bit-Field Extraction and Variable Bit Selection",
+  "prompt": "",
+  "source_notes": "A variable single-bit selection is `x[index]`. A variable-base fixed-width part select is `x[base +: WIDTH]` or `x[base -: WIDTH]`, with WIDTH constant. Runtime-variable width needs a mask/shift or a loop with explicit bounds.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-201",
+  "title": "Virtual Class (Abstract Class) - When to Use",
+  "prompt": "",
+  "source_notes": "Use a virtual class when only derived concrete implementations should be instantiated. Pure virtual methods define operations every concrete subtype must supply, such as encode(), compare(), or execute(). Base state/helper methods can still be shared.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-202",
+  "title": "Sequence Detector 10110 - Moore / Mealy / Shift Register",
+  "prompt": "",
+  "source_notes": "A shift-register detector compares the most recent five accepted bits to 10110. A Mealy FSM asserts on the final input using matched-prefix states; a Moore FSM associates output with a completed-pattern state (one extra state, one cycle later). Define output timing and overlap.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-203",
+  "title": "C++ Pointer Swap - Ref vs Value, const Pointer vs Pointer to const",
+  "prompt": "",
+  "source_notes": "Passing a pointer by value lets a function mutate the pointee but does not replace the caller's pointer. Swap caller pointers with `T*&` or pointer-to-pointer arguments. `const T*` prevents mutation of T through that pointer; `T* const` prevents reassigning the pointer variable.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-204",
+  "title": "Pipelined Adder Scoreboard",
+  "prompt": "",
+  "source_notes": "Predict sums only from accepted input transactions. Queue expected values with their due cycle for fixed latency, or match by ID for variable latency/out-of-order completion. Account for operand width, carry, reset flush, bubbles, and output stalls. Compare through an independent monitor. Check missing, duplicate, unexpected, and leftover results.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-205",
+  "title": "UVM Advantages and Adoption Costs",
+  "prompt": "",
+  "source_notes": "UVM provides reusable agents, sequence-based stimulus, configurable factories, TLM communication, phases, reporting, and register modeling. The cost is more code, learning, compile/runtime overhead, and debugging framework interactions. A small one-off block may be served by a simpler self-checking testbench.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-206",
+  "title": "Constraints in a uvm_sequence versus a uvm_sequence_item",
+  "prompt": "",
+  "source_notes": "Put constraints describing one legal transaction in the sequence item. Put scenario-level choices, relationships across transactions, and traffic mixes in a sequence. Sequence rand fields are not automatically randomized by a direct start(). Inline item constraints must remain compatible with hard item constraints.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-207",
+  "title": "Multiple Sequence-Item Types Through One Sequencer",
+  "prompt": "",
+  "source_notes": "Use a common base item type on the sequencer/driver and derive concrete item types. The driver can call virtual item methods or perform checked casts. Unsupported types should fail clearly. Separate sequencers/agents can be simpler when protocols differ fundamentally.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-208",
+  "title": "UVM Factory Creation and Overrides",
+  "prompt": "",
+  "source_notes": "Register with the UVM factory macros and instantiate through `type_id::create`. Install type or instance overrides before the target is created. Object create takes a name; component create requires its parent. Calling new directly bypasses replacement. Use factory.print() to verify the resolved type.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-209",
+  "title": "UVM: Architecture Overview",
+  "prompt": "",
+  "source_notes": "A test configures an environment containing agents and checking components. An active agent has sequencer, driver, and monitor; a passive agent only observes. Sequences generate items, drivers convert them to pin activity, monitors publish observed transactions, and scoreboards/reference models check behavior. Coverage subscribers measure requirements. Virtual sequences coordinate multiple interfaces.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-210",
+  "title": "UVM: run_phase Ordering and drop_objection Behavior",
+  "prompt": "",
+  "source_notes": "Component run_phase tasks execute concurrently. Raise an objection before starting work that must keep the phase alive. Dropping one objection does not end the phase while others remain. Once all objections are cleared (plus drain time), remaining phase processes are killed.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-211",
+  "title": "UVM Phases: Task Phases vs Function Phases",
+  "prompt": "",
+  "source_notes": "Function phases such as build, connect, check, and report cannot consume time. Task phases such as run and reset/configure/main/shutdown can. Build is top-down; connect and most others are bottom-up. Runtime phases use objections.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-212",
+  "title": "UVM: Inter-process Synchronization Methods",
+  "prompt": "",
+  "source_notes": "Use mailbox or TLM FIFO for queued transaction transfer, semaphore for resource exclusion/counting, and events/barriers for explicit coordination. Queued tokens preserve notifications that occur before a consumer waits; a raw event can be missed.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-213",
+  "title": "UVM: Code Coverage Types",
+  "prompt": "",
+  "source_notes": "Code coverage includes statement/line, branch, condition/expression, toggle, and FSM state/transition coverage. It measures exercised RTL structure, while functional coverage measures planned behaviors. Neither establishes correctness by itself.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-214",
+  "title": "UVM: DMA Scoreboard Implementation",
+  "prompt": "",
+  "source_notes": "Observe descriptor programming and accepted DMA reads/writes. Maintain a byte-addressed reference memory, reconstruct bursts and masks, and check destination data and completion status. Track outstanding transfers by ID/order, increments, length, alignment, errors, and reset/abort.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-215",
+  "title": "UVM: Design a DMA Engine uvm_sequence_item",
+  "prompt": "",
+  "source_notes": "Model source/destination addresses, byte length, transfer size, burst parameters, increment/fixed modes, channel/descriptor ID, and control flags. Constrain address range, alignment, size/length consistency, and protocol boundaries. Keep completion/error observations separate from requested intent.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-216",
+  "title": "UVM: Fix Scoreboard to Support Byte-Enable Writes",
+  "prompt": "",
+  "source_notes": "Update only enabled byte lanes: for each lane i with strobe[i], replace reference_memory[addr+i] with the corresponding data byte. Preserve disabled lanes. Apply beat alignment and endianness. Verify partial writes, all-zero/all-one strobes, overlapping masked writes.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-217",
+  "title": "SV/C++: Data Structure for Sparse Memory in Verification",
+  "prompt": "",
+  "source_notes": "Use a byte-addressed associative array in SV or unordered_map/map in C++ when memory is sparse. Define absent-byte behavior explicitly. A page-based map can reduce overhead for clustered accesses. Choose keys wide enough for the address space.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-218",
+  "title": "Verification: Handling Concurrent Writes to Sparse Memory Model",
+  "prompt": "",
+  "source_notes": "Serialize updates according to observed protocol acceptance/arbitration order, not arbitrary monitor callback order. For same-cycle writes to overlapping bytes, use the DUT's specified priority. A semaphore prevents data races but does not invent the correct ordering.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-219",
+  "title": "UVM: Scoreboard Design for 10-Input to 20-Output Port Mapping",
+  "prompt": "",
+  "source_notes": "Model the specified mapping from each accepted input to legal destination ports. Track packets by unique identity plus input/epoch, and maintain per-output expected queues or associative maps. Check data, routing, duplicates, drops, and latency.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-220",
+  "title": "UVM: Phase Mechanism - What It Is and How It Works",
+  "prompt": "",
+  "source_notes": "UVM phases organize creation, connection, startup, runtime activity, extraction, checking, and reporting. Components implement phase callbacks; the phase scheduler invokes them according to the phase graph. Function phases take no time; task phases run concurrently and use objections.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-221",
+  "title": "UVM Objection Mechanism",
+  "prompt": "",
+  "source_notes": "An objection counts outstanding work that must keep a task phase alive. Raise before starting that work and drop after its completion. Counts propagate through the hierarchy. Do not raise objections in forever monitors. Trace objection counts to find hangs or premature termination.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-222",
+  "title": "UVM: Scoreboard with Timeout and Duplicate Detection (A/B Pairing)",
+  "prompt": "",
+  "source_notes": "Maintain pending A and B entries keyed by pair ID, including arrival timestamps and seen flags. Match and compare when both arrive; detect duplicates before overwriting, and time out unmatched entries. Remove completed pairs and check leftovers at test end.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-223",
+  "title": "Python: Parse comma-separated names into a list",
+  "prompt": "",
+  "source_notes": "Use `[x.strip() for x in text.split(',') if x.strip()]` if empty entries are intentionally omitted. If quoting or embedded commas are legal, use Python's csv parser instead of split.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-224",
+  "title": "Interface, Monitor, and uvm_config_db Setup",
+  "prompt": "",
+  "source_notes": "Instantiate the interface in the top module and publish its virtual interface before run_test(). Retrieve it in the build phase, check get success, and connect monitor analysis ports in connect_phase. Match the virtual-interface type/modport exactly.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-225",
+  "title": "uvm_config_db Four Parameters Explained",
+  "prompt": "",
+  "source_notes": "`uvm_config_db#(T)::set(cntxt,inst_name,field_name,value)` uses a context component, a relative or absolute instance path, a string key, and the typed value. get uses the same first three plus an output variable. With null context, the path is absolute.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-226",
+  "title": "Where to Set Virtual Interface in uvm_config_db",
+  "prompt": "",
+  "source_notes": "Set the virtual interface in a top-level initial block before run_test(), or in a parent before children retrieve it. Scope the setting to the intended agent and report a fatal error if retrieval fails.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-227",
+  "title": "virtual function - Purpose and Example",
+  "prompt": "",
+  "source_notes": "A virtual function allows runtime dispatch through a base class handle. E.g., a base transaction's virtual checksum() can be overridden by derived packet types and invoked by one generic scoreboard. A nonvirtual method call uses static type resolution.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-228",
+  "title": "Verification Environment for 2-Input 10-Output Random Dispatch DUT",
+  "prompt": "",
+  "source_notes": "Create two input agents, ten output monitors, a legal-routing/conservation reference model, and coverage for input/output pairs. Verify delivery to exactly one allowed output with unchanged payload. Cover congestion, concurrent arrivals, arbitration, backpressure, reset.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-229",
+  "title": "Testbench for Write-Only Register",
+  "prompt": "",
+  "source_notes": "Verify writes through their specified side effects, downstream outputs, or a permitted backdoor observation. A frontdoor read may be meaningless for a write-only register. RAL mirror values alone show the model's belief and do not prove the DUT accepted the write.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-230",
+  "title": "Startup Flow and Top Module Contents",
+  "prompt": "",
+  "source_notes": "The top instantiates DUT/interface, generates clock/reset, publishes virtual interfaces, and calls run_test(). UVM creates the test, builds components, connects TLM paths, runs stimulus, checks results, and reports.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-231",
+  "title": "Override Default Constraints Without Modifying the Class",
+  "prompt": "",
+  "source_notes": "Use inline constraints when compatible. To replace a default, use a soft base constraint, disable a named constraint with constraint_mode, or create a derived item with a same-name replacement and factory override.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-232",
+  "title": "How to Determine if DUT Verification is Complete",
+  "prompt": "",
+  "source_notes": "Complete the requirements-based test plan, achieve reviewed functional/code/assertion coverage targets, close or waive holes with evidence, and resolve bugs/regressions to agreed criteria. Coverage percentage alone is not signoff. Document exclusions and outstanding risks.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-233",
+  "title": "Sequence with Inline Constraint + Parallel Fork-Join + Event Sync",
+  "prompt": "",
+  "source_notes": "Create separate sequence objects for parallel starts, randomize each item with checked inline constraints, and coordinate through a mailbox, barrier, or event. Capture loop variables and avoid shared mutable item handles. Place objection lifetime around the complete scenario.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-234",
+  "title": "Instruction Transaction with Covergroup and Forwarding Path",
+  "prompt": "",
+  "source_notes": "Include opcode, source/destination registers, operand values, and PC metadata. Sample coverage on retired instructions, with crosses for dependency distance and forwarding source. Observe actual issue/stall/forward signals rather than assuming a dependency exercised forwarding.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-235",
+  "title": "Clock Period Monitor and Scoreboard (5% Tolerance Check)",
+  "prompt": "",
+  "source_notes": "A monitor timestamps clock edges, snapshots the expectation for each interval, and sends measured/expected periods to a checker. Compare against ±5%, skip startup, add a missing-edge watchdog and separate duty-cycle checks.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-236",
+  "title": "What Happens When a Sequence Issues a UVM RAL Register Write",
+  "prompt": "",
+  "source_notes": "A RAL write selects a map, converts the operation through an adapter (reg2bus) into bus items, starts them on the configured sequencer, and receives status. The driver performs the physical write. Mirror prediction is automatic if configured or comes from a monitor-connected predictor.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-237",
+  "title": "Generate Clock in Testbench with Jitter/Variation",
+  "prompt": "",
+  "source_notes": "Use a reproducible seed and choose each high/low duration within specified bounds. Implement the required jitter model (period jitter, edge jitter, wander). Verify minimum pulse widths, average frequency, and tolerated variation.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-238",
+  "title": "Register Model Frontdoor vs Backdoor Access",
+  "prompt": "",
+  "source_notes": "Frontdoor accesses use the real bus and exercise protocol timing, address decode, and side effects. Backdoor accesses use an HDL path and bypass the bus (zero time). Use frontdoor for interface verification and backdoor for initialization/debug.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-239",
+  "title": "DDR Memory Allocator Transaction with Spatial Constraints",
+  "prompt": "",
+  "source_notes": "Represent allocation size, alignment, region/bank constraints, and address. Keep existing allocations in a reference allocator and enforce nonoverlap with widened arithmetic. Define fragmentation, release, exhaustion, and reserved regions.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-240",
+  "title": "Component vs Object, Field Automation, copy vs clone",
+  "prompt": "",
+  "source_notes": "uvm_component participates in hierarchy and phases; uvm_object represents data/configuration/sequences. Field automation implements common operations but can have overhead. copy() fills an existing destination; clone() creates a new object then copies. Implement do_copy/do_compare for precise control.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-241",
+  "title": "Highest Priority Completed Sequence",
+  "prompt": "",
+  "source_notes": "Sequence priority affects arbitration only when the sequencer's arbitration mode uses it (e.g. SEQ_ARB_STRICT_FIFO, SEQ_ARB_WEIGHTED); default FIFO mode ignores it. To find the highest-priority completed sequence, record completion and priority explicitly.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-242",
+  "title": "Virtual Sequencer - Two Usage Patterns",
+  "prompt": "",
+  "source_notes": "One pattern uses a virtual sequencer component holding handles to physical sequencers; a virtual sequence uses p_sequencer to reach them. Another passes physical sequencer handles directly to the coordinating sequence. Neither drives pins.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-243",
+  "title": "seq.start(null) - What Happens When Sequencer Is null?",
+  "prompt": "",
+  "source_notes": "`seq.start(null)` can run a virtual sequence that does not send items itself. A sequence that calls start_item needs a valid compatible sequencer. Null is valid for some sequence bodies, not universally.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-244",
+  "title": "Factory Override - Instance Override and Type Override",
+  "prompt": "",
+  "source_notes": "A type override replaces matching factory-created types globally. An instance override applies to matching full instance paths and takes precedence over a type override. Set either before creation. Direct new calls bypass overrides.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-245",
+  "title": "Mailbox vs Queue vs Associative Array - When to Use Which",
+  "prompt": "",
+  "source_notes": "A mailbox provides queued interprocess communication with blocking put/get. A queue is an ordered container and needs explicit synchronization. An associative array provides sparse keyed lookup, useful for IDs or addresses.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-246",
+  "title": "Component Hierarchy and Driver-Sequencer Handshake",
+  "prompt": "",
+  "source_notes": "A driver calls get_next_item(req), drives the protocol, then item_done() exactly once. Connect the driver's seq_item_port to the sequencer's seq_item_export. Sequences use start_item/finish_item. Responses preserve identity with set_id_info.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-247",
+  "title": "Modify Driver for One Test Without Touching Other Tests",
+  "prompt": "",
+  "source_notes": "Create a derived driver and apply an instance override for the specific agent path in that test before driver creation. Alternatively pass a test-specific policy/configuration to the existing driver.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-248",
+  "title": "APB Driver - Full Implementation",
+  "prompt": "",
+  "source_notes": "Get an item, drive setup with PSEL=1/PENABLE=0 and stable address/control/data, then access with PENABLE=1. Wait until PREADY is high, capture read data/PSLVERR, and leave access next cycle. Hold signals across wait states, implement reset behavior, and call item_done once.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-249",
+  "title": "Register Abstraction Layer (RAL) - Working Principle and Usage",
+  "prompt": "",
+  "source_notes": "RAL describes registers, fields, addresses, access policies, reset values, and maps. Build/lock the model, connect an adapter/sequencer, and configure prediction via auto-predict or a predictor. Tests use register operations instead of hardcoded bus encodings.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-250",
+  "title": "uvm_object vs uvm_component - Differences",
+  "prompt": "",
+  "source_notes": "uvm_object has a name and data methods but no parent tree or phases. uvm_component extends it with hierarchy, phases, config/reporting context, and ports. Items, sequences, configs are objects; agents, drivers, monitors, scoreboards are components.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-251",
+  "title": "Test Entry Point - run_test() to Phase Execution",
+  "prompt": "",
+  "source_notes": "The top calls run_test, which resolves the test (from +UVM_TESTNAME or argument) and creates uvm_test_top through the factory. UVM then executes build/connect/etc., runs task phases, then extract/check/report.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-252",
+  "title": "Factory Override - Why super.build_phase() Placement Matters",
+  "prompt": "",
+  "source_notes": "The override must be installed before the creation it should affect. If the base build creates the target, put the override before super.build_phase. Explain the actual creation site instead of memorizing an absolute rule.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-253",
+  "title": "Register Aliasing Detection Using Frontdoor Only",
+  "prompt": "",
+  "source_notes": "Write distinct patterns to candidate addresses, then read all of them through the frontdoor to see whether one write changed another. Exclude legitimate aliases, RO/WO registers, side-effect fields. Use multiple patterns.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-254",
+  "title": "Five Sequences on One Sequencer - Track Which Transaction Came from Which Sequence",
+  "prompt": "",
+  "source_notes": "The sequencer assigns sequence identity; items carry transaction IDs. Preserve both with rsp.set_id_info(req). Pin-level monitors cannot recover sequence IDs unless metadata is carried, so add protocol IDs/source tags as needed.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-255",
+  "title": "Functional Coverage: Covergroups, Coverpoints, Crosses, Bins, and a UVM Subscriber",
+  "prompt": "",
+  "source_notes": "Define a covergroup with coverpoints for requirement-relevant values/ranges and transitions, and crosses for meaningful interactions. A UVM subscriber receives monitored transactions and samples only valid accepted behavior. Include illegal/ignore bins deliberately. Coverage complements assertions and scoreboards; it does not replace them.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-256",
+  "title": "Test Plan: SoC with Encryption/Decryption Module",
+  "prompt": "",
+  "source_notes": "Verify algorithms/modes/key sizes using known-answer vectors and a trusted reference. Cover encrypt/decrypt, key loading/zeroization, invalid settings, partial blocks, padding, reset, DMA, interrupts, backpressure. Check unauthorized key access and failure behavior.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-257",
+  "title": "100 Switches Toggle Problem",
+  "prompt": "",
+  "source_notes": "Switch k is toggled once for each divisor of k. Divisors pair except for perfect squares, which have an odd count. So exactly switches 1,4,9,16,25,36,49,64,81,100 remain on: ten switches.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-258",
+  "title": "Verification: SoC-Level Verification with CPU, DMA, and Peripherals",
+  "prompt": "",
+  "source_notes": "Use block-level verification for detailed functionality and SoC tests for integration, address maps, interrupts, resets, clocks/power, coherency, and concurrent CPU/DMA/peripheral traffic. Combine firmware sequences with bus monitors and end-to-end checkers.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-259",
+  "title": "Verification: Test Plan for Address-Based Routing DUT (A/B Client)",
+  "prompt": "",
+  "source_notes": "Build an independent address-to-client routing model. Monitor requests and responses, preserving IDs. Test each region's first/last address, gaps, illegal addresses, overlapping decode priorities, outstanding traffic, errors, and backpressure.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-260",
+  "title": "Async FIFO vs Circular FIFO vs Sync FIFO",
+  "prompt": "",
+  "source_notes": "A synchronous FIFO has one clock; an asynchronous FIFO crosses independent clocks with Gray-coded synchronized pointers. Circular FIFO describes wraparound storage organization, so it can be sync or async.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-261",
+  "title": "Async FIFO Potential Problems",
+  "prompt": "",
+  "source_notes": "Metastability, bad Gray encoding/wrap, pointer skew, premature full/empty, reset-domain inconsistency, lost/duplicated data. Use CDC review, constraints, assertions, randomized clock ratios/phases, and data-order scoreboarding.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-262",
+  "title": "Simulation Runs Forever - Debug Strategy",
+  "prompt": "",
+  "source_notes": "Check if simulation time progresses. A zero-delay loop freezes time; a running clock with no completion suggests objections, blocked handshakes, wait conditions, or missing responses. Inspect process stacks and objection traces (+UVM_OBJECTION_TRACE). Add bounded watchdogs with state dumps.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-263",
+  "title": "Cannot Reproduce Regression Bug",
+  "prompt": "",
+  "source_notes": "Record seed, test/config, simulator version/options, RTL/TB revisions, inputs, and environment. Check race conditions, uninitialized data, thread ordering, and randomization stability. A seed alone does not reproduce a run when code or tool settings differ.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-264",
+  "title": "Sources of X-Propagation in Simulation",
+  "prompt": "",
+  "source_notes": "Uninitialized storage, conflicting drivers, incomplete assignments, out-of-range indices, power-off corruption, and gate-level timing violations. Trace the first X source. Use xprop modes to expose X-optimism.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-265",
+  "title": "SCB Design with Leading Drop and Garbage Bits",
+  "prompt": "",
+  "source_notes": "Define framing, leading-drop count, alignment, and which bits are garbage. Reconstruct the valid payload from monitored bits, discard only the explicitly allowed regions, and compare the meaningful bits.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-266",
+  "title": "Test Plan: Async FIFO Corner Cases & Verification",
+  "prompt": "",
+  "source_notes": "Cover unrelated clock ratios/phases, near-equal clocks, burst traffic, full/empty, pointer wrap, simultaneous operations, stalls, and reset of each domain. Check no overflow/underflow, order, capacity, flag latency. Add CDC/STA checks.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-267",
+  "title": "Formal Verification - How It Works",
+  "prompt": "",
+  "source_notes": "Formal tools explore state space symbolically to prove properties for all allowed traces or produce counterexamples. Assumptions restrict inputs; assertions specify guarantees; covers show reachability. Review vacuity and overconstraint; a bounded pass only proves the examined depth.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-268",
+  "title": "Scoreboard for Paired A/B Transactions with Timeout",
+  "prompt": "",
+  "source_notes": "Use an associative table per pair ID with side-A/side-B data, arrival times, and duplicate flags. Match when both exist, expire unmatched entries, support either arrival order, and report leftovers at end of test.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-269",
+  "title": "Is Gate-Level Simulation Still Needed After RTL Verification?",
+  "prompt": "",
+  "source_notes": "GLS checks reset/init behavior, scan configuration, library timing checks, SDF paths, and X behavior. STA/LEC/CDC cover much of the space more efficiently; choose targeted GLS cases.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-270",
+  "title": "Serial-to-Parallel DUT - Driver, Monitor, Scoreboard",
+  "prompt": "",
+  "source_notes": "Driver emits serial bits on accepted sampling events. Monitor independently captures and reconstructs words using specified bit order/framing. Scoreboard predicts parallel outputs after defined latency. Cover incomplete words, gaps, framing errors.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ }
+]

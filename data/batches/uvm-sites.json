@@ -1,0 +1,852 @@
+[
+ {
+  "id": "vlsiverify-001",
+  "title": "Why do we need UVM methodology?",
+  "prompt": "",
+  "source_notes": "The **Universal Verification Methodology (UVM)** is an IEEE standardized (IEEE 1800.2) methodology for verifying digital designs that facilitates developing reusable, modular, and well-structured verification testbenches.\n\n**Key Reasons & Benefits:**\n\n- **Reusability:** Provides a standardized class hierarchy (`uvm_driver`, `uvm_monitor`, `uvm_scoreboard`, `uvm_agent`, `uvm_env`) allowing verification components (UVCs) to be reused from block level to subsystem and SoC levels.\n\n- **Factory Mechanism:** Enables overriding components or transactions without modifying testbench code.\n\n- **Phasing Mechanism:** Standardizes testbench synchronization across components (`build`, `connect`, `run`, `check`, `report`), preventing race conditions.\n\n- **TLM (Transaction-Level Modeling):** Decouples communication between testbench components, making them modular and plug-and-play.\n\n- **Configuration Database (`uvm_config_db`):** Centralizes parameter and interface distribution across the testbench hierarchy.\n\n- **Multi-vendor Support:** Supported by all major EDA simulators (Synopsys, Cadence, Siemens/Mentor).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-002",
+  "title": "Difference between `uvm_object` and `uvm_component`",
+  "prompt": "",
+  "source_notes": "*Refer: *[*Difference_between_uvm_component_and_uvm_object*](https://vlsiverify.com/uvm/uvm-class-hierarchy#Difference_between_uvm_component_and_uvm_object)\n\n| Feature | `uvm_object` | `uvm_component` |\n| --- | --- | --- |\n| **Inheritance** | Base class for all UVM data objects | Derived from `uvm_object` (via `uvm_report_object`) |\n| **Nature / Lifetime** | **Transient / Dynamic**: Created and destroyed on the fly during simulation | **Quasi-static**: Created at elaboration/build phase and exists throughout simulation |\n| **Hierarchy** | No parent-child hierarchy | Strict parent-child hierarchy (`name` and `parent` required) |\n| **Constructor** | `function new(string name=\"uvm_object\");` | `function new(string name, uvm_component parent);` |\n| **Phases** | Does **not** participate in UVM phases | Executes standard UVM phases (`build_phase`, `connect_phase`, etc.) |\n| **Examples** | `uvm_sequence_item`, `uvm_sequence`, configuration objects | `uvm_driver`, `uvm_monitor`, `uvm_sequencer`, `uvm_scoreboard`, `uvm_env`, `uvm_test` |\n| **Registration** | Registered via `` `uvm_object_utils(T) `` | Registered via `` `uvm_component_utils(T) `` |\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-003",
+  "title": "Difference between `uvm_transaction` and `uvm_sequence_item`",
+  "prompt": "",
+  "source_notes": "- **`uvm_transaction`:** Inherited from `uvm_object`. Adds basic timing, notification events, and transaction recording capabilities.\n\n- **`uvm_sequence_item`:** Derived from `uvm_transaction`. Adds essential hooks and infrastructure for communicating with sequencers and drivers (e.g., `set_sequencer()`, `get_sequencer()`, `set_transaction_id()`, `get_transaction_id()`).\n\n- **Modern Recommendation:** `uvm_transaction` is considered **deprecated** as a base class for user stimulus. All user-defined transaction classes should extend `uvm_sequence_item`.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-004",
+  "title": "Difference between `create()` and `new()`",
+  "prompt": "",
+  "source_notes": "- **`new()` Method:** The native SystemVerilog constructor. It instantiates the exact class type specified at compile time. It does **not** query or support the UVM factory override mechanism.\n\n- **`create()` Method:** A static factory method provided by the UVM factory registry wrapper (`type_id::create()`). When called, it queries the UVM factory table to check if any type or instance override has been configured (e.g., via `set_type_override_by_type` or `set_inst_override_by_type`). If an override exists, it constructs the derived/overridden class instead of the original class.\n\n- **Summary:** Always use `<class_type>::type_id::create(\"name\", parent)` in UVM testbenches to preserve polymorphism and enable testbench configurability without code edits.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-005",
+  "title": "Difference between `copy()` and `clone()`",
+  "prompt": "",
+  "source_notes": "*Refer: *[*copy-and-clone-methods-in-uvm*](https://vlsiverify.com/uvm/copy-and-clone-methods-in-uvm)\n\n- **`copy()`:** Copies data fields from a source object into an **already allocated** destination object. It performs a deep copy of the fields.\n\n  ```systemverilog\n  target_item = my_item::type_id::create(\"target_item\");\n  target_item.copy(source_item); // target_item must already exist\n  ```\n\n- **`clone()`:** First creates a new object using `create()`, and then internally calls `copy()` to duplicate the fields. It returns a handle of type `uvm_object`, which requires `$cast` into the target class handle.\n\n  ```systemverilog\n  $cast(target_item, source_item.clone()); // Allocates and copies in one step\n  ```\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-006",
+  "title": "Difference between `uvm_resource_db` and `uvm_config_db`",
+  "prompt": "",
+  "source_notes": "*Refer: *[*Difference_between_uvm_config_db_and_uvm_resource_db*](https://vlsiverify.com/uvm/uvm_config_db-in-uvm#Difference_between_uvm_config_db_and_uvm_resource_db)\n\n| Feature | `uvm_resource_db` | `uvm_config_db` |\n| --- | --- | --- |\n| **Relationship** | The underlying core database engine in UVM | A layered convenience API built on top of `uvm_resource_db` |\n| **Lookup Mechanism** | String name lookup or type lookup (supports regex) | Hierarchical context + scope + field name lookup |\n| **Precedence Resolution** | **Last write wins**: If two writes occur to the same key, the later one wins regardless of hierarchy | **Hierarchical precedence**: Higher-level components in the hierarchy (e.g., test or env) have higher precedence over lower-level components during `build_phase` |\n| **Typical Usage** | Low-level resource sharing without hierarchical scoping | Standard UVM method for passing virtual interfaces, configuration objects, and knobs |\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-007",
+  "title": "What is severity and verbosity in UVM?",
+  "prompt": "",
+  "source_notes": "Severity and verbosity control reporting and message filtering in UVM.\n\n**1. Severity Levels (`uvm_severity`):** Indicates the criticality of a message:\n\n- `UVM_INFO`: Informational message indicating simulation milestones or variable values.\n\n- `UVM_WARNING`: Indicates non-fatal unexpected conditions that may require attention.\n\n- `UVM_ERROR`: Indicates a verification failure (e.g., scoreboard mismatch, protocol violation). Simulation continues by default.\n\n- `UVM_FATAL`: Indicates an unrecoverable failure. Terminates simulation immediately (`UVM_EXIT`).\n\n**2. Verbosity Levels (`uvm_verbosity`):** Filters informational messages (`UVM_INFO`):\n\n- `UVM_NONE` (0): Always printed; cannot be filtered out.\n\n- `UVM_LOW` (100): High-level milestone messages.\n\n- `UVM_MEDIUM` (200): Default verbosity level; standard progress reports.\n\n- `UVM_HIGH` (300): Detailed debugging messages.\n\n- `UVM_FULL` (400): Maximum verbosity (e.g., full transaction dumps).\n\n- `UVM_DEBUG` (500): Granular step-by-step debug traces.\n\n*Filter Rule:* A message is printed if `message_verbosity <= component_verbosity_threshold`.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-008",
+  "title": "Difference between `sequence` and `sequencer`",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-sequence*](https://vlsiverify.com/uvm/uvm-sequence)* and *[*uvm-sequencer*](https://vlsiverify.com/uvm/uvm-sequencer)\n\n- **`uvm_sequence`:**\n\n  - A transient object extending `uvm_sequence_base` (`uvm_object`).\n\n  - Contains procedural logic, generation algorithms, and timing flows to create stimulus transactions (`sequence_item`).\n\n  - Not bound to the structural hierarchy; can call sub-sequences.\n\n- **`uvm_sequencer`:**\n\n  - A quasi-static structural component extending `uvm_sequencer_base` (`uvm_component`).\n\n  - Acts as an arbiter and buffer between multiple running sequences and the driver.\n\n  - Receives transaction requests from sequences via `start_item()` / `finish_item()` and forwards them to the driver via TLM `seq_item_export`.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-009",
+  "title": "How to run any test case in UVM?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*Execution_of_the_test*](https://vlsiverify.com/uvm/uvm-test#Execution_of_the_test)\n\nThere are two primary ways to run a test case in UVM:\n\n1. **Explicitly in Top Module:**\n   Hardcoding the test name in the top testbench module:\n\n   ```systemverilog\n   initial begin\n     run_test(\"my_custom_test\");\n   end\n   ```\n\n2. **Via Command-Line Plusarg (Industry Standard):**\n   Calling `run_test()` without an argument in `tb_top`, and supplying the test name at runtime:\n\n   ```systemverilog\n   initial begin\n     run_test(); // No argument passed\n   end\n   ```\n\n   Command line invocation:\n\n   ```bash\n   <simulator_run_command> +UVM_TESTNAME=my_custom_test\n   ```\n\n   *Advantage:* The testbench is compiled once, and any test can be run without recompilation.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-010",
+  "title": "Write a simple UVM sequence template and explain each line",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm_sequence_class_structure*](https://vlsiverify.com/uvm/uvm-sequence#uvm_sequence_class_structure)\n\n```systemverilog\nclass my_sequence extends uvm_sequence #(my_seq_item);\n  // 1. Factory registration for uvm_object\n  `uvm_object_utils(my_sequence)\n\n  // 2. Standard uvm_object constructor\n  function new(string name = \"my_sequence\");\n    super.new(name);\n  endfunction\n\n  // 3. Main execution task defining the stimulus sequence\n  virtual task body();\n    my_seq_item req;\n\n    // 4. Create sequence item using UVM factory\n    req = my_seq_item::type_id::create(\"req\");\n\n    // 5. Request sequencer access and wait for driver grant\n    start_item(req);\n\n    // 6. Randomize item with optional inline constraints\n    if (!req.randomize() with { addr inside {[0:32'hFF]}; }) begin\n      `uvm_error(get_type_name(), \"Randomization failed\")\n    end\n\n    // 7. Send item to driver and block until driver signals item_done()\n    finish_item(req);\n  endtask\nendclass\n```\n\n**Step-by-step breakdown:**\n\n1. `uvm_sequence #(my_seq_item)`: Parameterizes the sequence with the specific item type to provide typed handles `req` and `rsp`.\n\n2. `` `uvm_object_utils ``: Enables factory creation and override mechanisms.\n\n3. `start_item(req)`: Interacts with the sequencer, arbitrates among concurrent sequences, and waits until the driver is ready.\n\n4. `randomize()`: Performed *after* `start_item` so late-randomization constraints can evaluate current state.\n\n5. `finish_item(req)`: Hands the transaction over to the driver and suspends until the driver completes handshake (`item_done()`).\n\n---",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Easy",
+  "language": "systemverilog"
+ },
+ {
+  "id": "vlsiverify-011",
+  "title": "How is scoreboard connected to different components?",
+  "prompt": "",
+  "source_notes": "The **UVM Scoreboard** receives transactions from monitors using TLM analysis ports and analysis exports/FIFOs:\n\n1. **Direct Connection via `uvm_analysis_imp`:**\n   The scoreboard declares an analysis implementation port (`uvm_analysis_imp #(item, scoreboard)`). In the `connect_phase` of the enclosing environment:\n\n   ```systemverilog\n   monitor.item_collected_port.connect(scoreboard.item_imp);\n   ```\n\n   The scoreboard must implement the `write(item t)` function.\n\n2. **Connection via `uvm_tlm_analysis_fifo` (Recommended for multi-input scoreboards):**\n   When comparing transactions from multiple monitors (e.g., ingress and egress), direct `write()` calls may create timing race conditions. Using TLM FIFOs decouples them:\n\n   ```systemverilog\n   // In env connect_phase:\n   in_mon.item_port.connect(scb.in_fifo.analysis_export);\n   out_mon.item_port.connect(scb.out_fifo.analysis_export);\n   ```\n\n   The scoreboard's `run_phase` can then independently `get()` from both FIFOs and compare results.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-012",
+  "title": "What is the UVM factory and what is its use?",
+  "prompt": "",
+  "source_notes": "The **UVM Factory** is a centralized object-creational registry based on the Factory Design Pattern.\n\n**Key Uses:**\n\n- Replaces direct constructor calls (`new()`) with polymorphic creation (`create()`).\n\n- Allows replacing an object or component type with a derived type across the entire testbench (`set_type_override_by_type`) or for a specific instance path (`set_inst_override_by_type`) without editing existing testbench code.\n\n- Essential for error injection tests, alternative protocol variations, and extending verification components.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-013",
+  "title": "Why phases are introduced in UVM? What are all phases present in UVM?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-phases*](https://vlsiverify.com/uvm/uvm-phases)\n\n**Why introduced:**\nIn traditional Verilog/SystemVerilog testbenches, components operated concurrently in unrestricted `initial` blocks, leading to race conditions during initialization, configuration, execution, and shutdown. UVM introduces structured phases to ensure all components transition synchronously through a deterministic lifecycle.\n\n**Phases Present in UVM:**\n\n1. **Build Phases (Functions - 0 simulation time, top-down):**\n\n   - `build_phase`: Constructs components and distributes configurations.\n\n   - `connect_phase`: Connects TLM ports and exports (bottom-up).\n\n   - `end_of_elaboration_phase`: Finalizes topology and adjustments.\n\n   - `start_of_simulation_phase`: Pre-run prints, banner display, and setup.\n\n2. **Run Phase (Tasks - time-consuming, parallel):**\n\n   - `run_phase`: Spans the active simulation time alongside 12 synchronized sub-phases:\n\n     - *Reset:* `pre_reset` $\to$ `reset` $\to$ `post_reset`\n\n     - *Configure:* `pre_configure` $\to$ `configure` $\to$ `post_configure`\n\n     - *Main (Stimulus):* `pre_main` $\to$ `main` $\to$ `post_main`\n\n     - *Shutdown:* `pre_shutdown` $\to$ `shutdown` $\to$ `post_shutdown`\n\n3. **Cleanup Phases (Functions - 0 simulation time, bottom-up):**\n\n   - `extract_phase`: Gathers state and counters.\n\n   - `check_phase`: Validates that no transactions were dropped and checkers passed.\n\n   - `report_phase`: Summarizes test results, pass/fail status, and coverage.\n\n   - `final_phase`: Last-minute file closures and cleanups.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-014",
+  "title": "What approach does `build_phase` use and why?",
+  "prompt": "",
+  "source_notes": "`build_phase` uses a **top-down** approach.\n\n**Reason:**\nA parent component (e.g., `uvm_test` or `uvm_env`) must be instantiated and configured first before it can determine what child components (e.g., agents, scoreboards, drivers, monitors) are needed and instantiate them. Furthermore, configuration settings and virtual interfaces pushed into `uvm_config_db` by the parent must be available when child components build themselves.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-015",
+  "title": "Draw and explain the verification environment in UVM",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-testbench-top*](https://vlsiverify.com/uvm/uvm-testbench-top)\n\n```\n+------------------------------------------------------------------------+\n|                               tb_top                                   |\n|  +--------------------+                     +-----------------------+  |\n|  |     DUT Instance   |<=== Interface ====>| Virtual Interface (vif)|  |\n|  +--------------------+                     +-----------+-----------+  |\n|                                                         |              |\n|  +------------------------------------------------------+-----------+  |\n|  | uvm_test_top (uvm_test)                                          |  |\n|  |   +------------------------------------------------------------+ |  |\n|  |   | uvm_env                                                    | |  |\n|  |   |  +-------------------------------------+  +--------------+ | |  |\n|  |   |  | uvm_agent                           |  | Scoreboard   | | |  |\n|  |   |  |  +-----------+     +------------+   |  |  (Checker &  | | |  |\n|  |   |  |  | Sequencer |<--->|   Driver   |===|==> Reference    | | |  |\n|  |   |  |  +-----------+     +------------+   |  |    Model)    | | |  |\n|  |   |  |                         | (vif)     |  +-------^------+ | |  |\n|  |   |  |                    +----+-------+   |          |        | |  |\n|  |   |  |                    |  Monitor   |===|==========+        | |  |\n|  |   |  |                    +------------+   |  +-------v------+ | |  |\n|  |   |  +-------------------------------------+  | Coverage     | | |  |\n|  |   |                                           | Collector    | | |  |\n|  |   |                                           +--------------+ | |  |\n|  |   +------------------------------------------------------------+ |  |\n|  +------------------------------------------------------------------+  |\n+------------------------------------------------------------------------+\n```\n\n**Component Breakdown:**\n\n- **`tb_top`:** Top SV module; instantiates DUT, interfaces, clock/reset generators, and calls `run_test()`.\n\n- **`uvm_test`:** Configures environment topology, test-specific parameters, and selects default sequences.\n\n- **`uvm_env`:** Encapsulates sub-environments, agents, scoreboards, and coverage collectors.\n\n- **`uvm_agent`:** Groups protocol-specific components:\n\n  - *Sequencer:* Controls sequence execution and arbitrates items.\n\n  - *Driver:* Converts sequence items to signal-level activity on the interface.\n\n  - *Monitor:* Samples interface signals and converts pin activity into transaction objects.\n\n- **`uvm_scoreboard`:** Compares DUT outputs against expected outputs from an integrated reference model.\n\n- **`Coverage Collector`:** Measures functional coverage points from sampled transactions.\n\n---",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "vlsiverify-016",
+  "title": "What all UVM phases take time?",
+  "prompt": "",
+  "source_notes": "Only **task-based** phases consume simulation time:\n\n- `run_phase` (spans the entire active simulation duration).\n\n- The 12 runtime sub-phases:\n\n  - `pre_reset_phase`, `reset_phase`, `post_reset_phase`\n\n  - `pre_configure_phase`, `configure_phase`, `post_configure_phase`\n\n  - `pre_main_phase`, `main_phase`, `post_main_phase`\n\n  - `pre_shutdown_phase`, `shutdown_phase`, `post_shutdown_phase`\n\n*All other phases (**`build`**, **`connect`**, **`check`**, **`report`**, etc.) are functions and execute in zero simulation time.*\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-017",
+  "title": "What all phases are functions and tasks in UVM?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*How_does_UVM_phase_execution_start*](https://vlsiverify.com/uvm/uvm-phases#How_does_UVM_phase_execution_start)\n\n- **Function Phases (Zero Simulation Time):**\n\n  - `build_phase(uvm_phase phase)`\n\n  - `connect_phase(uvm_phase phase)`\n\n  - `end_of_elaboration_phase(uvm_phase phase)`\n\n  - `start_of_simulation_phase(uvm_phase phase)`\n\n  - `extract_phase(uvm_phase phase)`\n\n  - `check_phase(uvm_phase phase)`\n\n  - `report_phase(uvm_phase phase)`\n\n  - `final_phase(uvm_phase phase)`\n\n- **Task Phases (Time-Consuming):**\n\n  - `run_phase(uvm_phase phase)`\n\n  - All 12 runtime sub-phases (`reset`, `configure`, `main`, `shutdown`, and their `pre`/`post` counterparts).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-018",
+  "title": "Why do we use the `super` keyword in phases like `super.build_phase`, `super.main_phase` etc.?",
+  "prompt": "",
+  "source_notes": "- The `super` keyword calls the base class implementation of the method.\n\n- In `build_phase`, calling `super.build_phase(phase)` executes `uvm_component::build_phase`, which automatically unpacks and assigns values from the `uvm_config_db` for fields registered with `uvm_field_*` macros.\n\n- In other phases, it ensures any base-class behavior or safety checks are preserved.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-019",
+  "title": "Difference between `` `uvm_do `` and `` `uvm_rand_send ``",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm_do_example*](https://vlsiverify.com/uvm/uvm-sequence-macros#uvm_do_example)* and *[*uvm_rand_send_example*](https://vlsiverify.com/uvm/uvm-sequence-macros#uvm_rand_send_example)\n\n- **`` `uvm_do(item/seq) ``:**\n  Carries out the full item lifecycle:\n\n  1. Creates the item using factory (`type_id::create()`).\n\n  2. Calls `start_item()`.\n\n  3. Randomizes the item (`randomize()`).\n\n  4. Calls `finish_item()`.\n\n- **`` `uvm_rand_send(item/seq) ``:**\n  Requires the item to **already be created/allocated**.\n\n  1. Calls `start_item()`.\n\n  2. Randomizes the item (`randomize()`).\n\n  3. Calls `finish_item()`.\n     *(Does not create the object).*\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-020",
+  "title": "What are bottom-up and top-down approaches in UVM phases?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-phases*](https://vlsiverify.com/uvm/uvm-phases)\n\n- **Top-Down Approach:**\n\n  - Parent components execute before child components.\n\n  - Used in: `build_phase`. (Parent must exist to instantiate and configure its children).\n\n- **Bottom-Up Approach:**\n\n  - Child components execute before their parent.\n\n  - Used in: `connect_phase`, `end_of_elaboration_phase`, `start_of_simulation_phase`, `extract_phase`, `check_phase`, `report_phase`, and `final_phase`. (Subcomponents must finalize connections and check status before the parent aggregates them).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-021",
+  "title": "How do `uvm_config_db` set/get work?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm_config_db-in-uvm*](https://vlsiverify.com/uvm/uvm_config_db-in-uvm)\n\nThe `uvm_config_db` is a type-parameterized configuration database providing a centralized mechanism to store and retrieve parameters, configuration objects, and virtual interface handles across the UVM hierarchy.\n\n#### 1. Syntax\n\n```systemverilog\n// Set method:\nuvm_config_db #(TYPE)::set(uvm_component cntxt, string inst_name, string field_name, TYPE value);\n\n// Get method:\nuvm_config_db #(TYPE)::get(uvm_component cntxt, string inst_name, string field_name, ref TYPE value);\n```\n\n#### 2. Arguments Breakdown\n\n- `cntxt`: The contextual component performing the set/get (usually `this` inside components, or `null` in `tb_top` / top module).\n\n- `inst_name`: Relative hierarchical path matching target component instance(s). Can use wildcards (e.g., `\"uvm_test_top.env.agent.*\"`).\n\n- `field_name`: Key/identifier string for the lookup.\n\n- `value`: Variable holding the value being written (`set`) or read (`get`).\n\n#### 3. Execution & Precedence Rules\n\n- **Lookup Key:** Internally forms a lookup tuple combining context hierarchy, `inst_name`, and `field_name`.\n\n- **Hierarchical Precedence in `build_phase`:** If multiple `set()` calls target the same variable, **the component higher up in the hierarchy wins** (e.g., a setting in `test` overrides a setting in `env`).\n\n- **Same-level Precedence:** If two `set()` calls occur at the same hierarchical level, the **last write wins**.\n\n- **Return Value of `get()`:** Returns `1` (true) on successful retrieval, `0` (false) if lookup fails or type mismatch occurs.\n\n#### 4. Common Example: Virtual Interface Binding\n\n```systemverilog\n// In tb_top:\ninitial begin\n  uvm_config_db #(virtual dut_if)::set(null, \"uvm_test_top*\", \"vif\", vif);\n  run_test();\nend\n\n// In driver build_phase:\nvirtual function void build_phase(uvm_phase phase);\n  super.build_phase(phase);\n  if (!uvm_config_db #(virtual dut_if)::get(this, \"\", \"vif\", vif)) begin\n    `uvm_fatal(\"NO_VIF\", \"Virtual interface not found in uvm_config_db\")\n  end\nendfunction\n```\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-022",
+  "title": "What is an analysis port?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*tlm_analysis_port_example*](https://vlsiverify.com/uvm/tlm/tlm-analysis-interface#tlm_analysis_port_example)\n\nThe `uvm_analysis_port #(T)` is a TLM-based communication channel that implements a **broadcast** (1-to-many or 1-to-0) pattern.\n\n**Key Characteristics:**\n\n- **Non-blocking `write()`:** Calling `ap.write(t)` is a function call that executes immediately without consuming simulation time.\n\n- **Flexible Fan-out:** Can be connected to zero, one, or multiple subscribers (scoreboards, coverage collectors, loggers).\n\n- If no subscribers are connected, calling `write()` safely does nothing without error.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-023",
+  "title": "What are `pre_body` and `post_body` used in sequence?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*start-a-sequence*](https://vlsiverify.com/uvm/start-a-sequence)\n\n- `pre_body()` and `post_body()` are user-definable callback tasks in `uvm_sequence_base`.\n\n- `pre_body()` executes immediately before `body()`.\n\n- `post_body()` executes immediately after `body()`.\n\n- **Critical Distinction:** They are called **only** when the sequence is started via `seq.start()`. They are **skipped** when the sequence is invoked via `` `uvm_do `` macros.\n\n- Historically used to raise/drop objections, though modern best practice prefers managing objections in tests or virtual sequences.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-024",
+  "title": "What is an active and passive agent?",
+  "prompt": "",
+  "source_notes": "- **Active Agent (`is_active = UVM_ACTIVE`):**\n\n  - Actively drives stimulus onto the DUT pins.\n\n  - Instantiates **sequencer**, **driver**, and **monitor**.\n\n- **Passive Agent (`is_active = UVM_PASSIVE`):**\n\n  - Passively observes DUT signals without driving anything.\n\n  - Instantiates **only the monitor**.\n\n  - Used for monitoring DUT output interfaces, or when verifying an SoC subsystem where another master IP drives the bus.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-025",
+  "title": "Difference between UVM subscriber and UVM scoreboard",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-subscriber*](https://vlsiverify.com/uvm/uvm-subscriber)* and *[*uvm-scoreboard*](https://vlsiverify.com/uvm/uvm-scoreboard)\n\n- **`uvm_subscriber #(T)`:**\n\n  - A specialized `uvm_component` designed as a convenient single-input consumer.\n\n  - Comes with a built-in `uvm_analysis_imp` named `analysis_export` and defines a pure virtual `function void write(T t)`.\n\n  - Primarily used for simple listeners, such as **coverage collectors**.\n\n- **`uvm_scoreboard`:**\n\n  - Extends `uvm_component` directly.\n\n  - Designed for complex verification checking; typically instantiates multiple analysis ports, exports, or TLM FIFOs (e.g., input monitor stream vs output monitor stream).\n\n  - Implements reference models, golden data predictors, queues/associative arrays, and data comparison logic.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-026",
+  "title": "What is UVM objection and why do we need it?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-objections*](https://vlsiverify.com/uvm/uvm-objections)\n\nUVM Objections provide a standardized mechanism to coordinate the **end of simulation** in time-consuming phases (chiefly `run_phase`).\n\n**How It Works:**\n\n- Components/sequences raise an objection when starting an activity: `phase.raise_objection(this);`\n\n- They drop the objection when the activity completes: `phase.drop_objection(this);`\n\n- As long as the global objection count is $> 0$, the phase remains active.\n\n- When all objections drop to $0$, UVM begins phase teardown (after an optional `set_drain_time()`) and advances to the cleanup phases (`extract`, `check`, `report`).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-027",
+  "title": "What are the different ways of exiting code execution?",
+  "prompt": "",
+  "source_notes": "1. **UVM Objections (Graceful & Recommended):** Dropping all objections allows UVM to finish the `run_phase` and proceed through `extract_phase`, `check_phase`, and `report_phase` to generate clean pass/fail summaries.\n\n2. **`$finish` System Task:** Abruptly halts the simulator. Bypasses remaining UVM cleanup and reporting phases unless wrapped in specialized handlers.\n\n3. **`uvm_fatal` / `uvm_report_fatal`:** Triggers `UVM_EXIT` action upon encountering an unrecoverable failure, exiting immediately.\n\n4. **Phase Timeout (`set_timeout`):** Configured via `uvm_root::get().set_timeout(time)` to automatically terminate execution if a runaway sequence or deadlock prevents objections from dropping.\n\n---",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "vlsiverify-028",
+  "title": "What is a sequence item in UVM?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*sequence-items-in-uvm*](https://vlsiverify.com/uvm/sequence-items-in-uvm)\n\nA **sequence item** (`uvm_sequence_item`) is the fundamental transaction object representing data exchanged between testbench components and the DUT at an abstracted protocol level (e.g., packet, bus cycle, frame).\n\n**Contents:**\n\n- Random variables (`rand bit [31:0] addr, data;`) representing pin-level stimulus fields.\n\n- Protocol constraints and knobs.\n\n- Utility automation macros (`` `uvm_field_* ``) or manual overrides for `do_copy()`, `do_compare()`, `do_print()`, and `do_pack()`.\n\n- Sequence/sequencer routing identifiers (`transaction_id`).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-029",
+  "title": "Explain how the sequence starts",
+  "prompt": "",
+  "source_notes": "*Refer: *[*start-a-sequence*](https://vlsiverify.com/uvm/start-a-sequence)\n\nA sequence is started by invoking its `start()` method:\n\n```systemverilog\nseq.start(m_sequencer, parent_sequence, priority, call_pre_post_body);\n```\n\n**Internal Execution Sequence:**\n\n1. Sets the sequencer handle (`m_sequencer`).\n\n2. Calls `pre_start()`.\n\n3. Calls `pre_body()` (if `call_pre_post_body == 1`).\n\n4. Executes the user's `body()` task (stimulus generation).\n\n5. Calls `post_body()` (if `call_pre_post_body == 1`).\n\n6. Calls `post_start()`.\n\n7. Once `body()` and all handshakes with the driver conclude, `start()` unblocks and returns.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-030",
+  "title": "How do sequence, driver, and sequencer communicate?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*sequence-driver-sequencer-communication-in-uvm*](https://vlsiverify.com/uvm/sequence-driver-sequencer-communication-in-uvm)\n\nCommunication follows a bi-directional request-response TLM handshake:\n\n```\nSequence                 Sequencer                 Driver\n   |                         |                       |\n   |-- start_item(req) ----->|                       |\n   |   (requests grant)      |                       |\n   |                         |<-- get_next_item(req)-|\n   |                         |    (driver ready)     |\n   |<- grants sequence ------|                       |\n   |                         |                       |\n   | [Late Randomization]    |                       |\n   |-- finish_item(req) ---->|===> forwards req ====>|\n   |   (sends item)          |                       |\n   |   (blocks waiting)      |                       | [Pin Wiggling]\n   |                         |                       |\n   |                         |<-- item_done() -------|\n   |<- unblocks finish_item -|                       |\n```\n\n1. **`start_item(req)`:** Sequence requests permission from sequencer.\n\n2. **`get_next_item(req)`:** Driver indicates it is ready for the next transaction. Sequencer arbitrates among competing sequences and grants access.\n\n3. **Randomization:** Sequence randomizes `req` with late state information.\n\n4. **`finish_item(req)`:** Sequence passes `req` through the sequencer to the driver and suspends.\n\n5. **Driver execution:** Driver translates transaction fields to interface pin signals.\n\n6. **`item_done()`:** Driver notifies sequencer that item execution is complete, unblocking `finish_item()` in the sequence.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-031",
+  "title": "What are lock and grab methods?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*lock-and-grab-methods-in-uvm-sequencer*](https://vlsiverify.com/uvm/lock-and-grab-methods-in-uvm-sequencer)\n\nBoth methods allow a sequence to request exclusive ownership of a sequencer, preventing other sequences from interleaving transactions:\n\n- **`lock(sequencer)`:** Places an arbitration lock request into the sequencer's queue. It waits politely until all previously queued sequence items ahead of it finish. Once granted, no other sequence can access the sequencer until `unlock()` is called.\n\n- **`grab(sequencer)`:** An aggressive, highest-priority lock. It takes effect immediately after the currently executing item finishes, jumping ahead of all other waiting sequences in the queue. Remains in effect until `ungrab()` is called.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-032",
+  "title": "What is the RAL model and its application?",
+  "prompt": "",
+  "source_notes": "The **Register Abstraction Layer (RAL)** provides an object-oriented representation of the DUT’s memory-mapped registers, register files, and memories.\n\n**Key Applications:**\n\n- **Named Access:** Read and write registers and fields by name (e.g., `regmodel.ctrl_reg.enable.write(status, 1)`) without hardcoding physical memory addresses.\n\n- **Mirroring:** Automatically tracks desired values vs mirrored values (what hardware actually holds).\n\n- **Pre-built Verification Sequences:** Includes turnkey UVM library sequences:\n\n  - Reset check (`uvm_reg_hw_reset_seq`)\n\n  - Bit-bash / walk 1s and 0s (`uvm_reg_bit_bash_seq`)\n\n  - Register access check (`uvm_reg_access_seq`)\n\n- **Functional Coverage:** Automatically generates register coverage models.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-033",
+  "title": "What do you mean by front-door and back-door register access?",
+  "prompt": "",
+  "source_notes": "- **Front-Door Access:**\n\n  - Accesses registers through the DUT's physical bus interface (e.g., APB, AXI).\n\n  - Uses the driver to wiggle physical interface signals.\n\n  - Consumes simulation time.\n\n  - Verifies bus protocol, address decoders, and bus fabric.\n\n- **Back-Door Access:**\n\n  - Accesses registers directly using simulator DPI / HDL hierarchal register signal paths (`uvm_hdl_read` / `uvm_hdl_deposit`).\n\n  - Bypasses physical bus logic.\n\n  - Consumes **zero simulation time**.\n\n  - Useful for fast register preloading during bring-up and sanity checking.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-034",
+  "title": "What is TLM?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*transaction-level-modeling-tlm*](https://vlsiverify.com/uvm/tlm/transaction-level-modeling-tlm)\n\n**Transaction-Level Modeling (TLM)** is a standard modeling paradigm that abstracts signal-level communication (clocks, wires, handshakes) into discrete transaction objects.\n\n**Key Features:**\n\n- Standard ports (`uvm_blocking_put_port`, `uvm_nonblocking_get_port`, `uvm_analysis_port`).\n\n- Standard interfaces: `put`, `get`, `peek`, `transport`, `write`.\n\n- Decouples component implementation from communication transport, allowing modular testbench composition and SystemC integration.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-035",
+  "title": "What is TLM FIFO?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*tlm-fifo*](https://vlsiverify.com/uvm/tlm/tlm-fifo)\n\nA **`uvm_tlm_fifo #(T)`** is a transaction storage component that sits between an independent producer and consumer:\n\n- Provides an internal storage queue of configurable depth.\n\n- Exposes `put_export` on one side and `get_export` on the other.\n\n- Decouples timing: A producer can push items (`put`) without waiting for the consumer, and a consumer can retrieve items (`get`) whenever ready.\n\n- **`uvm_tlm_analysis_fifo #(T)`:** Extends `uvm_tlm_fifo` with an `analysis_export` on the write side, making it ideal for scoreboards to receive non-blocking broadcast items from monitors.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-036",
+  "title": "What is `run_test`?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*run_test_task*](https://vlsiverify.com/uvm/uvm-test#run_test_task)\n\n`run_test` is a globally available UVM task defined in `uvm_globals.svh`:\n\n1. Initializes the UVM phase engine and retrieves the `uvm_root` (`uvm_top`) singleton instance.\n\n2. Checks if a test name was passed as an argument; if not, checks the command-line plusarg `+UVM_TESTNAME=<test_name>`.\n\n3. Instantiates the selected test class via the factory as `uvm_test_top`.\n\n4. Starts stepping through the UVM phase execution graph beginning with `build_phase`.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-037",
+  "title": "Explain generalized code structure for UVM monitor and scoreboard",
+  "prompt": "",
+  "source_notes": "*Refer: *[*UVM_Monitor_Example*](https://vlsiverify.com/uvm/uvm-monitor#UVM_Monitor_Example)* and *[*Scoreboard_Example*](https://vlsiverify.com/uvm/uvm-scoreboard#Scoreboard_Example)\n\n**1. Generalized Monitor Structure:**\n\n```systemverilog\nclass my_monitor extends uvm_monitor;\n  `uvm_component_utils(my_monitor)\n\n  virtual dut_if vif;\n  uvm_analysis_port #(my_item) item_port;\n\n  function new(string name, uvm_component parent);\n    super.new(name, parent);\n    item_port = new(\"item_port\", this);\n  endfunction\n\n  virtual function void build_phase(uvm_phase phase);\n    super.build_phase(phase);\n    uvm_config_db#(virtual dut_if)::get(this, \"\", \"vif\", vif);\n  endfunction\n\n  virtual task run_phase(uvm_phase phase);\n    forever begin\n      my_item item = my_item::type_id::create(\"item\");\n      // Sample pins on clock edge\n      @(posedge vif.clk iff vif.valid && vif.ready);\n      item.data = vif.data;\n      item.addr = vif.addr;\n      // Broadcast transaction\n      item_port.write(item);\n    end\n  endtask\nendclass\n```\n\n**2. Generalized Scoreboard Structure:**\n\n```systemverilog\nclass my_scoreboard extends uvm_scoreboard;\n  `uvm_component_utils(my_scoreboard)\n\n  // Use TLM analysis exports with analysis imp\n  `uvm_analysis_imp_decl(_in)\n  `uvm_analysis_imp_decl(_out)\n\n  uvm_analysis_imp_in  #(my_item, my_scoreboard) in_imp;\n  uvm_analysis_imp_out #(my_item, my_scoreboard) out_imp;\n\n  my_item exp_queue[$];\n\n  function new(string name, uvm_component parent);\n    super.new(name, parent);\n    in_imp  = new(\"in_imp\", this);\n    out_imp = new(\"out_imp\", this);\n  endfunction\n\n  virtual function void write_in(my_item item);\n    // Push expected transaction into queue\n    exp_queue.push_back(item);\n  endfunction\n\n  virtual function void write_out(my_item act_item);\n    my_item exp_item;\n    if (exp_queue.size() == 0) begin\n      `uvm_error(\"SCB\", \"Unexpected output packet received!\")\n      return;\n    end\n    exp_item = exp_queue.pop_front();\n    if (!act_item.compare(exp_item)) begin\n      `uvm_error(\"SCB\", \"Data mismatch detected!\")\n    end\n  endfunction\nendclass\n```\n\n---",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "vlsiverify-038",
+  "title": "What is an in-order and out-of-order scoreboard?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*UVM_Scoreboad_types*](https://vlsiverify.com/uvm/uvm-scoreboard#UVM_Scoreboad_types)\n\n- **In-Order Scoreboard:**\n\n  - Expects output transactions to arrive in the exact same sequence as input stimuli were applied.\n\n  - Implementation: Uses a standard FIFO queue (`exp_queue.push_back()` and `exp_queue.pop_front()`).\n\n  - Suitable for FIFOs, pipelined buffers without arbitration, and simple streaming interfaces.\n\n- **Out-of-Order Scoreboard:**\n\n  - Accommodates designs where transactions may complete out of arrival order (e.g., AXI bus with independent read/write IDs, PCIe split transactions, network routers).\n\n  - Implementation: Uses associative arrays or hash tables indexed by a transaction ID or tag (e.g., `exp_table[item.id] = item`). When an actual item arrives, it searches the table by key, compares contents, and deletes the matched entry.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-039",
+  "title": "Difference between `p_sequencer` and `m_sequencer`",
+  "prompt": "",
+  "source_notes": "| Feature | `m_sequencer` | `p_sequencer` |\n| --- | --- | --- |\n| **Definition** | Generic default sequencer handle built into `uvm_sequence_base` | User-defined, strongly-typed sequencer handle created in custom sequence |\n| **Data Type** | `uvm_sequencer_base` | Specific user sequencer type (e.g., `my_custom_sequencer`) |\n| **Availability** | Available by default in all sequences without declaration | Requires declaration via `` `uvm_declare_p_sequencer(my_custom_sequencer) `` |\n| **Member Access** | Can only access standard methods of `uvm_sequencer_base` | Can directly access custom sequencer variables, handles, clocks, and sub-sequencers |\n| **Virtual Sequences** | Inadequate for virtual sequences because it cannot see sub-sequencer handles | Essential in virtual sequences to coordinate child sequencers directly |\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-040",
+  "title": "What is a virtual sequence? How is it used? Is it necessary to have a virtual sequencer for a virtual sequence?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*virtual-sequence-and-virtual-sequencer*](https://vlsiverify.com/uvm/virtual-sequence-and-virtual-sequencer)\n\n- **What is a Virtual Sequence?**\n  A sequence that coordinates and orchestrates stimulus generation across **multiple interfaces/agents** simultaneously (e.g., configuring registers over APB while driving Ethernet packets into an ingress port).\n\n- **How is it used?**\n  It does **not** send sequence items directly to a driver. Instead, its `body()` task starts child sequences on different physical sequencers.\n\n- **Is a virtual sequencer necessary?**\n  **No, it is not strictly necessary.**\n\n  - If a virtual sequencer is used, the virtual sequence accesses child sequencer handles via its `p_sequencer`.\n\n  - Alternatively, the sub-sequencer handles can be passed directly to the virtual sequence from the test or configuration object before calling `seq.start(null)`, completely eliminating the need for a virtual sequencer component.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-041",
+  "title": "Explain the virtual sequencer and its use",
+  "prompt": "",
+  "source_notes": "*Refer: *[*virtual-sequence-and-virtual-sequencer*](https://vlsiverify.com/uvm/virtual-sequence-and-virtual-sequencer)\n\n- **What it is:** A `uvm_sequencer` subclass that contains handles pointing to real agent sequencers within the testbench environment.\n\n- **Distinguishing characteristic:** It is **not** connected to any driver (`seq_item_port`).\n\n- **Use:** Serves as a centralized lookup container. Virtual sequences can target this virtual sequencer using `` `uvm_declare_p_sequencer(v_sequencer_t) `` to obtain clean, typed access to all underlying sub-sequencers.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-042",
+  "title": "What is the UVM barrier and its usage?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-barrier*](https://vlsiverify.com/uvm/uvm-barrier)\n\n`uvm_barrier` is a synchronization class used to align multiple concurrent processes or threads across different components:\n\n- Configured with a threshold count: `barrier.set_threshold(N);`\n\n- When a process reaches a synchronization checkpoint, it calls `barrier.wait_for();` and blocks.\n\n- Once $N$ processes have called `wait_for()`, the barrier trips, and all $N$ waiting processes are unblocked simultaneously.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-043",
+  "title": "What is the UVM heartbeat and its usage?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*uvm-heartbeat*](https://vlsiverify.com/uvm/uvm-heartbeat)\n\n`uvm_heartbeat` is a liveness monitoring mechanism designed to prevent and diagnose simulation deadlocks or hangs:\n\n- Monitored components trigger heartbeat signals (e.g., raising an event on each completed transaction or periodic activity).\n\n- The heartbeat monitor checks that active components emit signals within a predefined window.\n\n- If a component fails to emit a heartbeat within the allowable interval, the heartbeat monitor flags a timeout and terminates simulation with a detailed debug report.\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-044",
+  "title": "What is a Singleton object and its usage?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*singleton-object*](https://vlsiverify.com/uvm/singleton-object)\n\nA **Singleton** is an object-oriented design pattern ensuring that only **one instance** of a specific class exists throughout the entire simulation, accessible via a global static method (e.g., `get()`).\n\n**Usage in UVM:**\n\n- `uvm_root` (`uvm_top`): The root component managing the entire testbench hierarchy and phase execution.\n\n- `uvm_factory`: The global registry holding all type and instance overrides.\n\n- Configuration and Resource databases (`uvm_config_db`, `uvm_resource_db`).\n\n---",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "vlsiverify-045",
+  "title": "Given an IP, you are the owner of the IP, what are the steps you start with and when will it be signed off?",
+  "prompt": "",
+  "source_notes": "*Refer: *[*asic-verification-flow*](https://vlsiverify.com/asic-flows/asic-verification-flow)\n\n#### Step-by-Step ASIC/IP Verification Flow:\n\n1. **Specification Review:** Study architectural specs, register maps, interface timing diagrams, and protocol requirements.\n\n2. **Verification Plan (vPlan) Creation:** Define features, test scenarios, coverage metrics, error cases, and corner conditions.\n\n3. **Testbench Architecture & Environment Setup:**\n\n   - Develop interfaces, UVC agents (driver, monitor, sequencer).\n\n   - Implement scoreboards, reference models, and register models (RAL).\n\n4. **Sanity & Bring-Up:** Develop reset sequence, register read/write tests, and basic smoke tests to ensure DUT is alive.\n\n5. **Feature Verification:** Implement directed and constrained-random sequences targeting every feature in the vPlan.\n\n6. **Error Injection & Stress Testing:** Test corner cases, backpressure, FIFO full/empty, invalid protocol handshakes, and illegal configurations.\n\n7. **Coverage Analysis & Closure:**\n\n   - **Functional Coverage:** Measure covergroups and coverpoints against the vPlan.\n\n   - **Code Coverage:** Review line, branch, condition, toggle, and FSM coverage.\n\n   - **Assertion Coverage:** Verify SVA protocol assertions.\n\n8. **Regression Automation:** Run nightly randomized test suites across multiple seeds.\n\n#### Sign-off Criteria:\n\n- **100% Functional Coverage** achieved against the approved verification plan.\n\n- **Target Code Coverage** reached (typically $>95-98\\%$ with all unreached lines formally reviewed/waived).\n\n- **100% Assertion Coverage** with zero assertion failures.\n\n- **Zero Open Severity-1 / Severity-2 Bugs**.\n\n- **Clean Regressions:** Multiple clean regression runs across random seeds without failures.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-001",
+  "title": "Explain TLM ports and exports in UVM with examples",
+  "prompt": "",
+  "source_notes": "In the Universal Verification Methodology (UVM), **TLM (Transaction Level Modeling) ports and exports are used for communication between different components of the testbench, such as the testbench itself and the DUT (Design Under Test).**\n\n**TLM ports** are interfaces that allow the testbench components to initiate transactions to the DUT, while **TLM exports** are interfaces that allow the DUT to initiate transactions to the testbench.\n\nHere is an example to illustrate the use of **TLM ports and exports** in UVM:\n\nAssume that we have a testbench component called “driver” that generates stimulus for the DUT and a testbench component called “monitor” that monitors the DUT’s behavior. We want to use TLM ports and exports to allow communication between the driver and the DUT, and between the DUT and the monitor.\n\nFirst, we define a **TLM port** in the driver component:\n\n```\nclass driver extends uvm_driver #(transaction);\n  // Define a TLM port for the driver\n  `uvm_analysis_port #(transaction) analysis_port;\n  ...\nendclass\n\n```\n\nThis **TLM port** is used to send transactions from the driver to the DUT.\n\nNext, we define a **TLM export** in the DUT:\n\n```\nclass dut extends uvm_component;\n  // Define a TLM export for the DUT\n  `uvm_analysis_export #(transaction) analysis_export;\n  ...\nendclass\n\n```\n\nThis **TLM export** is used to send transactions from the DUT to the monitor.\n\nFinally, we **connect** the **TLM port and export** in the testbench’s build phase:\n\n```\nclass my_testbench extends uvm_test;\n  // Instantiate the driver, DUT, and monitor components\n  driver my_driver;\n  dut my_dut;\n  monitor my_monitor;\n  ...\n\n  function void build_phase(uvm_phase phase);\n    super.build_phase(phase);\n    // Connect the driver's analysis port to the DUT's analysis export\n    my_driver.analysis_port.connect(my_dut.analysis_export);\n    // Connect the DUT's analysis port to the monitor's analysis export\n    my_dut.analysis_port.connect(my_monitor.analysis_export);\n    ...\n  endfunction\nendclass\n\n```\n\nThis code **connects the driver’s TLM port to the DUT’s TLM export**, and the **DUT’s TLM port to the monitor’s TLM export.** Now the driver can send transactions to the DUT, which can then send transactions to the monitor for analysis.\n\nOverall,** TLM ports and exports** provide a powerful mechanism for communication between different components of a testbench in UVM, allowing for modular and flexible testbench design.\n\nFor more details regarding **UVM TLM Concepts** please refer below mentioned blog post:",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-002",
+  "title": "How analysis ports/FIFOs and TLM ports/FIFOs differs? Explain the usecase of analysis ports/FIFOs being used in the testbench?",
+  "prompt": "",
+  "source_notes": "In UVM, **analysis ports and TLM (Transaction Level Modeling) ports** are both used for communication between UVM components, but they serve slightly different purposes.\n\n**Analysis ports are used for one-to-many communication**, where a single UVM component sends data to multiple other components. An analysis port is typically implemented as a SystemVerilog interface with an associated `write` method. Components that want to receive the data connect to the analysis port using a **`` `uvm_analysis_port ``** object, which provides a **`write` method** that forwards the data to the **analysis port**. The analysis port then distributes the data to all connected components. Analysis ports are typically used for broadcasting events or passing data to multiple subscribers, such as for logging or coverage collection.\n\n**TLM ports, on the other hand, are used for point-to-point communication** between UVM components. TLM ports are also implemented as SystemVerilog interfaces, but they typically provide a set of transaction-level methods (such as `write`, `read`, `peek`, etc.) that allow components to exchange transaction-level data directly. Components connect to TLM ports using a **`uvm_tlm_port`**`  or  `**`` `uvm_tlm_fifo ``** object. TLM ports are typically used for more fine-grained communication between components, such as passing transactions between a driver and a monitor.\n\nSimilarly, **analysis FIFOs and TLM FIFOs are used for one-to-many and point-to-point communication, respectively**. Analysis FIFOs are implemented as SystemVerilog interfaces with an associated `write` method that allows components to push data into the FIFO. Components that want to receive the data connect to the analysis FIFO using a **``uvm_analysis_fifo`** object, which provides a `get` method that retrieves the data from the FIFO. TLM FIFOs, on the other hand, are implemented as SystemVerilog classes that provide a set of transaction-level methods (such as `write`, `read`, `peek`, etc.) that allow components to exchange transaction-level data directly. Components connect to TLM FIFOs using a **``uvm_tlm_fifo`** object.\n\nThe use case of analysis ports/FIFOs and TLM ports/FIFOs in UVM depends on the specific needs of the design being tested. In general, analysis ports/FIFOs are useful for broadcasting events or passing data to multiple subscribers, while TLM ports/FIFOs are useful for fine-grained communication between specific pairs of components. **For example, analysis ports/FIFOs might be used to log data or collect coverage information from multiple components in a testbench, while TLM ports/FIFOs might be used to pass transaction-level data between a driver and a monitor.**",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-003",
+  "title": "Sequence Vs Sequence item in UVM? Explain with Example",
+  "prompt": "",
+  "source_notes": "In the Universal Verification Methodology (UVM), a sequence is a class that defines a series of operations or stimuli to be applied to a DUT (Design Under Test) to test its functionality. Each operation or stimulus in a sequence is referred to as a sequence item.\n\nTo illustrate the difference between a sequence and sequence item in UVM, consider the following example:\n\n```verilog\nclass ReadWriteSequence extends uvm_sequence#(ReadWriteSequenceItem);\n  `uvm_object_utils(ReadWriteSequence)\n\n  virtual task body();\n    ReadWriteSequenceItem item;\n\n    // Read sequence\n    item = ReadWriteSequenceItem::type_id::create(\"read_item\");\n    item.operation = READ;\n    start_item(item);\n    finish_item(item);\n\n    // Write sequence\n    item = ReadWriteSequenceItem::type_id::create(\"write_item\");\n    item.operation = WRITE;\n    item.data = 0xABCD;\n    start_item(item);\n    finish_item(item);\n  endtask\nendclass\n\nclass ReadWriteSequenceItem extends uvm_sequence_item;\n  `uvm_object_utils(ReadWriteSequenceItem)\n\n  typedef enum {READ, WRITE} operation_e;\n  operation_e operation;\n  rand int data;\n\n  // ...\nendclass\n```\n\nIn this example, `ReadWriteSequence` is a **UVM sequence that defines a sequence of operations** to be applied to a DUT. It includes **two sequence items: a read item and a write item.** Each item is of type `ReadWriteSequenceItem`, which is a subclass of `uvm_sequence_item`. The `ReadWriteSequenceItem` class defines the attributes for each item, including the type of operation (read or write) and the data to be written in the case of a write operation.\n\nSo, to summarize, **a sequence is a collection of sequence items that defines a series of operations to be applied to a DUT, while a sequence item is an individual operation or stimulus within a sequence, with its own set of attributes and behaviors.**",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-004",
+  "title": "Explain how uvm_transaction differs from a uvm_sequence_item in UVM with example",
+  "prompt": "",
+  "source_notes": "In the Universal Verification Methodology (UVM), a transaction is a collection of data items that represent a single unit of information being transferred between two components. On the other hand, a sequence item is an object that represents a single transaction that needs to be sent or received.\n\nThe main difference between a **`uvm_transaction`** and a **`uvm_sequence_item`** is their level of abstraction. A `uvm_sequence_item` is a more abstract representation of a transaction, while a `uvm_transaction` is a more concrete representation.\n\nA **`uvm_sequence_item`** is typically used to specify the behavior of a particular transaction that needs to be generated or monitored. It contains the necessary data fields and methods to generate or check a transaction, but it does not contain any implementation details. The implementation details are provided by the `uvm_driver` or `uvm_monitor` that handle the **`uvm_sequence_item`.**\n\nHere is an example of a `uvm_sequence_item` that represents a read transaction:\n\n```verilog\nclass read_sequence_item extends uvm_sequence_item;\n  rand bit [31:0] addr;\n  rand bit [7:0] data;\n\n  `uvm_object_utils(read_sequence_item)\n\n  function new(string name = \"read_sequence_item\");\n    super.new(name);\n  endfunction\n\n  task pre_randomize();\n    // Set defaults for the data fields\n    addr = 0;\n    data = 0;\n  endtask\nendclass\n```\n\nIn this example, the `read_sequence_item` contains two data fields, `addr` and `data`, that represent the address and data of the read transaction. It also has a `pre_randomize` task that sets default values for the data fields before they are randomized.\n\nOn the other hand, a **`uvm_transaction`** is a more concrete representation of a transaction. It is used to represent the actual transaction that is being generated or monitored by the `uvm_driver` or `uvm_monitor`. It contains the same data fields as the `uvm_sequence_item`, but it also includes implementation details such as timing information and status information.\n\nHere is an example of a `uvm_transaction` that represents the read transaction:\n\n```verilog\nclass read_transaction extends uvm_transaction;\n  bit [31:0] addr;\n  bit [7:0] data;\n  bit [31:0] timestamp;\n  bit error;\n\n  `uvm_object_utils(read_transaction)\n\n  function new(string name = \"read_transaction\");\n    super.new(name);\n  endfunction\nendclass\n```\n\nIn this example, the `read_transaction` contains the same data fields as the `read_sequence_item`, but it also includes a `timestamp` field that represents the time when the transaction was generated or received, and an `error` field that represents whether an error occurred during the transaction.\n\n**In summary, a `uvm_sequence_item` is a more abstract representation of a transaction that is used to specify the behavior of a transaction, while a `uvm_transaction` is a more concrete representation of a transaction that includes implementation details such as timing and status information. It is recommended to use uvm_sequence_item for implementing sequence-based stimulus.**",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-005",
+  "title": "copy() Vs clone() Vs create() method in a UVM components?",
+  "prompt": "",
+  "source_notes": "In UVM (Universal Verification Methodology), copy(), clone(), and create() are methods used for creating new objects. The main difference between these methods is:\n\n- \\1) The **create()** method constructs a new object through the UVM factory. For example, for a sequence item:\n\n  ```systemverilog\n  my_item item;\n  item = my_item::type_id::create(\"item\");\n  ```\n\n  The class must be registered with the factory (for example, with `uvm_object_utils(my_item)`). For a component, pass its parent too: `my_driver::type_id::create(\"driver\", this)`.\n\n- \\2) The **copy()** method copies the contents of one object into another already-created object. In UVM, the destination object's `copy()` method takes the source as its argument:\n\n  ```systemverilog\n  my_item src, dst;\n  src = my_item::type_id::create(\"src\");\n  dst = my_item::type_id::create(\"dst\");\n  src.data = 8'hA5;\n  dst.copy(src); // Copy src's data into dst\n  ```\n\n  The class should implement `do_copy()` to copy its own fields (and call `super.do_copy()` when appropriate).\n\n- \\3) The **clone()** method creates a new object and copies the current object's contents into it. It returns a `uvm_object` handle, so cast it to the specific type:\n\n  ```systemverilog\n  my_item src, cloned;\n  src = my_item::type_id::create(\"src\");\n  src.data = 8'hA5;\n  if (!$cast(cloned, src.clone()))\n    `uvm_fatal(\"CLONE_FAIL\", \"Could not cast cloned object\")\n  // cloned is a separate object with copied field values\n  ```\n\n  `clone()` relies on the factory `create()` mechanism and the class's copy implementation. These examples assume `my_item` registers with the factory and implements field copying (often using UVM field macros or `do_copy()`).",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-006",
+  "title": "How get_name() differs from get_full_name() method in a UVM?",
+  "prompt": "",
+  "source_notes": "In UVM (Universal Verification Methodology), **get_name()** and **get_full_name()** are methods used to retrieve the name of an object. The main difference between these methods is:\n\n1. **get_name():** The get_name() method retrieves the name of an object, but only the name of the object itself, without any hierarchy information. This method returns a string that represents the name of the object.\n\n2. **get_full_name():** The get_full_name() method retrieves the full hierarchical name of an object, including the names of all the parent objects, separated by dots. This method returns a string that represents the full hierarchical name of the object.\n\nIn other words, **get_name()** returns the name of the object itself, while **get_full_name()** returns the full hierarchical name of the object, including the names of all the parent objects in the hierarchy.\n\nFor example, suppose a component named `my_driver` is created under an environment named `env`, which is under the test `uvm_test_top`.\n\n```systemverilog\nclass my_driver extends uvm_driver #(my_item);\n  `uvm_component_utils(my_driver)\n\n  function new(string name, uvm_component parent);\n    super.new(name, parent);\n  endfunction\nendclass\n\n// In the environment's build_phase:\ndriver = my_driver::type_id::create(\"my_driver\", this);\n\n// For that driver instance:\n// get_name()      returns \"my_driver\"\n// get_full_name() returns \"uvm_test_top.env.my_driver\"\n$display(\"name=%s full=%s\", driver.get_name(), driver.get_full_name());\n```\n\n`get_name()` returns only this component's local name; `get_full_name()` includes its UVM component hierarchy. These methods are most useful on `uvm_component` objects; ordinary `uvm_object` objects do not have a component hierarchy.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-007",
+  "title": "Explain the difference between UVM ACTIVE agent and UVM PASSIVE agent?",
+  "prompt": "",
+  "source_notes": "In the context of the Universal Verification Methodology (UVM), an **ACTIVE** agent is an agent that initiates transactions on its own, whereas a **PASSIVE** agent waits for the other side to initiate transactions.\n\nAn **ACTIVE** agent is responsible for generating transactions and driving them onto the bus or interface. It contains the logic to create the stimulus and control the timing of the transactions. ACTIVE agents are commonly used for stimulus generation, protocol checking, and coverage collection.\n\nOn the other hand, a **PASSIVE** agent is responsible for receiving transactions and responding to them. It waits for the other side to initiate transactions and reacts to them accordingly. PASSIVE agents are commonly used for monitoring the protocol, collecting protocol statistics, and checking for errors or violations.\n\nAn Agent is normally configured ACTIVE in a block level verification environment where stimulus is required to be generated. Same agent can be configured PASSIVE as we move from block level to chip level verification environment in which no stimulus generation is needed, but we still can use same for monitoring activity in terms of debug or coverage.\n\nTo summarize, the key difference between ACTIVE and PASSIVE agents in UVM is that ACTIVE agents initiate transactions, while PASSIVE agents wait for transactions to be initiated by the other side.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-008",
+  "title": "How is an Agent configured as ACTIVE or PASSIVE?",
+  "prompt": "",
+  "source_notes": "UVM agents have a variable of type UVM_ACTIVE_PASSIVE_e which defines whether the agent is active (UVM_ACTIVE) with the sequencer and the driver constructed, or passive (UVM_PASSIVE) with neither the driver nor the sequencer constructed. This parameter is called active and by default, it is set to UVM_ACTIVE. This can be changed using set_config_int() while the agent is created in the environment class. The build phase of the agent should then have the code as below to selectively construct driver and sequencer.\n\n```verilog\nfunction void build_phase(uvm_phase phase);\nif(m_cfg.active == UVM_ACTIVE) begin\n//create driver, sequencer\nend\nendfunction\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-009",
+  "title": "In UVM how a monitor differs from a scoreboard in UVM?",
+  "prompt": "",
+  "source_notes": "In the Universal Verification Methodology (UVM), monitors and scoreboards are two distinct components used for verifying the design under test (DUT).\n\nA **monitor** is responsible for observing signals or transactions on the DUT’s interface and converting them into a higher-level abstraction that can be easily understood by the testbench. The monitor typically operates at the physical layer and captures the data being sent or received by the DUT. It can also perform additional tasks such as protocol checking, error detection, and data extraction.\n\nOn the other hand, a **scoreboard** is responsible for comparing the actual results generated by the DUT with the expected results provided by the testbench. It takes in the data produced by the monitor and performs comparisons against the expected data. The scoreboard typically operates at the transactional or functional layer and can identify errors such as incorrect data, missing transactions, or out-of-order transactions.\n\nIn summary, while both monitors and scoreboards are used for verification in UVM, they have distinct roles and operate at different layers of abstraction. The monitor captures the data being sent or received by the DUT, while the scoreboard performs comparisons against the expected results provided by the testbench.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-010",
+  "title": "What steps are needed to run a sequence?",
+  "prompt": "",
+  "source_notes": "There are three steps needed to run a sequence as follows:\n\n\\1) Creating a sequence. A sequence is created using the factory create method as shown below:\n\n```systemverilog\nmy_sequence_c seq;\nseq = my_sequence_c::type_id::create(\"my_seq\");\n```\n\n\\2) Configuring or randomizing a sequence. A sequence might have several data members that might need configuration or randomization. Accordingly, either configure values or call **seq.randomize()**. For example:\n\n```systemverilog\nif (!seq.randomize())\n  `uvm_error(\"RANDFAIL\", \"Sequence randomization failed\")\n```\n\n\\3) Starting a sequence. A sequence is started using the **sequence.start()** method. Pass the sequencer handle on which it should run. For example, from a test or another component:\n\n```systemverilog\nseq.start(env.agent.sequencer);\n```\n\nThe call to `start()` runs the sequence's `body()` task and blocks until the sequence completes. Together, the steps look like this:\n\n```systemverilog\nmy_sequence_c seq;\nseq = my_sequence_c::type_id::create(\"my_seq\");\nif (!seq.randomize())\n  `uvm_fatal(\"RANDFAIL\", \"Sequence randomization failed\")\nseq.start(env.agent.sequencer);\n```",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-011",
+  "title": "What are pre_body() and post_body() functions in a sequence? Do they always get called?",
+  "prompt": "",
+  "source_notes": "pre_body() is a method in a sequence class that gets called before the body() method of a sequence is called. post_body() method in sequence gets called after the body() method is called.\n\nThe pre_body() and post_body() methods are not always called. The uvm_sequence::start() has an optional argument which if set to 0, will result in these methods not being called. Following are the formal argument of start() method in a sequence.\n\n```\nvirtual task start (\nuvm_sequencer_base sequencer, // Pointer to sequencer\nuvm_sequence_base parent_sequencer = null, // parent sequencer\ninteger this_priority = 100, // Priority on the sequencer\nbit call_pre_post = 1); // pre_body and post_body called\n```",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-012",
+  "title": "Is the start() method on a sequence blocking or nonblocking?",
+  "prompt": "",
+  "source_notes": "The start() method is a blocking call. It blocks execution until the body() method of the sequence completes execution.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-013",
+  "title": "How can a sequence get exclusive access to a sequencer?",
+  "prompt": "",
+  "source_notes": "When multiple sequences are run on a sequencer, the sequencer arbitrates and grants access to each sequence on a sequence item boundary. Sometimes a sequence might want exclusive access to sequencer until all the sequence items part of it are driven to the driver\n\n(for example: if you want to stimulate a deterministic pattern without any interruption).\n\nThere are two mechanisms that allow a sequence to get exclusive access to sequencer.\n\n\\1) **Using lock() and unlock( )**: A sequence can call the lock method of the sequencer on which it runs. The calling sequence will be granted exclusive access to the driver when it gets the next slot via the sequencer arbitration mechanism. If there are other sequences marked as a higher priority, this sequence needs to wait until it gets its slot. Once the lock is granted, no other sequences will be able to access the driver until the sequence issues an unlock() call on the sequencer which will then release the lock. The lock method is blocking and does not return until the lock has been granted.\n\n\\2) **Using grab() and ungrab(): **The grab method is similar to the lock method and can be called by the sequence when it needs exclusive access. The difference between grab and lock is that when grab() is called, it takes immediate effect and the sequence will grab the next sequencer arbitration slot, overriding any sequence priorities in place. The only thing that can stop a sequence from grabbing a sequencer is an already existing lock() or grab() condition on the sequencer.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-014",
+  "title": "What is the difference between a pipelined and a non-pipelined sequence-driver model?",
+  "prompt": "",
+  "source_notes": "Based on how a design interface needs to be stimulated, there can be two modes implemented in an UVM driver class.\n\n\\1) Non-pipelined model: If the driver models only one active transaction at a time, then it is called a non-pipelined model. In this case, the sequence can send one transaction to the driver and the driver might take several cycles (based on the interface protocol) to finish driving that transaction. Only after that, the driver will accept a new transaction from the sequencer\n\n```verilog\nclass nonpipe_driver extends uvm_driver #(req_c);\n  task run_phase(uvm_phase phase);\n  req_c req;\n  forever begin\n    get_next_item(req); // Item from sequence via sequencer\n    // drive request to DUT which can take more clocks\n    // Sequence is blocked to send new items til then\n    item_done(); // ** Unblocks finish_item() in sequence\n  end\n  endtask: run_phase\nendclass: nonpipe_driver\n\n```\n\n\\2) **Pipelined model**: If the driver models more than one active transaction at a time, then it is called a pipelined model. In this case sequence can keep sending new transactions to driver without waiting for driver to complete a previous transaction. In this case, on every transaction send from the sequence, driver will fork a separate process to drive the interface signals based on that transaction, but will not wait until it is completed before accepting a new transaction. This modelling is useful if we want to drive back to back requests on an interface without waiting for responses from design.\n\n```verilog\nclass pipeline_driver extends uvm_driver #(req_c);\n  task run_phase(uvm_phase phase);\n  req_c req;\n  forever begin\n    get_next_item(req); // Item from sequence via sequencer\n    fork\n      begin\n        //drive request to DUT which can take more clocks\n        //separate thread that doesn’t block sequence\n        //driver can accept more items without waiting\n      end\n    join_none\n    item_done(); // ** Unblocks finish_item() in sequence\n  end\n  endtask: run_phase\nendclass: pipeline_driver\n\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-015",
+  "title": "How do we make sure that if multiple sequences are running on a sequencer-driver, responses are send back from the driver to the correct sequence?",
+  "prompt": "",
+  "source_notes": "If responses are returned from the driver for one of several sequences, the sequence id field in the sequence is used by the sequencer to route the response back to the right sequence. The response handling code in the driver should use the ***set_id_info() ***call to ensure that any response items have the same sequence id as their originating request.\n\nHere is an example code in driver that gets a sequence item and sends a response back\n\n(*Note that this is a reference pseudo code for illustration and some functions are assumed to be coded somewhere else*)\n\n```verilog\nclass my_driver extends uvm_driver;\n  //function that gets item from sequence port and\n  //drives response back\n  function drive_and_send_response();\n    forever begin\n      seq_item_port.get(req_item);\n      //function that takes req_item and drives pins\n      drive_req(req_item);\n      //create a new response item\n      rsp_item = new();\n      //some function that monitors response signals from dut\n      rsp_item.data = m_vif.get_data();\n      //copy id from req back to response\n      rsp.set_id_info(req_item);\n      //write response on rsp port\n      rsp_port.write(rsp_item);\n    end\n  endfunction\nendclass\n\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-016",
+  "title": "What is the difference between early randomization and late randomization while generating a sequence?",
+  "prompt": "",
+  "source_notes": "In **Early randomization**, a sequence object is first randomized using randomize() call and then the sequence calls start_item() to request access to a sequencer, which is a blocking call and can take time-based upon how busy the sequencer is. The following example shows an object (req) randomized first and then sequence waits for arbitration\n\n```verilog\ntask body()\n  assert(req.randomize());\n  start_item(req); //Can consume time based on sequencer arbitration\n  finish_item(req);\nendtask\n\n```\n\nIn **Late randomization,** a sequence first calls start_item() , waits until arbitration is granted from the sequencer, and then just before sending the transaction to sequencer/driver, randomize is called. This has the advantage that items are randomized just in time and can use any feedback from design or other components just before sending an item to driver. Following code shows late randomization of a request (req)\n\n```verilog\ntask body()\n  start_item(req); //Can consume time based on sequencer arbitration\n  assert(req.randomivze());\n  finish_item(req);\nendtask\n\n```",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-017",
+  "title": "What is the difference between get_next_item() and try_next_item() methods in UVM driver class?",
+  "prompt": "",
+  "source_notes": "The `get_next_item()` is a **blocking call** (part of the driver-sequencer API) which blocks until a sequence item is available for the driver to process, and returns a pointer to the sequence item.\n\nThe `try_next_item()` is a **nonblocking** version which returns a null pointer if no sequence item is available for driver to process.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-018",
+  "title": "What is the difference between get_next_item() and get() methods in UVM driver class?",
+  "prompt": "",
+  "source_notes": "The `get_next_item()` is a **blocking call** to get the sequence item from the sequencer FIFO for processing by driver. Once the sequence item is processed by a driver, it needs to call `item_done()` to complete the handshake before a new item is requested using get_next_item().\n\nThe `get()` is also a **blocking call** which gets the sequence item from sequencer FIFO for processing by driver. However, while using `get()`, there is no need to explicitly call `item_done()` as the `get()` method completes the handshake implicitly.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-019",
+  "title": "What is the difference between get() and peek() methods of UVM driver class?",
+  "prompt": "",
+  "source_notes": "The `get()` method part of driver class is a **blocking call** which gets the sequence item from sequencer FIFO for processing by driver. It unblocks once an item is available and completes handshake with sequencer.\n\nThe `peek()` method is similar to `get()` and **blocks** until a sequence item is available. However, it will not remove the request from the sequencer FIFO. So calling `peek()` multiple times will return same sequencer item in driver.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-020",
+  "title": "What is the difference in item_done() method of driver-sequencer API when called with and without arguments?",
+  "prompt": "",
+  "source_notes": "The `item_done()` method is a non blocking method in driver class that is used to complete handshake with the sequencer after a `get_next_item()` or `try_next_item()` is successful.\n\nIf there is no need to send a response back, `item_done()` is called with no argument which will complete the handshake without placing anything in the sequencer response FIFO. If there is a need to send a response back, `item_done()` is passed with a pointer to a response `sequence_item` as an argument. This response pointer will be placed in the sequencer response FIFO which can be processed by the sequence as a response to the request it drove.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-021",
+  "title": "Which of the following driver class methods are blocking calls and which are nonblocking?",
+  "prompt": "",
+  "source_notes": "\\1) get()\n\n\\2) get_next_item()\n\n\\3) item_done()\n\n\\4) put()\n\n\\5) try_next_item()\n\n\\6) peek()\n\nget(), get_next_item(), peek() are blocking calls.\n\ntry_next_item(), item_done(), and put() are nonblocking calls",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-022",
+  "title": "How can you stop all sequences running on a sequencer?",
+  "prompt": "",
+  "source_notes": "The sequencer has a method **`stop_sequences()` **that can be used to stop all sequences. However, this method does not check if the driver is currently processing any `sequence_items`. Because of this, if the driver calls an `item_done()` or `put()`, there can be a Fatal Error as the sequence pointer might not be valid. So a user needs to take care of making sure that once `stop_sequence()` is called, the sequencer thread is disabled (if started in a fork).",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-023",
+  "title": "Which method in the sequence gets called when user calls sequence.print() method?",
+  "prompt": "",
+  "source_notes": "**convert2string() : **It is recommended to implement this function which returns a string representation of the object (values of its data members). **This is useful to get debug information printed to simulator transcript or log file**.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-024",
+  "title": "How do we register an uvm_component class and uvm_sequence class with factory?",
+  "prompt": "",
+  "source_notes": "The uvm_sequence class is registered with the factory using uvm_object_utils() macro and passing the class name as an argument. An example below:\n\n```verilog\nclass test_seq_c extends uvm_sequence;\n`uvm_object_utils(test_seq_c)\n```\n\nThe uvm_component class is registered with the factory using uvm_component_utils() macro and passing the class name as argument. An Example below:\n\n```verilog\nclass test_driver_c extends uvm_component;\n`uvm_component_utils(test_driver_c)\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-025",
+  "title": "Why should we register a class with factory?",
+  "prompt": "",
+  "source_notes": "A factory is a special look-up table used in UVM for creating objects of component or transaction types. The benefit of object creation using the factory is that a testbench build process can decide at run-time which type of object has to be created. Based on this, a class type could be substituted with another derived class type without any real code change. To ensure this feature and capability, all classes are recommended to be registered with the factory. If you do not register a class with the factory, then you will not be able to use the factory `method::type_id::create()` to construct an object.\n\n> [Concept of UVM Factory](https://theartofverification.com/concept-of-uvm-factory/)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-026",
+  "title": "What is meant by factory override?",
+  "prompt": "",
+  "source_notes": "The UVM factory allows a class to be substituted with another derived class at the point of construction. This can be useful for changing the behavior of a testbench by substituting one class for another **without having the need to edit** or **re-compile the testbench code**.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-027",
+  "title": "What is the difference between instance override and type override?",
+  "prompt": "",
+  "source_notes": "A **type override **means that every time a component class type is created in a testbench hierarchy, a substitute type is created in its place. This applies to all instances of that component type. On the other hand, an **instance override **means, overriding only a specific instance of a component class. A specific instance of a component is referenced by the position of that component in the UVM component hierarchy. Since only UVM component classes can have a hierarchy in UVM test benches, only component classes can be overridden on an instance granularity while sequences (or UVM objects) can be the only type overridden.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-028",
+  "title": "Can instance override and type override be used for both uvm_component class and transaction types?",
+  "prompt": "",
+  "source_notes": "No, only UVM_component classes are part of UVM testbench hierarchy and can be overridden on an instance granularity. The sequence items or sequences are not a part of UVM testbench hierarchy and hence can only be overridden using **type override** which will override all objects of that type.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-029",
+  "title": "What is the concept of objections and where are they useful?",
+  "prompt": "",
+  "source_notes": "The `uvm_objection` class provides a means for sharing a counter between multiple components and sequences. Each component/sequence may “raise” and “drop” objections asynchronously, which increases or decreases the counter value. When the counter reaches zero (from a non-zero value), an “all dropped” condition is said to occur. The objection mechanism is most commonly used in the UVM phasing mechanism to coordinate the end of each run-time phase. User-processes started in a phase raises an objection first and drops the objection once the process completes. When all processes in a phase drops the objects, the phase’s objection count goes to zero. This “all dropped” condition indicates to the phasing mechanism that every participant agrees the phase should be ended.\n\n> [How to Terminate UVM Test? (UVM Objections)](https://theartofverification.com/how-to-terminate-uvm-test-uvm-objections/)\n\nFollowing is an example of how a sequence ( `my_test_sequence` ) is started on a sequencer ( `my_sequencer` ) and the objection is dropped after sequence completes execution\n\n```\ntask main_phase( uvm_phase phase);\n  phase.raise_objection( this );\n  my_test_sequence.start(my_sequencer);\n  phase.drop_objection( this );\nendtask\n\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-030",
+  "title": "How can we implement a simulation timeout mechanism in UVM methodology?",
+  "prompt": "",
+  "source_notes": "A simulation time out mechanism helps to stop the simulation if the test doesn’t progress because of some bug beyond a maximum time.\n\nIn UVM, **`set_global_timeout(timeout)` **– is a convenience function that sets **`uvm_top.phase_timeout` **variable with the timeout value. If the `run_phase()` doesn’t end before this timeout value, then the simulation is stopped and an error is reported. This function is called in the top-level module which also starts the test as follows\n\n```verilog\nmodule test;\n  initial begin\n    set_global_timeout(1000ns);\n  end\n  initial begin\n    run_test();\n  end\nendmodule\n\n```",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "artofverif-031",
+  "title": "What is the concept of phasing in UVM methodology and explain the different phases of a UVM Component",
+  "prompt": "",
+  "source_notes": "Please go through the below post to understand the Phasing concept in detail.\n\n> [UVM Phasing](https://theartofverification.com/uvm-phasing/)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-032",
+  "title": "Why is build_phase() executed top down in uvm_component hierarchy?",
+  "prompt": "",
+  "source_notes": "In UVM, all the testbench components like a test, Env, Agent, Driver, Sequencer are based on the `uvm_component` class and there is always a hierarchy for the testbench components. The `build_phase()` method is part of the `uvm_component` class and is used to construct all the child components from the parent component. So, to build the testbench hierarchy you always need to have a parent object first, which can then construct its children, and that can further construct its children using `build_phase`. Hence, `build_phase()` is always executed top-down.\n\nFor Example: The top level uvm_test class calls `build_phase` which should construct all the uvm_env components part of this test, and the `build_phase()` of each uvm_env class should construct all the uvm_agent components that are part of that uvm_env, and this goes on. For all other phases it really doesn’t matter in which order it is called. The `run_phase()` for all components runs in parallel.\n\nadditional reasons config_db needs to pass down from top and factory override must come first before the component create",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-033",
+  "title": "What is the use of phase_ready_to_end() method in a uvm_component class?",
+  "prompt": "",
+  "source_notes": "**`phase_ready_to_end(uvm_phase phase)` **is a callback method available in a component class that gets called when all objections are dropped for that corresponding phase and the phase is going to end.\n\nA component class can use this callback method to define any functionality that it needs to perform when the phase is about to end.\n\nOne example is if a component want to delay ending of phase until some condition even after all objections are dropped, it can be done using this callback method.\n\nAnother example is if an irritator or reactive sequence is running until a main sequence is complete, `phase_ready_to_end()` callback method in `main_phase()` can be used to stop those irritator sequences.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-034",
+  "title": "What is uvm_config_db and what is it used for?",
+  "prompt": "",
+  "source_notes": "The UVM configuration mechanism supports sharing of configurations and parameters across different testbench components. This is enabled using a configuration database called `uvm_config_db`. Any testbench component can populate the configuration database with variables, parameters, object handles, etc. Other testbench components can get access to these variables, parameters, and object handles from the configuration database without really knowing where it exists in the hierarchy. For Example, a top-level testbench module can store a virtual interface pointer to the `uvm_config_db`. Then any uvm_driver or a `uvm_monitor` component can query the `uvm_config_db` to get a handle to this virtual interface and use it for actually accessing the signals through the interface.\n\n> [uvm_config_db and uvm_resource_db](https://theartofverification.com/uvm_config_db-and-uvm_resource_db/)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-035",
+  "title": "How do we use the get() and set() methods of uvm_config_db?",
+  "prompt": "",
+  "source_notes": "The get() and set() are the primary methods used to populate or retrieve information from the uvm_config_db. Any verification component can use the **set() **method to populate the config_db with some configuration information and can also control which other components will have visibility to the same information. It could be set to have global visibility or visible only to one or more specific testbench components. The get() function checks for a shared configuration from the database matching the parameters.\n\nThe syntax for the get() and set() methods are as follows:\n\n```\nuvm_config_db#(<type>)::set(uvm_component context, string inst_name, string field_name,<type> value)\nuvm_config_db#(<type>)::get(uvm_component context, string inst_name, string field_name, ref value)\n```\n\nThe *context *specifies the current class or component from which get/set is called.\n\nThe *inst_name *is the name of the instance of a component from which get/set is called.\n\nThe *field_name *is the name of the object or parameter or variable which is set/get in config_db.\n\nThe <type> identifies the type of the configuration information set/get in config_db. For object handles, this will have the class name while for other variables; it will be the type of that variable.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-036",
+  "title": "Is it possible for a component lower in testbench hierarchy to pass a handle to a component in higher level of hierarchy using get/set config methods?",
+  "prompt": "",
+  "source_notes": "This is not a recommended way of passing configuration objects in UVM. Normally the higher level component sets up configuration data base with handles and the lower level components do get them using get/set methods.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-037",
+  "title": "What is the recommended way of assigning virtual interfaces to different components in a UVM verification methodology?",
+  "prompt": "",
+  "source_notes": "The top-level testbench module which instantiates the DUT and interfaces will set the virtual interface in the `uvm_config_db`. A test class or any other component in the UVM component hierarchy can then query the `uvm_config_db` using the `get()` method to get handles to this virtual interface and use them for accessing signals. The following shows an example of how this is done. The module test actually instantiates a DUT and physical interface for an APB bus master. It then sets the virtual interface handle to the `uvm_config_db`.\n\n```verilog\nmodule test;\n  logic pclk;\n  logic [31:0] paddr;\n  //Instantiate an APB bus master DUT\n  apb_master apb_master(.pclk(pclk),*);\n  //Instantiate a physical interface for APB interface\n  apb_if apb_if(.pclk(pclk), *);\n  initial begin\n    //Pass this physical interface to test class top\n    //which will further pass it down to env->agent->drv/sqr/mon\n    uvm_config_db#(virtual apb_if)::set(null, “uvm_test_top”, “vif”, apb_if);\n  end\nendmodule\n\n// Following shows a APB Env class that uses the get() method in uvm_config_db to\n// retrieve the virtual interface that was set in the top level test module.\n\nclass apb_env extends uvm_env;\n  `uvm_component_utils(apb_env);\n  //ENV class will have agent as its sub component\n  apb_agent agt;\n  //virtual interface for APB interface\n  virtual apb_if vif;\n  //Build phase - Construct agent and get virtual interface handle from test and\n  pass it down to agent\n  function void build_phase(uvm_phase phase);\n    agt = apb_agent::type_id::create(“agt”, this);\n    if (!uvm_config_db#(virtual apb_if)::get(this, ””, “vif”, vif))\n    begin\n      `uvm_fatal(“config_db_err”, “No virtual interface specified for this env instance”)\n    end\n    uvm_config_db#(virtual apb_if)::set( this, “agt”, “vif”, vif);\n  endfunction: build_phase\nendclass : apb_env\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-038",
+  "title": "Explain how simulation ends in UVM methodology?",
+  "prompt": "",
+  "source_notes": "UVM has a phased execution which consists of a set of build phases, run phases and check phases. The `run_phase` is where the actual test simulation happens and during this phase every component can raise an objection in beginning and hold it until it is done with its activity. Once all components drops the objection, the `run_phase` completes and then `check_phase` of all components execute and then the test ends.\n\nThis is how a normal simulation ends, but there are also controls on simulation timeouts to terminate the `run_phase` if some component hangs due to a bug in design or testbench. When the `run_phase` starts, a parallel timeout timer is also started. If the timeout timer reaches one of the specified timeout limits before the `run_phase` completes, the `run_phase` will timeout, an error message will be issued and then all phases post run() will get executed and test ends after that.\n\n**39.** **What is UVM RAL (UVM Register Abstraction Layer)?**\n\nUVM RAL (Register Abstraction Layer) is a feature supported in UVM that helps in verifying the registers in a design as well as in configuration of DUT using an abstract register model.\n\nThe UVM register model provides a way of tracking the register content of a DUT and a convenience layer for accessing register and memory locations within the DUT. The register model abstraction reflects the structure of the design specification for registers which is a common reference for hardware and software engineers working on the design.\n\nSome other features of RAL include support for both front door and back door initialization of registers and built in functional coverage support.\n\n> [How UVM RAL works?](https://theartofverification.com/uvm-ral-overview/)\n\n**40.** **What is UVM Call back?**\n\nThe `uvm_callback` class is a base class for implementing callbacks, which are typically used to modify or augment component behavior without changing the component class. Typically, the component developer defines an application-specific callback class that extends from this class and defines one or more virtual methods, called as *callback* *interface*. The methods are used to implement overriding of the component class behavior. One common usage can be to inject an error into a generated packet before the driver sends it to DUT. Following pseudo code shows how this can be implemented.\n\n\\1) Define the `packet class` with an error bit\n\n\\2) Define the `driver class` that receives this packet from a sequence and sends it to DUT\n\n\\3) Define a `driver callback class` derived from the base `uvm_callback` class and add a virtual method which can be used to inject an error or flip a bit in the packet.\n\n\\4) Register the callback class using `` `uvm_register_cb() `` macro \n\n\\5) In the run() method of driver that receives and send the packet to the DUT, based on a probability knob, execute the callback to cause a packet corruption\n\n```verilog\nclass Packet_c extends uvm_sequence_item;\n  `uvm_object_utils(Packet_c)\n  byte src_addr[4], dst_addr[4];\n  byte data[];\n  byte crc[4];\n  function new(string name = \"Packet_c\");\n    super.new(name);\n  endfunction\nendclass\n\n// Base callback: an empty hook, the \"slot\"\nclass PktDriver_Cb extends uvm_callback;\n  function new(string name = \"PktDriver_Cb\");\n    super.new(name);\n  endfunction\n  virtual task corrupt_packet(Packet_c pkt);\n  endtask\nendclass\n\n// Error-injection callback: supplied by the test\nclass CrcErr_Cb extends PktDriver_Cb;\n  function new(string name = \"CrcErr_Cb\");\n    super.new(name);\n  endfunction\n  virtual task corrupt_packet(Packet_c pkt);\n    pkt.crc[0][0] = ~pkt.crc[0][0];   // flip bit 0 of CRC byte 0\n  endtask\nendclass\n\nclass PktDriver extends uvm_driver #(Packet_c);\n  `uvm_component_utils(PktDriver)\n  `uvm_register_cb(PktDriver, PktDriver_Cb)\n\n  function new(string name, uvm_component parent = null);\n    super.new(name, parent);\n  endfunction\n\n  virtual task run_phase(uvm_phase phase);\n    Packet_c pkt;\n    forever begin\n      seq_item_port.get_next_item(pkt);\n      `uvm_do_callbacks(PktDriver, PktDriver_Cb, corrupt_packet(pkt))\n      // drive pkt to DUT ...\n      seq_item_port.item_done();\n    end\n  endtask\nendclass\n\n// In the error test\nclass crc_err_test extends base_test;\n  `uvm_component_utils(crc_err_test)\n  CrcErr_Cb cb;\n  function void connect_phase(uvm_phase phase);\n    cb = CrcErr_Cb::type_id::create(\"cb\");\n    uvm_callbacks#(PktDriver, PktDriver_Cb)::add(env.agt.drv, cb);\n  endfunction\nendclass\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-039",
+  "title": "What is uvm_root class?",
+  "prompt": "",
+  "source_notes": "The **uvm_root **class serves as the implicit top-level and phase controller for all UVM components. Users do not directly instantiate **uvm_root. **The UVM automatically creates a single instance of uvm_root that users can access via the global (uvm_pkg-scope) variable, **uvm_top **.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "artofverif-040",
+  "title": "What is the parent class for uvm_test?",
+  "prompt": "",
+  "source_notes": "`uvm_test` class is the top-level class that a user can implement and there is no explicit parent that is mentioned. However, UVM has a special component called `uvm_top` and it is assigned as the parent of the test class.\n\nuvm_component <- uvm_test <- my_test",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ }
+]

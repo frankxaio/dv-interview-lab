@@ -1,0 +1,89 @@
+# DV answers 161-203: SystemVerilog Coding & OOP
+@category: SystemVerilog
+
+- **161. Blocking vs Nonblocking Assignments and Race Avoidance**
+  - Blocking updates the variable immediately in the process. Nonblocking evaluates the RHS now and schedules the update in NBA, so clocked registers sample old values together. Use blocking for combinational calculations and nonblocking for sequential state. Avoid two processes writing the same variable and use clocking blocks for testbench races.
+- **162. SystemVerilog Task vs Function**
+  - A function cannot consume simulation time and cannot call a time-consuming task. It may return a value or be void. A task may wait, delay, and return values through arguments. Both can be automatic and have input/output/ref arguments. Use functions for calculations and tasks for protocol activity.
+- **163. display, strobe, monitor, and write**
+  - $display prints with a newline when executed; $write does the same without adding a newline. $strobe reports at the end of the time slot, after nonblocking updates. $monitor schedules end-of-slot reporting when its monitored arguments change, with one active monitor list.
+- **164. case, casez, casex, and Priority Encoders**
+  - case matches four-state values exactly. casez treats Z and ? as wildcards; casex also masks X, which can hide bugs and is generally unsafe. Priority encoders need explicit ordering, often if/else or a qualified case. `unique`/`priority` add checking and synthesis assumptions but do not repair incomplete assignments. Define behavior for no request.
+- **165. Streaming Operators and Flattening a 2D Packed Array**
+  - Packed multidimensional arrays are already one contiguous packed bit vector and can be assigned to an equal-width vector. Streaming operators reorder chunks: `{>>{a}}` preserves the stream direction and `{<<8{a}}` reverses byte-sized chunks. Unpacked arrays may need explicit packing, and endianness must match the interface.
+- **166. Associative Arrays in a UVM Scoreboard**
+  - An associative array keyed by transaction ID or address supports sparse/out-of-order lookup. Store expected data plus metadata and timeout state; on an observed response, check exists(), compare, then delete after successful completion. Detect duplicate IDs, duplicate responses, and leftovers. If IDs can repeat while outstanding, store a queue per ID.
+- **167. fork...join, join_any, join_none, and Safe Cleanup**
+  - join waits for every child; join_any waits for one; join_none lets the parent continue, with children starting when the parent blocks or ends. After join_any, remaining children keep running unless explicitly stopped. Put competing workers/timeouts inside an isolated wrapper process before disable fork so cleanup cannot kill unrelated descendants.
+- **168. Unique Constraints for a 2D Random Array**
+  - Flatten index pairs or compare every distinct pair of cells with foreach and `a[i][j]!=a[k][l]` when their coordinates differ. The legal value range must contain at least rows*columns distinct values. If the requirement is row-only uniqueness, do not overconstrain across rows.
+- **169. SystemVerilog cast: Purpose, Dynamic Downcast, and Failure Handling**
+  - A static cast such as `int'(x)` changes representation/type without a runtime check. `$cast(derived,base)` performs checked dynamic casting for class handles; it returns success in function form. On failure, do not use the target. Prefer an explicit failure report and avoid unnecessary downcasts by exposing needed virtual base methods.
+- **170. OOP: Inheritance, Polymorphism, and Singleton Pattern**
+  - Inheritance reuses a base contract; virtual methods let derived implementations run through base handles. A singleton uses a static stored handle, a restricted (local/protected) constructor, and a static accessor that creates the instance once. In testbenches, global singleton state can contaminate tests.
+- **171. OOP: UVM Sequence Bug Analysis**
+  - Common problems include reusing one item handle across asynchronous consumers, ignoring randomize failure, missing start_item/finish_item pairing, starting one sequence object concurrently, and using a sequencer with incompatible item type. Trace creation, handle ownership, arbitration, request delivery, and response routing before changing code.
+- **172. OOP: Singleton Class and Abstract Class**
+  - A singleton ensures one accessible instance using a static handle/accessor and restricted construction. An abstract SV class is declared virtual and cannot be instantiated; pure virtual methods require concrete subclasses to implement the contract.
+- **173. SV OOP: Class Handle - Pass by Value vs Pass by ref**
+  - Passing a class handle by value copies the handle, not the object. The callee can modify the shared object's fields, but assigning a new object to its local handle does not change the caller's handle. A ref argument aliases the caller's handle variable, so reassignment is visible.
+- **174. SV Coding: Edge Detector (All Edges and Rising Edge)**
+  - Sample the previous value in a register. Rising edge is `sig & ~prev`, falling edge is `~sig & prev`, and either edge is `sig ^ prev`. Define whether output is combinational from the sampled register or registered. Synchronize asynchronous inputs first and define the first-sample behavior after reset.
+- **175. SV Coding: Monitor and Testbench for Interrupt Protocol**
+  - Drive interrupt causes and observe the interrupt and acknowledgement/clear behavior independently. Track enabled, masked, pending, and serviced states. Test pulses and levels, simultaneous sources, priority, repeated causes, reset, and set/clear in the same cycle.
+- **176. SV Coding: Covergroup for 8-bit Signal**
+  - Sample on the specified accepted event, then create bins for values or meaningful ranges, boundary values 0/255, and transitions if relevant. Cross with valid operation modes. Use iff to exclude reset/invalid cycles. Coverage sampling observes behavior; it does not verify correctness by itself.
+- **177. SV Coding: AHB Interface with Clocking Blocks**
+  - Define AHB signals and modports in an interface. Driver and monitor clocking blocks provide explicit sample/drive skew, commonly input #1step. Track address and data phases separately and advance accepted phases using HREADY. Hold address/control during stalls.
+- **178. SV Coding: fork/join_none Loop Variable Capture**
+  - In each loop iteration, create an automatic captured variable in the fork scope, e.g. `fork automatic int k=i; worker(k); join_none`. Capturing only inside the delayed child can read the final loop value. Children do not start until the parent suspends or terminates.
+- **179. SV Coding: fork/join Variations and wait fork**
+  - join, join_any, and join_none control when the parent proceeds, not the lifetime of every remaining child. wait fork waits for outstanding immediate children of the calling process, potentially including unrelated children. Use a wrapper process to isolate a group.
+- **180. SV Coding: fork/join - Call Function After Any Two of Three Tasks Complete**
+  - Use three worker branches that each send a completion token to a mailbox. The parent gets two tokens, then calls the function. This safely handles simultaneous completions without a racy shared increment. Specify whether the third worker must finish or be cancelled.
+- **181. Verilog: Falling Edge Detector and Its Synthesized Circuit**
+  - A synchronous falling-edge detector uses a previous-sample flip-flop and `fall=prev & ~sig`, optionally followed by an output register. Its synthesized circuit contains storage plus inversion/AND logic. An asynchronous signal should be synchronized before edge detection.
+- **182. Disable Specific Named Fork Branch**
+  - Use a process handle for the specific child and call kill() when that handle is valid and the process is still active. A named block can be disabled, but static names can affect multiple activations. Do not use an unscoped disable fork when only one branch should stop.
+- **183. fork-join_any for Task Timeout Detection**
+  - Run work and a timeout in an isolated fork/join_any group, record which completed, then cancel the remaining branch in that isolated scope. Define whether a completion exactly at the deadline passes or fails. Release protocol resources and report useful state on timeout.
+- **184. Blocking vs Non-Blocking Assignment, Swap Without Temp**
+  - In a clocked block, `a<=b; b<=a;` swaps old a and b because both RHS values are sampled before NBA updates. Blocking `a=b; b=a;` does not swap: both become old b. Blocking code needs a temporary variable (or XOR swap / concatenation assignment `{a,b}={b,a}`).
+- **185. Nested fork-join_any with Delays - Print Order**
+  - Compute each branch's wakeup time, identify which join_any unblocks first, and include subsequent statements and any surviving children. Processes scheduled in the same region at the same time may print in unspecified order.
+- **186. fork-join / join_any / join_none + Watchdog Timer**
+  - Give each parallel task a clear completion event or token. Use join for all completion, join_any for the first, or join_none plus explicit coordination. Add an independently bounded watchdog and isolate its cleanup. Raise/drop UVM objections around the intended test lifetime.
+- **187. ISA Implementation - Struct vs OOP**
+  - A struct is useful for compact decoded instruction fields and value-style storage. Classes suit extensible behavioral instruction models, virtual execution/printing, and factory substitution. Synthesizable RTL generally uses structs/enums, while polymorphic instruction classes belong in verification/software.
+- **188. 2-to-1 MUX and 4-to-1 MUX Implementation**
+  - A 2:1 mux is `assign y=sel?b:a;`. A 4:1 mux can use three 2:1 muxes in two levels or one complete case/index selection. Parameterize the data width, define selector mapping, and test every input path.
+- **189. Mixed Blocking/Nonblocking Cycle-by-Cycle Value Analysis**
+  - For each clock edge, execute blocking statements in process order, record every NBA RHS at its execution time, then apply NBA updates later. Across independent active processes, blocking reads/writes can race. Build a table of pre-edge state, sampled RHS values, and final state.
+- **190. Named fork-join Disable - Selective Process Killing**
+  - Named disable targets a named scope, which may include all children in that scope. For selective killing, capture each desired child's process handle and stop that instance. Isolate each group under a wrapper process to prevent broad disable-fork effects.
+- **191. fork-join / join_any / join_none - Shared Variable Trace**
+  - Identify which variables are automatic captures and which are shared. join_none children begin after parent suspension; join_any leaves survivors active. If concurrent children write/read one variable in the same simulation region, final values can depend on scheduling. Use mailbox tokens or semaphores for deterministic ordering.
+- **192. Polymorphism, Typecasting, and Virtual Functions**
+  - Virtual methods dispatch by runtime object type even through a base handle. Nonvirtual methods bind to the handle's static type. Assigning a derived handle to a base handle is safe; downcasting needs checked `$cast`. Casting does not change the underlying object's type.
+- **193. Generate a Delay Signal 0-1.25x One Clock Cycle**
+  - Randomize an integer number of timeprecision ticks in the inclusive range 0..floor(1.25*T/tick), then delay by that many ticks. Define whether T is fixed or captured per transaction and record seeds.
+- **194. Polymorphism and Virtual Functions - Output Trace**
+  - Resolve the runtime type for each handle, check whether the method is virtual, and then select the implementation. Derived overrides execute through a base handle only for virtual methods.
+- **195. OOP - Shape / Circle / Rectangle with Virtual print_area()**
+  - Declare `virtual class Shape` with `pure virtual function real area();` and a virtual print method that calls area(). Circle returns `pi*r*r`; Rectangle returns `width*height`. Store derived objects in Shape handles to demonstrate dynamic dispatch.
+- **196. fork-join_none Tasks with #Delay - Value Trace and Semaphore**
+  - join_none children start after the parent suspends, and all children may share handles/state unless captured. A semaphore can protect compound updates or serialize access, but it does not determine which eligible child acquires first.
+- **197. fork-join_none in for Loop - Block Without Affecting Others**
+  - Create one wrapper process per loop group with automatic captured indices and locally scoped child processes. Use per-group semaphores/events rather than one global gate when isolation is required.
+- **198. -> vs => - Overlapping vs Non-Overlapping Implication**
+  - The SVA implication operators are `|->` and `|=>`. Overlapped implication starts the consequent on the antecedent's ending sample; nonoverlapped starts on the next sample. A multicycle antecedent is measured from its end. Plain -> also appears in constraint implication and event triggering with different semantics.
+- **199. OOP - Override vs Overload (C++ Comparison)**
+  - Override replaces an inherited virtual method with the same signature for runtime dispatch. Overload provides multiple functions with one name but different parameter lists, as in C++. SystemVerilog does not support C++-style method overloading; use distinct names or default arguments.
+- **200. Bit-Field Extraction and Variable Bit Selection**
+  - A variable single-bit selection is `x[index]`. A variable-base fixed-width part select is `x[base +: WIDTH]` or `x[base -: WIDTH]`, with WIDTH constant. Runtime-variable width needs a mask/shift or a loop with explicit bounds.
+- **201. Virtual Class (Abstract Class) - When to Use**
+  - Use a virtual class when only derived concrete implementations should be instantiated. Pure virtual methods define operations every concrete subtype must supply, such as encode(), compare(), or execute(). Base state/helper methods can still be shared.
+- **202. Sequence Detector 10110 - Moore / Mealy / Shift Register**
+  - A shift-register detector compares the most recent five accepted bits to 10110. A Mealy FSM asserts on the final input using matched-prefix states; a Moore FSM associates output with a completed-pattern state (one extra state, one cycle later). Define output timing and overlap.
+- **203. C++ Pointer Swap - Ref vs Value, const Pointer vs Pointer to const**
+  - Passing a pointer by value lets a function mutate the pointee but does not replace the caller's pointer. Swap caller pointers with `T*&` or pointer-to-pointer arguments. `const T*` prevents mutation of T through that pointer; `T* const` prevents reassigning the pointer variable.

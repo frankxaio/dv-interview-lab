@@ -1,0 +1,1008 @@
+{
+ "source": {
+  "id": "adv-vsv-100",
+  "name": "100 Advanced Verilog & SystemVerilog Interview Questions"
+ },
+ "questions": [
+  {
+   "title": "What is the difference between blocking (=) and nonblocking (<=) assignments?",
+   "prompt": "",
+   "answer": "Blocking (=) for combinational/sequential calculations within a block; nonblocking (<=) for clocked logic so all RHS are sampled before updates. Mixing them carelessly creates races.",
+   "solution": "**Key idea:** Blocking `=` updates the LHS immediately so later statements see the new value (use it for combinational logic); nonblocking `<=` samples every RHS first and updates all LHS together in the NBA region (use it for clocked logic).\n\n```systemverilog\n// shift register: q1 <= d; q2 <= q1;  -> 2 flops\nalways_ff @(posedge clk) begin\n  q1 <= d;\n  q2 <= q1;     // sees OLD q1\nend\n\n// same code with '=' -> q2 = d after one clock (1 flop collapsed)\nalways @(posedge clk) begin\n  q1 = d;\n  q2 = q1;      // sees NEW q1 == d\nend\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.....\"}, {\"name\": \"d\", \"wave\": \"0.1...\"}, {\"name\": \"q1 (<=)\", \"wave\": \"0..1..\"}, {\"name\": \"q2 (<=)\", \"wave\": \"0...1.\"}, {\"name\": \"q2 (=)\", \"wave\": \"0..1..\"}], \"head\": {\"text\": \"nonblocking gives a 2-stage pipeline; blocking collapses it\"}}\n```\n\n### Explanation\n- Blocking: executes and updates in the Active region, in statement order.\n- Nonblocking: RHS evaluated in Active, LHS update scheduled in the NBA region after all Active events at this time step.\n- Guideline (Cummings): `<=` in `always_ff`, `=` in `always_comb`, never mix both on the same variable.\n\n### Corner cases & pitfalls\n- Blocking in clocked blocks causes read/write races between different `always` blocks.\n- Mixing `=` and `<=` to the same variable is a lint error and a synthesis/simulation mismatch risk.\n\n### Follow-ups\n- *Can you use `=` for a temp variable inside `always_ff`?* Yes if it is local and only used in that block, but many coding standards forbid it.\n- *What does `#0` do?* Moves the process to the Inactive region; it is a hack, not a fix for races.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Why are nonblocking assignments preferred in sequential logic?",
+   "prompt": "",
+   "answer": "NBAs evaluate RHS at the clock event and update LHS later in the NBA region, so all registers see the same old state, like real parallel hardware.",
+   "solution": "**Key idea:** A nonblocking assignment models a flip-flop: every register samples its D input at the clock edge (old values) and all outputs change together afterwards, independent of the order of `always` blocks.\n\n```mermaid\nflowchart LR\n  E[\"posedge clk\"] --> ACT[\"Active region: evaluate all RHS (old values)\"]\n  ACT --> NBA[\"NBA region: update all LHS together\"]\n  NBA --> COMB[\"combinational logic re-evaluates (new deltas)\"]\n```\n\n```systemverilog\n// order-independent swap: works only with <=\nalways_ff @(posedge clk) a <= b;\nalways_ff @(posedge clk) b <= a;\n```\n\n### Explanation\n- Real flops all capture at the same edge; nonblocking reproduces that because LHS updates are deferred to the NBA region.\n- With blocking, whichever `always` block the simulator runs first would overwrite a value that another block still needs to read -> race.\n- The swap example above exchanges `a` and `b` each clock regardless of scheduling order.\n\n### Corner cases & pitfalls\n- Nonblocking does not fix a race when the *reader* is in a testbench sampling with blocking code at the same edge; use clocking blocks or sample on the opposite edge.\n\n### Follow-ups\n- *Is the NBA region after Inactive?* Yes: Active -> Inactive (#0) -> NBA; NBA updates can trigger new Active events (another delta).",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a race condition in Verilog, and how do you avoid it?",
+   "prompt": "",
+   "answer": "Result depends on simulator scheduling order; common with blocking writes/reads of shared variables in multiple always blocks. Use NBAs, single writer, clocking blocks.",
+   "solution": "**Key idea:** A race exists when the result depends on the order in which the simulator executes concurrent processes scheduled at the same time step; the IEEE standard leaves that order undefined.\n\n```systemverilog\n// RACE: both blocks triggered by the same edge, blocking assignments\nalways @(posedge clk) a = b;\nalways @(posedge clk) c = a;   // c gets old or new a depending on order\n\n// FIX\nalways_ff @(posedge clk) a <= b;\nalways_ff @(posedge clk) c <= a;   // always old a\n```\n\n| Race type | Fix |\n| --- | --- |\n| Two always blocks, blocking write/read of same var | Use `<=` for clocked logic |\n| Testbench drives DUT input at the clock edge | Clocking block with output skew, or drive on negedge / with `<=` |\n| Multiple drivers to one variable | Single-writer rule (`always_ff`/`always_comb` enforce it) |\n| `initial` vs `always` at time 0 | Avoid relying on time-0 ordering; use reset |\n\n### Explanation\n- Read-write race: one process writes, another reads at the same time step.\n- Write-write race: two processes write; last one wins arbitrarily.\n- Different simulators (or even different compile options) can give different results, so races are real bugs even if a test passes.\n\n### Corner cases & pitfalls\n- `#0` delays only shift the problem; they are not a robust fix.\n\n### Follow-ups\n- *How does a clocking block avoid TB races?* It samples inputs in the Preponed region (before the edge) and drives outputs after the edge with skew, so TB and DUT never update at the same instant.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Explain the Verilog/SystemVerilog event scheduling regions.",
+   "prompt": "",
+   "answer": "Regions: active, inactive, NBA, observed, reactive, postponed (plus preponed, re-inactive, re-NBA in SV). Explains #0, <=, assertions, clocking blocks.",
+   "solution": "**Key idea:** Each time step is split into ordered regions; knowing them explains why `<=`, `#0`, assertions and clocking blocks behave differently. Main order: Preponed -> Active -> Inactive -> NBA -> Observed -> Reactive -> Re-Inactive -> Re-NBA -> Postponed.\n\n```mermaid\nflowchart TD\n  PRE[\"Preponed: sample values for assertions / clocking block inputs\"] --> ACT[\"Active: module code, blocking =, RHS of <=, continuous assign\"]\n  ACT --> INA[\"Inactive: #0 processes\"]\n  INA --> NBA[\"NBA: update LHS of <=\"]\n  NBA -->|new events| ACT\n  NBA --> OBS[\"Observed: evaluate concurrent assertions\"]\n  OBS --> REA[\"Reactive: program blocks, assertion action blocks, TB code\"]\n  REA --> RIN[\"Re-Inactive / Re-NBA\"]\n  RIN -->|new events| ACT\n  RIN --> POST[\"Postponed: $strobe, $monitor (final values)\"]\n```\n\n| Construct | Region |\n| --- | --- |\n| `a = b` / RHS of `a <= b` | Active |\n| `#0` | Inactive |\n| LHS update of `<=` | NBA |\n| concurrent assertion evaluation | Observed (values sampled in Preponed) |\n| program block code, clocking-block drives | Reactive / Re-NBA |\n| `$strobe`, `$monitor` | Postponed |\n\n### Explanation\n- The Active set (Active, Inactive, NBA) is for design code; the Reactive set (Reactive, Re-Inactive, Re-NBA) is for testbench code, so the TB sees settled design values.\n- Assertions use values from the Preponed region, i.e. the values *before* the clock edge.\n- `$display` prints in Active (may show pre-NBA values); `$strobe` prints in Postponed (settled values).\n\n### Corner cases & pitfalls\n- Within a region, process order is undefined; never depend on it.\n\n### Follow-ups\n- *Why does `$display` after `a <= 1` show the old value?* The NBA update has not happened yet.\n- *Where do SVA action blocks run?* Reactive region.",
+   "category": "SystemVerilog",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a delta cycle?",
+   "prompt": "",
+   "answer": "Zero-time simulation step to propagate events between processes without advancing time; combinational chains and NBA updates may need several.",
+   "solution": "**Key idea:** A delta cycle is a zero-time iteration of the scheduler: events propagate through processes and NBA updates without advancing simulation time, until no more events are pending at that time step.\n\n| Delta | Event at t = 10 ns |\n| --- | --- |\n| 0 | posedge clk -> `q <= d` scheduled |\n| 1 | NBA: q updates |\n| 2 | `assign n = ~q` re-evaluates |\n| 3 | `always_comb y = n & en` re-evaluates |\n| 4 | no more events -> time advances |\n\n```systemverilog\nassign n = ~q;          // delta after q changes\nalways_comb y = n & en; // another delta\nalways_ff @(posedge clk) q <= d;\n```\n\n### Explanation\n- Simulation time stays at 10 ns while the chain settles; waveform viewers show only the final value (some can expand deltas).\n- Zero-delay combinational loops create infinite deltas -> the simulator hangs or reports an iteration limit.\n- Delta glitches can trigger `always @(x)` blocks multiple times in one time step.\n\n### Corner cases & pitfalls\n- Clock gating/derived clocks with zero-delay assigns can make a derived clock edge happen one delta later than data, creating a simulation race (data captured with new value).\n\n### Follow-ups\n- *How to see deltas?* Many simulators support delta-expanded waveforms (e.g. `-deltacycle` in some tools).",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "always_comb vs always @* — what are the differences?",
+   "prompt": "",
+   "answer": "always_comb: auto sensitivity, runs at time 0, forbids multiple drivers; always @* is older syntax without these checks.",
+   "solution": "**Key idea:** Both model combinational logic, but `always_comb` adds semantic checks: it runs once at time zero, is sensitive to variables read in called functions, and forbids other processes from writing its outputs.\n\n| Feature | always @* | always_comb |\n| --- | --- | --- |\n| Executes at time 0 | No (waits for an event) | Yes, once after all initial/always start |\n| Sensitive to vars read inside called functions | No (only args) | Yes |\n| Multiple drivers of the LHS allowed | Yes | No (compile error) |\n| Timing controls (#, @) inside | Allowed | Illegal |\n| Tool checks for latch inference | No | Lint/synthesis warn if latch inferred |\n\n```systemverilog\nalways_comb begin\n  y = '0;                 // default avoids latch\n  if (sel) y = a;\nend\n```\n\n### Explanation\n- The time-0 execution fixes the classic bug where an `always @*` output stays X until an input changes.\n- Expressing intent lets lint/synthesis flag latches that slipped into a combinational block.\n\n### Corner cases & pitfalls\n- `always_comb` is not sensitive to its own LHS or to variables written inside it, so it cannot model intended combinational loops.\n\n### Follow-ups\n- *What about `always_latch`?* Same rules but declares intended latch storage.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "always_ff vs always @(posedge clk) — what does always_ff add?",
+   "prompt": "",
+   "answer": "always_ff communicates sequential intent and lets tools check event controls and drivers; hardware is still decided by the sensitivity and assignments.",
+   "solution": "**Key idea:** `always_ff` declares intent to model sequential logic: tools check it has exactly one event control, no blocking timing controls, and that its variables are not written by other processes. It does not by itself create a flop; the edge-sensitive event and assignments do.\n\n```systemverilog\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n) q <= '0;\n  else        q <= d;\n\n// errors/warnings tools give inside always_ff:\n//   #5 q <= d;          -> timing control not allowed\n//   another always writes q -> multiple driver error\n```\n\n| Check | always @(posedge clk) | always_ff |\n| --- | --- | --- |\n| One event control at the top only | not enforced | enforced |\n| Other process writes same var | allowed | error |\n| Intent visible to lint/synthesis | no | yes (warns if no flop inferred) |\n\n### Explanation\n- Use `always_ff` for flops, `always_comb` for logic, `always_latch` for latches; mixing intent in one block is avoided.\n- Use `<=` inside `always_ff`.\n\n### Corner cases & pitfalls\n- Writing `always_ff @(clk)` (level) is legal syntax but synthesis will error/warn because no edge flop can be inferred.\n\n### Follow-ups\n- *Can `always_ff` have an async reset?* Yes: `@(posedge clk or negedge rst_n)` with the reset tested first.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is always_latch, and when is a latch inferred?",
+   "prompt": "",
+   "answer": "always_latch expresses intended level-sensitive storage; latches are inferred when a combinational process doesn't assign its output on every path.",
+   "solution": "**Key idea:** `always_latch` declares intentional level-sensitive storage. A latch is inferred whenever a combinational process leaves an output unassigned on some path, so it must hold its previous value.\n\n```systemverilog\nalways_latch\n  if (en) q = d;        // transparent while en=1, holds while en=0\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"en\", \"wave\": \"0.1..0..1.0.\"}, {\"name\": \"d\", \"wave\": \"=.=.=.=.=.=.\", \"data\": [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"]}, {\"name\": \"q\", \"wave\": \"x.=.==..==..\", \"data\": [\"b\", \"c\", \"c\", \"e\", \"e\"]}], \"head\": {\"text\": \"latch: q follows d while en=1, holds when en falls\"}}\n```\n\n### Explanation\n- `always_latch` = intent; tools warn if the block does *not* infer a latch.\n- In `always_comb`, a missing `else` or `default` creates an unintended latch and tools warn.\n- Latches are level-sensitive, so timing analysis uses time borrowing; most ASIC flows avoid them except in clock gating cells.\n\n### Corner cases & pitfalls\n- A latch-based design is hard to verify for glitches on the enable; keep enables glitch-free (e.g. driven from flops).\n\n### Follow-ups\n- *Why does an ICG cell contain a latch?* To hold the enable stable while the clock is high so the gated clock does not glitch.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What causes unintended latch inference, and how do you prevent it?",
+   "prompt": "",
+   "answer": "Variable not assigned on every path in a combinational process -> storage required. Fix with defaults at the start or covering all branches.",
+   "solution": "**Key idea:** If a variable in a combinational process is not assigned on every path, the hardware must remember its old value, which requires a latch. Assign a default at the top of the block or cover every branch.\n\n```systemverilog\n// BAD: latch on y when sel==2'b11, latch on z when !en\nalways_comb begin\n  case (sel)\n    2'b00: y = a;\n    2'b01: y = b;\n    2'b10: y = c;\n  endcase\n  if (en) z = d;\nend\n\n// GOOD\nalways_comb begin\n  y = '0; z = '0;           // defaults first\n  case (sel)\n    2'b00:   y = a;\n    2'b01:   y = b;\n    2'b10:   y = c;\n    default: y = '0;\n  endcase\n  if (en) z = d;\nend\n```\n\n| Cause | Fix |\n| --- | --- |\n| missing `else` | add else or default at top |\n| incomplete `case` | `default:` branch |\n| output assigned in only some branches | assign all outputs in all branches |\n| incomplete sensitivity list (Verilog-95) | `always_comb` / `@*` |\n\n### Explanation\n- Default-at-top is the most robust pattern: every later assignment simply overrides.\n- `unique case` without `default` still risks latches if the inputs can take uncovered values.\n\n### Corner cases & pitfalls\n- `default: y = 'x;` avoids latches and helps synthesis optimize, but can mask bugs in simulation if X is not checked.\n\n### Follow-ups\n- *How do you detect them?* Synthesis log (\"inferred latch\"), lint rules, `always_comb` warnings.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "wire vs reg vs logic — what is the difference?",
+   "prompt": "",
+   "answer": "wire = net driven continuously; reg = procedural variable (not necessarily a flop); logic = 4-state variable replacing reg, single driver; use nets for multi-driver.",
+   "solution": "**Key idea:** `wire` is a net (resolved, multi-driver capable, driven by `assign`/ports); `reg` is a Verilog variable written procedurally (not necessarily a flop); `logic` is SystemVerilog's 4-state variable that can be driven by one continuous assign *or* procedural code, replacing `reg`.\n\n| Type | Kind | Driven by | Multiple drivers | Typical use |\n| --- | --- | --- | --- | --- |\n| wire | net | assign, port, gate | yes (resolved) | connections, tri-state buses |\n| reg | variable | procedural block | no resolution | legacy Verilog procedural outputs |\n| logic | variable (4-state) | one assign OR procedural | no (error) | default SV type |\n| bit | variable (2-state) | procedural | no | TB, counters |\n\n```systemverilog\nlogic y, z;\nassign y = a & b;          // legal: single continuous driver\nalways_comb z = c | d;     // legal: procedural driver\n// assign z = e;           // ERROR: z already driven procedurally\nwire bus; assign bus = en1 ? d1 : 'z; assign bus = en2 ? d2 : 'z; // multi-driver net\n```\n\n### Explanation\n- `reg` does not imply a register; `always @*` with `reg` gives combinational logic.\n- Use `logic` everywhere except where a resolved multi-driver net (bidirectional/tri-state) is needed; then use `wire`/`tri`.\n- `logic` catches accidental multiple drivers at compile time.\n\n### Corner cases & pitfalls\n- Ports declared `inout` must be nets.\n\n### Follow-ups\n- *What is `wire logic`?* A net with 4-state logic datatype; `logic` alone defaults to a variable.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Explain 4-state logic values 0, 1, X, Z.",
+   "prompt": "",
+   "answer": "4-state models 0,1,X,Z. X exposes uninitialized/conflicting signals; hardware is binary so X/Z need careful interpretation.",
+   "solution": "**Key idea:** 4-state types (`logic`, `reg`, `wire`, `integer`) hold 0, 1, X (unknown/conflict) and Z (high impedance). X exposes uninitialized or contended signals in simulation; real silicon only has 0/1, so X/Z must be interpreted as 'could be either'.\n\n| Value | Meaning | Typical source |\n| --- | --- | --- |\n| 0 / 1 | logic low / high | normal drive |\n| X | unknown | uninitialized flop, 0/1 contention, X-propagation |\n| Z | not driven | tri-state disabled, floating input |\n\n| a & b | 0 | 1 | X | Z |\n| --- | --- | --- | --- | --- |\n| 0 | 0 | 0 | 0 | 0 |\n| 1 | 0 | 1 | X | X |\n| X | 0 | X | X | X |\n| Z | 0 | X | X | X |\n\n### Explanation\n- 2-state types (`bit`, `int`, `byte`) convert X/Z to 0, which hides bugs but simulates faster.\n- X-optimism: `if (x_sig)` takes the else branch, hiding an X; X-pessimism: gate-level sims may propagate X where silicon would be fine.\n- Use assertions like `assert property (@(posedge clk) !$isunknown(data))` on critical signals.\n\n### Corner cases & pitfalls\n- Assigning a 4-state X into a 2-state `bit` silently becomes 0.\n\n### Follow-ups\n- *How does a Z on a gate input behave?* Treated as X by logic operators.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is the difference between == and ===?",
+   "prompt": "",
+   "answer": "== is logical equality and may return X; === is case equality comparing X/Z literally, always 0/1. Use === in verification.",
+   "solution": "**Key idea:** `==` is logical equality and returns X if any compared bit is X/Z; `===` is case equality, compares X and Z literally and always returns 0 or 1.\n\n| Expression | == | === |\n| --- | --- | --- |\n| 4'b1010 vs 4'b1010 | 1 | 1 |\n| 4'b10x0 vs 4'b1010 | x | 0 |\n| 4'b10x0 vs 4'b10x0 | x | 1 |\n| 4'b0x00 vs 4'b1x00 | 0 (a known bit differs) | 0 |\n| 1'bz vs 1'bz | x | 1 |\n\n```systemverilog\nif (data == 8'h55)  ...   // X in data -> condition is X -> treated false\nif (data === 'x)    ...   // detect unknowns exactly\nassert (!$isunknown(data)); // preferred X check\n```\n\n### Explanation\n- `==`/`!=` propagate uncertainty (synthesizable).\n- `===`/`!==` are for testbenches/checks and are not synthesizable in general.\n- `==?` / `!=?` treat X/Z in the right operand as wildcards.\n\n### Corner cases & pitfalls\n- `if (a == b)` with X silently goes to `else`, hiding the X; prefer explicit `$isunknown` checks.\n\n### Follow-ups\n- *What does `inside` use?* `==?`-like wildcard semantics for set membership.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "== vs inside vs case equality: which do you use in verification checks?",
+   "prompt": "",
+   "answer": "Case equality for exact 4-state checks; == when X should propagate; inside for set membership with wildcard matching.",
+   "solution": "**Key idea:** Use `===` for exact 4-state checks (an X is a mismatch), `==` when uncertainty should propagate, `==?` / `inside` for wildcard or set membership, and `$isunknown` to flag X explicitly.\n\n| Operator | X/Z in DUT value | X/Z in pattern | Result type |\n| --- | --- | --- | --- |\n| `==` | -> X | -> X | 0/1/X |\n| `===` | compared literally | compared literally | 0/1 |\n| `==?` | -> X if it matters | wildcard | 0/1/X |\n| `inside {...}` | uses `==?` semantics per item | wildcard | 0/1/X |\n\n```systemverilog\nbit ok;\nok = (actual === expected);             // strict scoreboard compare\nif (opcode inside {[8'h10:8'h1F], 8'h80}) ...   // ranges + values\nif (addr ==? 32'h0000_00??) ...         // ? = don't care in pattern\nconstraint c { mode inside {READ, WRITE}; }\n```\n\n### Explanation\n- Scoreboards should use `===` (or `!==`) so an X from the DUT fails the compare instead of evaluating false silently.\n- `inside` is the natural way to express sets in constraints and coverage-like checks.\n\n### Corner cases & pitfalls\n- `inside` returns X when the DUT value has X bits that matter; wrap with `$isunknown` if you need an error.\n\n### Follow-ups\n- *Is `inside` synthesizable?* Yes for constant sets; tools convert it to comparators.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "case vs casez vs casex — which should you use?",
+   "prompt": "",
+   "answer": "case exact 4-state; casez Z/? as don't care; casex X and Z as don't care (hides X bugs, discouraged).",
+   "solution": "**Key idea:** `case` matches all 4 states exactly; `casez` treats Z/`?` as don't care; `casex` treats both X and Z as don't care, which can hide X bugs, so prefer `casez` (or `case inside`) for wildcards.\n\n| sel value | item 2'b1? | case | casez | casex |\n| --- | --- | --- | --- | --- |\n| 2'b10 |  | no match | match | match |\n| 2'b1x |  | no match | no match | match (X hidden!) |\n| 2'bx0 |  | no match | no match | match item 2'bx? patterns |\n\n```systemverilog\n// priority encoder with casez\nalways_comb begin\n  casez (req)\n    4'b1???: gnt = 2'd3;\n    4'b01??: gnt = 2'd2;\n    4'b001?: gnt = 2'd1;\n    default: gnt = 2'd0;\n  endcase\nend\n// SV alternative: case (req) inside 4'b1???: ... endcase\n```\n\n### Explanation\n- `casex`: an X on the selector matches any item, so the sim picks a branch while silicon is unknown -> sim/synth mismatch.\n- `case ... inside` (SV) uses `==?` semantics with wildcards only in the items, not the selector: safest.\n\n### Corner cases & pitfalls\n- With `casez`, a Z on the selector still matches; lint for Z on selects.\n\n### Follow-ups\n- *Synthesis view?* All three synthesize the same mux/priority logic; the difference is simulation semantics.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What do unique case and priority case mean?",
+   "prompt": "",
+   "answer": "unique: at most one match and full coverage expected; priority: first match wins, missing coverage checked. Use only when assumptions are true.",
+   "solution": "**Key idea:** `unique` asserts that at most one item matches and that some item always matches (parallel, full); `priority` asserts that the first match wins and some item always matches (full). Simulators report violations; synthesis may optimize based on them.\n\n| Keyword | Overlap allowed | No-match allowed | Synthesis hint | Sim check |\n| --- | --- | --- | --- | --- |\n| (none) | yes, first wins | yes | priority logic | none |\n| unique | no | no (unless default) | parallel_case + full_case | warning on overlap or no match |\n| unique0 | no | yes | parallel_case | warning on overlap |\n| priority | yes, first wins | no (unless default) | full_case | warning on no match |\n\n```systemverilog\nalways_comb begin\n  unique case (state)        // one-hot states never overlap\n    IDLE: nxt = start ? RUN : IDLE;\n    RUN : nxt = done  ? IDLE : RUN;\n  endcase                    // runtime warning if state is neither\nend\n```\n\n### Explanation\n- They replace the dangerous synthesis pragmas `// synopsys full_case parallel_case`, but now simulation checks the claim.\n- Use only when the assumption is true; otherwise synthesis builds logic that differs from what simulation tested.\n\n### Corner cases & pitfalls\n- A `default` branch makes `unique` 'full' automatically, but overlap is still checked.\n\n### Follow-ups\n- *`unique if`?* Same semantics for if/else-if chains.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What pitfalls arise with signed vs unsigned arithmetic?",
+   "prompt": "",
+   "answer": "Unsigned operands zero-extend, signed sign-extend; mixed expressions become unsigned. Cast explicitly or declare consistently.",
+   "solution": "**Key idea:** If **any** operand in an expression is unsigned, the whole expression is evaluated unsigned and operands are zero-extended; only all-signed expressions sign-extend. Mixing them silently changes comparisons and extensions.\n\n```systemverilog\nlogic signed [7:0] a = -8'sd1;   // 8'hFF\nlogic        [7:0] b = 8'd1;\nlogic signed [15:0] s;\n\ns = a;                 // 16'hFFFF  (sign-extended)  = -1\ns = a + b;             // b unsigned -> a treated unsigned: 255+1 = 256 = 16'h0100\ns = a + $signed(b);    // -1 + 1 = 0\nif (a < b) ...         // unsigned compare: 255 < 1 -> FALSE\nif (a < $signed(b))... // -1 < 1 -> TRUE\n```\n\n| Expression | Evaluated as | Result |\n| --- | --- | --- |\n| a + b | unsigned | 256 |\n| a + $signed(b) | signed | 0 |\n| a < b | unsigned | 0 |\n\n### Explanation\n- Signedness is determined by the operands, not by the LHS.\n- Width is extended to the max of operands and LHS *before* evaluation (context-determined).\n- Part-selects and concatenations are always unsigned even if the source is signed.\n\n### Corner cases & pitfalls\n- `a[7:0]` of a signed vector is unsigned; `{a}` is unsigned too.\n\n### Follow-ups\n- *Integer literal `-1` vs `'1`?* `-1` is a signed 32-bit int; `'1` fills all bits with 1 in context width.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are the pitfalls of unsized constants and expression widths?",
+   "prompt": "",
+   "answer": "Unsized decimal literals are int-sized and signed, affecting width/signedness; use explicitly sized literals for portable RTL.",
+   "solution": "**Key idea:** An unsized literal like `5` or `'hF` is at least 32 bits and signed (decimal); it widens the expression and can change results, e.g. overflow is preserved or comparisons become signed. Size literals explicitly when width matters.\n\n```systemverilog\nlogic [3:0] a = 4'hF, b = 4'h1;\nlogic [4:0] sum;\nsum = a + b;            // 5-bit context: 5'h10 (carry kept)\nif (a + b == 0) ...     // 32-bit context because 0 is 32-bit: 16 != 0 -> FALSE\nif (4'(a + b) == 4'd0)  // explicit 4-bit wrap -> TRUE\n\nlogic [63:0] big = 1 << 40;   // 1 is 32-bit: result 0 in some tools\nlogic [63:0] ok  = 64'd1 << 40;\n```\n\n| Literal | Width | Signed |\n| --- | --- | --- |\n| 5 | >= 32 | yes |\n| 'd5 | >= 32 | no |\n| 4'd5 | 4 | no |\n| 4'sd5 | 4 | yes |\n| '1 | context | no |\n\n### Explanation\n- Expression width = max(width of operands, LHS) for context-determined operators.\n- Shifts: the left operand's width bounds the result before assignment context widening.\n- Lint tools (e.g. width mismatch warnings) catch most issues.\n\n### Corner cases & pitfalls\n- Unsized hex constants wider than 32 bits are truncated/implementation-specific in Verilog-1995.\n\n### Follow-ups\n- *What is `'0`, `'1`, `'x`?* Fill literals that extend to the LHS width.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is implicit casting in SystemVerilog, and when should you use explicit casts?",
+   "prompt": "",
+   "answer": "Automatic conversion between types/sizes/signedness can hide truncation or sign extension; use $signed, $unsigned or typed casts.",
+   "solution": "**Key idea:** SV automatically converts between sizes, signedness and types on assignment and in expressions (truncate, zero/sign-extend, real<->int rounding). That is convenient but hides truncation and sign errors, so cast explicitly in critical arithmetic.\n\n```systemverilog\nlogic [7:0]  b;\nint          i = -3;\nreal         r = 2.7;\ntypedef enum {RED, GREEN} color_e;\ncolor_e c;\n\nb = i;                 // implicit: 8'hFD (truncated)\ni = r;                 // implicit: rounds to 3\nc = 1;                 // ILLEGAL: int -> enum needs a cast\nc = color_e'(1);       // static cast (no check)\nif (!$cast(c, 5)) $error(\"bad enum\");   // dynamic cast with check\nb = 8'(i);             // size cast\ni = signed'(b);        // signedness cast  (or $signed(b))\n```\n\n| Cast | Checked at | Use |\n| --- | --- | --- |\n| `T'(x)` | compile time (static) | size/sign/type conversions |\n| `$cast(dst, src)` | run time | enum values, class downcasts |\n| `$signed/$unsigned` | n/a | signedness only |\n\n### Explanation\n- Enums are strongly typed: assigning an int requires a cast.\n- `$cast` returns 0 (or errors when called as a task) when the value is not legal, which is the safe choice for enums and class handles.\n\n### Corner cases & pitfalls\n- `real` to int conversion rounds (not truncates) to nearest.\n\n### Follow-ups\n- *How do you downcast a class handle?* `$cast(derived_h, base_h)`.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Arithmetic (>>>) vs logical (>>) shift — what is the difference?",
+   "prompt": "",
+   "answer": ">> logical right shift fills zeros; >>> arithmetic right shift preserves sign for signed operands; left shifts fill zeros.",
+   "solution": "**Key idea:** `>>` always fills with zeros; `>>>` fills with the sign bit **if the operand is signed**, implementing divide-by-2^n for negative numbers. Left shifts `<<` and `<<<` are identical (zero fill).\n\n| Operand (8-bit) | >> 2 | >>> 2 |\n| --- | --- | --- |\n| unsigned 8'b1001_0000 (144) | 0010_0100 (36) | 0010_0100 (36) |\n| signed 8'sb1001_0000 (-112) | 0010_0100 (36) | 1110_0100 (-28) |\n\n```systemverilog\nlogic signed [7:0] s = -8'sd112;\nlogic        [7:0] u = 8'd144;\n$display(\"%0d %0d\", s >>> 2, u >>> 2);   // -28 36\n$display(\"%0d\", $signed(u) >>> 2);       // -28 (cast makes it signed)\n```\n\n### Explanation\n- Signedness of the *left operand* decides the fill for `>>>`.\n- An arithmetic right shift of a negative number rounds toward minus infinity (-7 >>> 1 = -4), unlike `/ 2` which truncates toward zero (-3).\n\n### Corner cases & pitfalls\n- If the expression is unsigned anywhere (e.g. part-select `s[7:0]`), `>>>` behaves like `>>`.\n\n### Follow-ups\n- *Synthesis?* Constant shifts are just wiring; variable shifts make a barrel shifter.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are reduction operators?",
+   "prompt": "",
+   "answer": "Reduction operators collapse a vector into one bit: & all-ones, | any-one, ^ parity; differ from bitwise operators.",
+   "solution": "**Key idea:** Unary reduction operators (`& | ^ ~& ~| ~^`) collapse all bits of one vector into a single bit, unlike bitwise operators which combine two vectors bit by bit.\n\n| Expression (v = 4'b1011) | Result | Meaning |\n| --- | --- | --- |\n| &v | 0 | all ones? |\n| |v | 1 | any one? |\n| ^v | 1 | odd parity |\n| ~&v | 1 | NAND |\n| ~|v | 0 | all zeros? |\n| v & 4'b0110 | 4'b0010 | bitwise (vector) |\n\n```systemverilog\nassign all_ones = &data;          // e.g. counter == max\nassign is_zero  = ~|data;         // zero detect\nassign parity   = ^data;          // even-parity bit generator: data ^ parity -> even\nassign has_x    = ^data === 1'bx; // quick X check\n```\n\n### Explanation\n- Synthesis maps them to AND/OR/XOR trees, log2(N) levels deep.\n- `^v === 1'bx` is a cheap way to detect any X/Z bit in a vector.\n\n### Corner cases & pitfalls\n- `!v` (logical NOT) equals `~|v`, but `~v` is a bitwise vector inverse — common confusion.\n\n### Follow-ups\n- *How to count ones?* `$countones(v)` in SV, or an adder tree in RTL.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Continuous assignment vs procedural assignment — what is the difference?",
+   "prompt": "",
+   "answer": "Continuous assignment drives a net continuously; procedural assignments update variables when the process runs. Keep a single-driver discipline.",
+   "solution": "**Key idea:** A continuous `assign` permanently drives a net (or SV variable) from an expression and re-evaluates whenever an operand changes; procedural assignments run only when their `initial`/`always` process executes and they update variables.\n\n|  | Continuous (`assign`) | Procedural (`always`/`initial`) |\n| --- | --- | --- |\n| Target | net, or variable with single driver (SV) | variable only |\n| When evaluated | any RHS change | when the process is triggered |\n| Control flow | expression only (`?:`) | if/case/loops |\n| Multiple drivers | nets resolve; variables illegal | one process per variable (rule) |\n\n```systemverilog\nassign y = sel ? a : b;               // continuous mux\nalways_comb y2 = sel ? a : b;         // procedural equivalent\nalways_ff @(posedge clk) q <= y;      // procedural sequential\n```\n\n### Explanation\n- Both forms can model combinational logic; choose `assign` for simple expressions and `always_comb` for multi-branch logic.\n- SV allows `assign` to a `logic` variable, but then no procedural block may write it (single-driver discipline).\n\n### Corner cases & pitfalls\n- `assign` inside a procedural block (procedural continuous assign, `assign/deassign`, `force/release`) is a different, mostly testbench-only feature.\n\n### Follow-ups\n- *Delay in assign?* `assign #2 y = a;` models inertial delay (pulses shorter than 2 are filtered).",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "parameter vs localparam — when do you use each?",
+   "prompt": "",
+   "answer": "parameter can be overridden at instantiation; localparam cannot and is for derived constants or fixed encodings.",
+   "solution": "**Key idea:** `parameter` is a configurable constant that can be overridden at instantiation (`#(...)`) or via `defparam`; `localparam` cannot be overridden and is used for derived constants and internal encodings.\n\n```systemverilog\nmodule fifo #(\n  parameter int DW    = 8,\n  parameter int DEPTH = 16\n) ( ... );\n  localparam int AW = $clog2(DEPTH);      // derived - must stay consistent\n  localparam logic [1:0] IDLE = 2'd0;     // internal encoding\n  logic [AW:0] wptr, rptr;\nendmodule\n\nfifo #(.DW(32), .DEPTH(64)) u_fifo (...);  // override parameters only\n```\n\n|  | parameter | localparam |\n| --- | --- | --- |\n| Override at instantiation | yes | no |\n| Can depend on other params | yes | yes |\n| Typical use | width, depth, feature enable | derived widths, state encodings |\n\n### Explanation\n- Making derived values `localparam` prevents users from overriding them inconsistently (e.g. setting AW that doesn't match DEPTH).\n- In SV packages and classes, `parameter` behaves like `localparam`.\n\n### Corner cases & pitfalls\n- `defparam` is deprecated; use named parameter overrides.\n\n### Follow-ups\n- *Type parameters?* `parameter type T = logic [7:0]` lets you parameterize data types.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What does $clog2 do, and what is its edge case?",
+   "prompt": "",
+   "answer": "$clog2 returns ceil(log2(N)); used for address/counter widths. $clog2(1)=0 can create zero-width declarations.",
+   "solution": "**Key idea:** `$clog2(N)` returns ceil(log2(N)), the number of bits needed to index N items (0..N-1). Edge case: `$clog2(1) = 0`, which produces a zero-width `[-1:0]` vector.\n\n| N | $clog2(N) | Address bits | Note |\n| --- | --- | --- | --- |\n| 1 | 0 | 0 | zero width - guard it |\n| 2 | 1 | 1 |  |\n| 5 | 3 | 3 | not a power of 2 |\n| 16 | 4 | 4 |  |\n| 17 | 5 | 5 |  |\n\n```systemverilog\nlocalparam int AW = (DEPTH > 1) ? $clog2(DEPTH) : 1;   // guard DEPTH=1\nlogic [AW-1:0] addr;\n// counter that must hold the value N itself (0..N): $clog2(N+1) bits\nlocalparam int CW = $clog2(DEPTH + 1);\n```\n\n### Explanation\n- To *count up to* N (inclusive) you need `$clog2(N+1)` bits; to *index* N entries you need `$clog2(N)`.\n- Evaluated at elaboration time, so usable in parameter and port declarations.\n\n### Corner cases & pitfalls\n- Async FIFO pointers usually need `$clog2(DEPTH)+1` bits (extra wrap bit).\n\n### Follow-ups\n- *Before `$clog2` existed?* People wrote a constant function `clog2` in Verilog-2001.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are generate blocks used for?",
+   "prompt": "",
+   "answer": "Generate creates structure at elaboration time: parameterized arrays, optional features, repeated instances. Not a runtime loop.",
+   "solution": "**Key idea:** Generate constructs (`for`, `if`, `case` generate) create hardware structure at elaboration time based on parameters: repeated instances, optional features, parameterized arrays. A generate loop is not a runtime loop.\n\n```systemverilog\nmodule adder_chain #(parameter int N = 4) (input logic [N-1:0] a, b, input logic ci,\n                                          output logic [N-1:0] s, output logic co);\n  logic [N:0] c;\n  assign c[0] = ci;\n  for (genvar i = 0; i < N; i++) begin : g_fa        // named block -> g_fa[0].u_fa\n    full_adder u_fa (.a(a[i]), .b(b[i]), .ci(c[i]), .s(s[i]), .co(c[i+1]));\n  end\n  assign co = c[N];\n\n  if (N > 8) begin : g_pipe     // conditional generate\n    // insert a pipeline register for wide adders\n  end\nendmodule\n```\n\n```mermaid\nflowchart LR\n  CI[\"ci\"] --> FA0[\"g_fa[0]\"] --> FA1[\"g_fa[1]\"] --> FA2[\"g_fa[2]\"] --> FA3[\"g_fa[3]\"] --> CO[\"co\"]\n```\n\n### Explanation\n- Each iteration creates a named scope (`g_fa[i]`), useful for hierarchical references and debug.\n- `genvar` exists only at elaboration.\n- Generate `if`/`case` choose architecture by parameter (e.g. sync vs async reset, with/without ECC).\n\n### Corner cases & pitfalls\n- Always name generate blocks; unnamed ones get tool-specific names like `genblk1`.\n\n### Follow-ups\n- *Generate vs procedural for loop?* Generate replicates instances/continuous assigns; procedural for replicates logic inside a block.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Is a for loop synthesizable, and what hardware does it create?",
+   "prompt": "",
+   "answer": "Synthesizable when bounds are static; unrolled into combinational/replicated logic, not sequential execution over clocks.",
+   "solution": "**Key idea:** Yes, if its bounds are static (known at elaboration). Synthesis unrolls it into parallel/replicated logic in a single clock cycle; it does not execute iteratively over multiple clocks.\n\n```systemverilog\n// count ones: unrolls into an adder tree / chain\nalways_comb begin\n  cnt = '0;\n  for (int i = 0; i < 8; i++)\n    cnt += data[i];\nend\n\n// bit reverse: pure wiring\nalways_comb\n  for (int i = 0; i < W; i++) rev[i] = data[W-1-i];\n```\n\n```mermaid\nflowchart LR\n  D0[\"data[0]\"] --> A1[\"+\"]\n  D1[\"data[1]\"] --> A1 --> A2[\"+\"]\n  D2[\"data[2]\"] --> A2 --> A3[\"+ ... x8\"]\n  A3 --> CNT[\"cnt (one cycle)\"]\n```\n\n### Explanation\n- Loop variables become constants after unrolling; data-dependent exit (`while (x != 0)`) with unbounded iterations is not synthesizable.\n- Long loops create long combinational paths; to spread work over cycles you must write an FSM/counter instead.\n\n### Corner cases & pitfalls\n- `break` based on data is supported by some tools only when the max bound is static; expect large mux logic.\n\n### Follow-ups\n- *How to do 1 bit per clock?* Use a counter register and process `data[cnt]` each cycle.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Procedural for loop vs generate-for — when do you use each?",
+   "prompt": "",
+   "answer": "Procedural for describes repeated operations within a process; generate-for replicates instances/declarations at elaboration.",
+   "solution": "**Key idea:** A procedural `for` lives inside an `always`/`initial`/function and describes repeated *operations* (unrolled by synthesis); a generate-`for` lives at module level and replicates *structure* (instances, assigns, declarations) at elaboration.\n\n|  | procedural for | generate for |\n| --- | --- | --- |\n| Where | inside always/initial/function/task | module scope |\n| Loop variable | int / integer | genvar |\n| Creates | logic inside one process | instances, nets, always blocks, named scopes |\n| Bounds | static for synthesis; dynamic OK in TB | elaboration constants only |\n| Typical use | parity, bit-reverse, priority search | N instances of a sub-module, per-lane logic |\n\n```systemverilog\n// procedural: one always block, unrolled\nalways_comb begin\n  par = 1'b0;\n  for (int i = 0; i < W; i++) par ^= d[i];\nend\n\n// generate: N synchronizer instances, each with its own scope\nfor (genvar g = 0; g < N; g++) begin : g_sync\n  sync2 u_sync (.clk(clk), .d(async_in[g]), .q(sync_out[g]));\nend\n```\n\n### Explanation\n- Procedural loops are for algorithmic RTL; generate loops are for structural replication.\n- Generate scopes can be referenced hierarchically: `g_sync[3].u_sync.q`.\n\n### Corner cases & pitfalls\n- A procedural loop cannot instantiate modules; a generate loop cannot contain blocking procedural statements outside an always block.\n\n### Follow-ups\n- *Can a generate loop contain an always block?* Yes, each iteration gets its own always process.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Function vs task — what are the differences?",
+   "prompt": "",
+   "answer": "Function returns a value and consumes no time; task can have multiple outputs and timing controls. Functions are better for pure combinational calculations.",
+   "solution": "**Key idea:** A function returns a value (or void), executes in zero time and cannot block; a task can have multiple outputs/inouts and may consume time (`#`, `@`, `wait`). Use functions for pure combinational calculations, tasks for timed TB sequences.\n\n|  | function | task |\n| --- | --- | --- |\n| Return value | yes (or void) | no (outputs via arguments) |\n| Time-consuming statements | not allowed | allowed |\n| Can call | functions only (tasks only via fork..join_none) | functions and tasks |\n| Usable in expressions / continuous assign | yes | no |\n| Synthesizable | yes (combinational) | yes if no timing controls |\n\n```systemverilog\nfunction automatic logic [7:0] parity8(input logic [63:0] d);\n  for (int i = 0; i < 8; i++) parity8[i] = ^d[i*8 +: 8];\nendfunction\n\ntask automatic drive_write(input logic [31:0] addr, data);\n  @(posedge vif.clk);\n  vif.addr <= addr; vif.wdata <= data; vif.we <= 1'b1;\n  @(posedge vif.clk);\n  vif.we <= 1'b0;\nendtask\n```\n\n### Explanation\n- Functions keep RTL readable for repeated combinational logic (CRC, ECC, encoders).\n- In classes, prefer functions for non-blocking APIs (e.g. `build_phase`) and tasks for anything that waits (`run_phase`, `body`).\n\n### Corner cases & pitfalls\n- Calling a task from a function is a compile error; a function that needs to wait should become a task.\n\n### Follow-ups\n- *What is a void function?* A function with no return value; can be called as a statement.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Automatic vs static lifetime — what is the difference?",
+   "prompt": "",
+   "answer": "Static vars retain values between calls (re-entrancy issues); automatic vars are per invocation, safe for recursion/concurrency. Class methods are automatic by default.",
+   "solution": "**Key idea:** A static task/function has one copy of its variables shared by all calls (values persist and concurrent calls clobber each other); an automatic one allocates fresh variables per call, so recursion and concurrent calls (e.g. from fork) are safe. Class methods are automatic by default; module tasks/functions are static by default.\n\n```systemverilog\nfunction int cnt_static();   // static by default in a module\n  int n;          // single shared copy, initialized once\n  n++;\n  return n;\nendfunction        // returns 1, 2, 3, ...\n\nfunction automatic int cnt_auto();\n  int n = 0;      // new copy each call\n  n++;\n  return n;\nendfunction        // returns 1, 1, 1, ...\n\nfunction automatic int fact(int n);    // recursion requires automatic\n  return (n <= 1) ? 1 : n * fact(n - 1);\nendfunction\n```\n\n```mermaid\nsequenceDiagram\n  participant T1 as \"fork thread 1\"\n  participant S as \"static task vars\"\n  participant T2 as \"fork thread 2\"\n  T1->>S: addr = 0x10\n  T2->>S: addr = 0x20\n  S-->>T1: reads 0x20 (clobbered)\n```\n\n### Explanation\n- Static: storage allocated once at elaboration; good for counters intentionally shared.\n- Automatic: storage on a per-call stack; required for recursion and safe concurrency.\n- Declare `module automatic` or `program automatic` to change the default for all its tasks.\n\n### Corner cases & pitfalls\n- Automatic variables cannot be referenced hierarchically or used with nonblocking assignment / in `@` from outside.\n\n### Follow-ups\n- *Can you mix?* Yes: declare an individual variable `static` inside an automatic function.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Are initial blocks synthesizable?",
+   "prompt": "",
+   "answer": "initial is mostly simulation; some FPGAs synthesize init values or memory init. For ASIC, use reset.",
+   "solution": "**Key idea:** For ASICs, no: `initial` is a simulation construct and silicon flops power up random. Some FPGA flows honor `initial` values and `$readmemh` for register/BRAM initialization because the bitstream configures them, but portable RTL uses reset.\n\n| Target | `initial q = 0;` | `initial $readmemh(...)` |\n| --- | --- | --- |\n| ASIC synthesis | ignored (warning) | ignored; use ROM generator |\n| FPGA (Xilinx/Intel) | sets power-up value | initializes BRAM/ROM |\n| Simulation | sets value at time 0 | loads memory |\n\n```systemverilog\n// portable: explicit reset\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n) cnt <= '0;\n  else        cnt <= cnt + 1'b1;\n\n// FPGA-only ROM init (accepted by most FPGA tools)\nlogic [7:0] rom [256];\ninitial $readmemh(\"rom.hex\", rom);\n```\n\n### Explanation\n- An `initial` assignment in RTL can hide missing-reset bugs: simulation looks fine, silicon starts with X.\n- Run some tests with X-initialization (or random init) to catch flops without reset that matter.\n\n### Corner cases & pitfalls\n- Gate-level sims of an ASIC will show X where RTL showed 0 from `initial`.\n\n### Follow-ups\n- *Which flops can skip reset?* Datapath flops whose value is always written before being used (saves area).",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What problems does an incomplete sensitivity list cause?",
+   "prompt": "",
+   "answer": "Incomplete sensitivity lists make simulation miss changes; synthesis builds combinational logic anyway. Use always_comb or @*.",
+   "solution": "**Key idea:** In `always @(a or b)` the block only wakes when a listed signal changes, so if it also reads `c`, simulation holds a stale value while synthesis builds pure combinational logic: a simulation/synthesis mismatch. Use `always_comb` or `@*`.\n\n```systemverilog\n// BUG: sel missing from list\nalways @(a or b)\n  y = sel ? a : b;\n\n// FIX\nalways_comb y = sel ? a : b;\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"a\", \"wave\": \"1...........\"}, {\"name\": \"b\", \"wave\": \"0...........\"}, {\"name\": \"sel\", \"wave\": \"0..1....0...\"}, {\"name\": \"y (sim, buggy)\", \"wave\": \"0...........\"}, {\"name\": \"y (silicon)\", \"wave\": \"0..1....0...\"}], \"head\": {\"text\": \"sim misses the sel change; gate-level/silicon follows it\"}}\n```\n\n### Explanation\n- Synthesis ignores sensitivity lists (with a warning) and builds logic from the code, so RTL sim and netlist sim differ.\n- `always_comb` also catches signals read inside called functions, which `@*` misses.\n\n### Corner cases & pitfalls\n- Including extra signals (e.g. the output) is harmless for synthesis but may slow simulation or cause extra evaluation.\n\n### Follow-ups\n- *How is it found?* Lint (\"incomplete sensitivity list\"), or gate-level/equivalence-check mismatch.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do if/else and case infer muxes and priority logic?",
+   "prompt": "",
+   "answer": "if/else and case infer muxes; condition order sets priority when overlapping; make parallel/priority intent explicit.",
+   "solution": "**Key idea:** An `if/else-if` chain infers priority logic (a cascade of 2:1 muxes, first true condition wins); a `case` with mutually exclusive items infers a parallel mux. The order of overlapping conditions defines priority, and long chains can become timing bottlenecks.\n\n```systemverilog\n// priority: req[0] wins\nalways_comb\n  if      (req[0]) gnt = 2'd0;\n  else if (req[1]) gnt = 2'd1;\n  else if (req[2]) gnt = 2'd2;\n  else             gnt = 2'd3;\n\n// parallel mux: sel values never overlap\nalways_comb\n  case (sel)\n    2'd0: y = a;  2'd1: y = b;  2'd2: y = c;  default: y = d;\n  endcase\n```\n\n```mermaid\nflowchart LR\n  D[\"d\"] --> M2[\"mux req2\"]\n  C[\"c\"] --> M2\n  M2 --> M1[\"mux req1\"]\n  B[\"b\"] --> M1\n  M1 --> M0[\"mux req0\"]\n  A[\"a\"] --> M0\n  M0 --> Y[\"gnt / y\"]\n```\n\n### Explanation\n- Priority chain depth grows with N (N-1 mux levels); a parallel mux is about log2(N) levels.\n- Synthesis can flatten priority into parallel logic when conditions are provably exclusive (e.g. one-hot with `unique`).\n\n### Corner cases & pitfalls\n- Using `if` for exclusive conditions adds unnecessary priority; using `case` with overlapping items silently gives priority to the first item.\n\n### Follow-ups\n- *How to make a one-hot mux fast?* AND-OR structure: `y = |({W{sel[0]}} & a) | ...`.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is combinational feedback and why is it dangerous?",
+   "prompt": "",
+   "answer": "Combinational logic feeding itself without storage can oscillate or settle unpredictably; often from RTL coding errors.",
+   "solution": "**Key idea:** A combinational loop is a path from a signal back to itself without a flop. Depending on gate delays it may oscillate, latch unintentionally, or settle unpredictably; STA cannot time it, and simulation can hang in infinite delta cycles.\n\n```systemverilog\n// unintended loop: count depends on itself combinationally\nalways_comb count = count + inc;      // oscillates / hangs simulator\n\n// fix: register the state\nalways_ff @(posedge clk) count <= count + inc;\n```\n\n```mermaid\nflowchart LR\n  X[\"count\"] --> ADD[\"+ inc\"] --> X\n  X2[\"count_q (flop)\"] --> ADD2[\"+ inc\"] --> D[\"count_d\"] --> X2\n```\n\n### Explanation\n- Common sources: mux outputs fed back to their own select, cross-coupled always_comb blocks, `assign a = b; assign b = a & c;`.\n- Synthesis reports \"combinational loop\" and STA breaks the loop arbitrarily, so timing results are meaningless.\n- Lint tools flag loops; always_comb also warns when its own output is read.\n\n### Corner cases & pitfalls\n- An intentional SR latch built from gates is also a loop; use a library latch cell instead.\n\n### Follow-ups\n- *How does simulation behave?* An oscillating loop with zero delay hits the iteration limit (e.g. 'too many delta cycles').",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What problems do multiple drivers cause?",
+   "prompt": "",
+   "answer": "Multiple drivers produce conflicts, X or tool errors; use a single procedural owner per variable unless deliberate tri-state.",
+   "solution": "**Key idea:** Two drivers on one signal create contention: a resolved net shows X when they disagree, a variable gets last-writer-wins race behavior, and synthesis errors out. Each variable should have exactly one procedural owner, unless a deliberate tri-state/resolved net is intended.\n\n```systemverilog\nlogic q;\nalways_ff @(posedge clk) if (set) q <= 1'b1;\nalways_ff @(posedge clk) if (clr) q <= 1'b0;   // ERROR: q driven by 2 always_ff\n\n// single owner\nalways_ff @(posedge clk)\n  if      (clr) q <= 1'b0;\n  else if (set) q <= 1'b1;\n```\n\n| Target | Two drivers | Result |\n| --- | --- | --- |\n| wire | assign + assign | resolved: X on conflict |\n| logic (variable) | two always_ff / always_comb | compile error |\n| reg (Verilog) | two always blocks | race; synthesis error |\n\n### Explanation\n- `always_ff`/`always_comb` and `logic` make the compiler catch multiple drivers.\n- Merging the logic into one block also makes priority explicit (here, clear wins).\n\n### Corner cases & pitfalls\n- Testbench `force` is a separate mechanism and is fine for debug, not for normal stimulus.\n\n### Follow-ups\n- *How do you intentionally share a bus?* Use a mux/arbiter internally, tri-states only at I/O pads.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How should tri-state logic be written in RTL, and is it used internally?",
+   "prompt": "",
+   "answer": "Internal tri-states become muxes in modern fabrics; use top-level I/O tri-states only; explicit muxing/arbitration internally.",
+   "solution": "**Key idea:** Tri-states (`assign bus = en ? d : 'z;`) are used at top-level I/O pads. Internally, modern ASIC/FPGA fabrics have no tri-state buses; tools convert them into muxes, so write an explicit mux or arbiter instead.\n\n```systemverilog\n// top-level bidirectional pad\nmodule io_pad (inout wire pad, input logic oe, dout, output logic din);\n  assign pad = oe ? dout : 1'bz;\n  assign din = pad;\nendmodule\n\n// internal sharing: explicit one-hot mux, not tri-states\nalways_comb begin\n  bus = '0;\n  for (int i = 0; i < N; i++) if (sel[i]) bus |= src[i];\nend\n```\n\n| en | dout | pad |\n| --- | --- | --- |\n| 0 | x | z (released) |\n| 1 | 0 | 0 |\n| 1 | 1 | 1 |\n\n### Explanation\n- An internal tri-state with two enables active at once causes contention and possibly X; with none active it floats.\n- Bidirectional ports must be nets (`inout wire`).\n\n### Corner cases & pitfalls\n- In the testbench, drive an `inout` through a `wire` with an `assign` and its own enable; you cannot drive it procedurally.\n\n### Follow-ups\n- *What is a pull-up in SV?* `pullup(pad);` or a `tri1` net gives a weak 1 when not driven.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Clock gating vs clock enable — what is the difference?",
+   "prompt": "",
+   "answer": "Clock enable keeps clock running and conditionally updates; clock gating stops the clock for power, needing ICG cells. Don't gate with arbitrary logic.",
+   "solution": "**Key idea:** A clock enable keeps the clock running and uses a mux to recirculate the flop's value (no power savings in the clock tree). Clock gating stops the clock to a group of flops using an integrated clock-gating (ICG) cell, saving dynamic power, but needs a glitch-free cell and clock-aware timing.\n\n```systemverilog\n// clock enable: mux in front of D\nalways_ff @(posedge clk) if (en) q <= d;\n\n// clock gating: ICG cell (latch + AND) - instantiate library cell or let synthesis insert\nICG u_icg (.CK(clk), .E(en), .SE(scan_en), .GCK(gclk));\nalways_ff @(posedge gclk) q <= d;\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.......\"}, {\"name\": \"en\", \"wave\": \"0.1.0...\"}, {\"name\": \"gclk (ICG)\", \"wave\": \"0..10...\"}, {\"name\": \"q (enable)\", \"wave\": \"x..=....\", \"data\": [\"d\"]}], \"head\": {\"text\": \"ICG passes only clock pulses where en was high while clk was low\"}}\n```\n\n### Explanation\n- Synthesis tools can convert `if (en) q <= d` for a bank of flops into an ICG automatically (clock-gating insertion).\n- Clock enable: simpler timing and verification; gating: lower power, but adds clock skew and requires CTS handling.\n\n### Corner cases & pitfalls\n- Never gate a clock with a plain AND/OR gate driven by combinational logic: glitches create extra edges.\n\n### Follow-ups\n- *What is `SE` on an ICG?* Scan enable forces the clock on during test.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Why is a gated clock built from plain logic risky?",
+   "prompt": "",
+   "answer": "Glitches on derived clocks create unintended edges; ICG cells latch enable during safe phase. Timing/CDC tools must know gated clocks.",
+   "solution": "**Key idea:** If the enable changes while the clock is high, an AND gate produces a truncated pulse or glitch, which acts as an extra clock edge. An ICG cell latches the enable during the low phase so the enable can only change while the gated clock is held low.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.......\"}, {\"name\": \"en (from flop, changes after posedge)\", \"wave\": \"0.1..0..\"}, {\"name\": \"clk & en (AND)\", \"wave\": \"0.hl0hl0\"}, {\"name\": \"ICG gclk\", \"wave\": \"0..hlhl0\"}], \"head\": {\"text\": \"AND gating: en rising while clk is high creates a short pulse; ICG waits for the next full pulse\"}}\n```\n\n```mermaid\nflowchart LR\n  EN[\"en\"] --> L[\"latch (transparent when clk = 0)\"]\n  CLK[\"clk\"] --> L\n  L --> AND[\"AND\"]\n  CLK --> AND\n  AND --> GCK[\"gclk (glitch-free)\"]\n```\n\n### Explanation\n- Latch-based ICG: enable is captured while clk is low, held while clk is high, so the AND output only produces complete pulses.\n- STA must see the gated clock as a generated clock and check clock-gating setup/hold on the enable.\n- CDC tools must know the gated clock is the same domain as the source clock.\n\n### Corner cases & pitfalls\n- OR-based gating (for negative-edge flops) needs a flop-on-high-phase latch variant; mismatching them reintroduces glitches.\n\n### Follow-ups\n- *Who inserts ICGs?* Synthesis (Power Compiler / Genus) automatically, or RTL instantiation for architectural gating.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Synchronous vs asynchronous reset — trade-offs?",
+   "prompt": "",
+   "answer": "Sync reset sampled on clock edge; async reset acts immediately. Assert async, de-assert synchronized to avoid recovery/removal issues.",
+   "solution": "**Key idea:** A synchronous reset is just a data input sampled on the clock edge (needs a running clock); an asynchronous reset forces the flop immediately, independent of the clock. Best practice: assert asynchronously, de-assert synchronously.\n\n```systemverilog\n// synchronous\nalways_ff @(posedge clk)\n  if (!rst_n) q <= '0; else q <= d;\n\n// asynchronous\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n) q <= '0; else q <= d;\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.......\"}, {\"name\": \"rst_n\", \"wave\": \"1.0..1..\"}, {\"name\": \"q (async)\", \"wave\": \"=.0.....\", \"data\": [\"5\"]}, {\"name\": \"q (sync)\", \"wave\": \"=..0....\", \"data\": [\"5\"]}], \"head\": {\"text\": \"async reset clears q immediately; sync reset waits for the next edge\"}}\n```\n\n|  | Sync reset | Async reset |\n| --- | --- | --- |\n| Needs clock to reset | yes | no |\n| Glitch filtering | yes (sampled) | no: glitch resets flop |\n| Timing | normal setup/hold on reset path | recovery/removal checks |\n| Flop cell | normal flop + mux | flop with CLR/PRE pin |\n\n### Explanation\n- Async reset is needed when the clock may be off at power-up or when outputs must be safe immediately.\n- Async reset release must meet recovery/removal, hence the reset synchronizer.\n\n### Corner cases & pitfalls\n- A sync reset pulse shorter than a clock period can be missed.\n\n### Follow-ups\n- *Which does Xilinx recommend?* Synchronous resets for FPGA fabric efficiency.",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you synchronize reset deassertion? Draw a reset synchronizer.",
+   "prompt": "",
+   "answer": "Asynchronous assertion with synchronous deassertion through a two-flop synchronizer per clock domain.",
+   "solution": "**Key idea:** Use async assert / sync deassert: two flops in the destination domain with their async clear tied to the raw reset and D tied to 1. Reset asserts immediately; release propagates through two flops so every flop in the domain sees the deassertion aligned to a clock edge.\n\n```systemverilog\nmodule rst_sync (input logic clk, input logic arst_n, output logic rst_n_sync);\n  logic ff1;\n  always_ff @(posedge clk or negedge arst_n)\n    if (!arst_n) {rst_n_sync, ff1} <= 2'b00;      // async assert\n    else         {rst_n_sync, ff1} <= {ff1, 1'b1}; // sync deassert\nendmodule\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p........\"}, {\"name\": \"arst_n\", \"wave\": \"0..1.....\"}, {\"name\": \"ff1\", \"wave\": \"0...1....\"}, {\"name\": \"rst_n_sync\", \"wave\": \"0....1...\"}], \"head\": {\"text\": \"assert immediately, release two clocks after arst_n rises\"}}\n```\n\n### Explanation\n- ff1 may go metastable when arst_n rises near a clock edge; ff2 gives it a cycle to resolve.\n- One synchronizer per clock domain; the synchronized reset drives the async reset pins of that domain's flops.\n- Reset tree of the synchronized reset must still meet recovery/removal in STA.\n\n### Corner cases & pitfalls\n- Do not synchronize reset assertion too; then a domain without a running clock never resets.\n\n### Follow-ups\n- *Reset sequencing across domains?* Release resets in an order controlled by a reset controller, often with handshakes.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are recovery and removal timing?",
+   "prompt": "",
+   "answer": "Recovery: release async control before a clock edge; removal: keep asserted around the edge. Violations cause metastability; synchronize deassertion.",
+   "solution": "**Key idea:** They are setup/hold equivalents for asynchronous control pins (reset/set): **recovery** = minimum time the async reset must be released *before* the clock edge; **removal** = minimum time it must stay asserted *after* the edge. Violations can make the flop go metastable or some flops leave reset one cycle later than others.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"0...1...0...1...\"}, {\"name\": \"rst_n (OK: released early)\", \"wave\": \"0.1.............\"}, {\"name\": \"rst_n (recovery viol.)\", \"wave\": \"0..1............\"}, {\"name\": \"rst_n (removal viol.)\", \"wave\": \"0....1..........\"}, {\"name\": \"forbidden window\", \"wave\": \"0..1.0..........\"}], \"head\": {\"text\": \"rst_n release must fall outside the [edge - recovery, edge + removal] window\"}}\n```\n\n| Check | Analogy | Requirement |\n| --- | --- | --- |\n| Recovery | setup | reset deasserted >= t_rec before clk edge |\n| Removal | hold | reset stays asserted >= t_rem after clk edge |\n\n### Explanation\n- STA reports them as recovery/removal checks on async pins of flops.\n- If deassertion is asynchronous to the clock, some flops leave reset at edge N and others at N+1 -> FSMs start in inconsistent states.\n- Fix: reset synchronizer so deassertion is aligned to the clock and the reset tree is timed like a data path.\n\n### Corner cases & pitfalls\n- Recovery/removal only matter for *deassertion*; assertion is asynchronous by design.\n\n### Follow-ups\n- *What if the reset tree is huge?* Pipeline/duplicate the synchronized reset per region to meet recovery.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are setup and hold time, and how are violations fixed?",
+   "prompt": "",
+   "answer": "Setup: data stable before capturing edge; hold: stable after edge. Violations cause metastability; use STA/CDC since RTL sim doesn't model it.",
+   "solution": "**Key idea:** Setup = data must be stable for t_su before the capturing clock edge; hold = stable for t_h after it. Setup violations depend on clock period (fix: less logic, faster cells, lower frequency); hold violations do not (fix: add delay).\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"0...1...\"}, {\"name\": \"data\", \"wave\": \"=.=....=\", \"data\": [\"old\", \"new (stable)\", \"\"]}], \"head\": {\"text\": \"data must not change in the window [edge - t_su, edge + t_h]\"}}\n```\n\n|  | Setup | Hold |\n| --- | --- | --- |\n| Equation | T_clk >= t_cq + t_comb,max + t_su - skew | t_cq + t_comb,min >= t_h + skew |\n| Depends on frequency | yes | no |\n| Fixes | pipeline, retime, upsize, useful skew, lower freq | insert buffers/delay cells |\n\n### Explanation\n- Slack = required - arrival; negative slack is a violation.\n- Positive clock skew (capture clock later) helps setup, hurts hold.\n- RTL simulation is zero-delay and never shows these; STA and gate-level sim with SDF do.\n\n### Corner cases & pitfalls\n- Hold violations cannot be fixed by slowing the clock: a chip with hold violations fails at every frequency.\n\n### Follow-ups\n- *What happens physically on a violation?* The flop can go metastable or capture the wrong value.",
+   "category": "CDC & Timing",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is metastability?",
+   "prompt": "",
+   "answer": "Analog condition where a flop can't resolve to valid 0/1 quickly after a marginally-timed transition; two-flop synchronizer reduces but never eliminates it.",
+   "solution": "**Key idea:** When a flop samples an input changing inside its setup/hold window, its internal node can hang near the mid-rail voltage for an unbounded (exponentially distributed) time before resolving to 0 or 1. Synchronizers give it time to resolve; they reduce the failure probability but never make it zero.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_dst\", \"wave\": \"0.1.0.1.0.1.\"}, {\"name\": \"async_in\", \"wave\": \"0..1........\"}, {\"name\": \"ff1\", \"wave\": \"0.x..1......\"}, {\"name\": \"ff2\", \"wave\": \"0.....1.....\"}], \"head\": {\"text\": \"ff1 may be metastable for part of a cycle; ff2 samples it after it has (very likely) resolved\"}}\n```\n\n| Quantity | Meaning |\n| --- | --- |\n| MTBF = e^(t_r / tau) / (T_0 x f_clk x f_data) | mean time between failures |\n| t_r | resolution time available (about 1 clock period per extra flop) |\n| tau, T_0 | process constants of the flop |\n\n### Explanation\n- MTBF grows exponentially with resolution time, so each extra synchronizer stage multiplies MTBF enormously.\n- Use dedicated synchronizer cells (high-gain, small tau) and place the two flops close together.\n- RTL simulation does not model metastability; CDC verification uses structural checks plus metastability injection (random 1-cycle delay).\n\n### Corner cases & pitfalls\n- Metastable output fanning out to several flops can be resolved differently by each -> inconsistent state.\n\n### Follow-ups\n- *When to use 3 flops?* Very high frequencies or safety-critical MTBF targets.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Explain the two-flop synchronizer.",
+   "prompt": "",
+   "answer": "Two destination-domain flops; first may go metastable, second samples after settling. Not for multi-bit buses.",
+   "solution": "**Key idea:** For a single-bit level signal crossing into another domain, two back-to-back flops clocked by the destination clock let the first flop's possible metastability resolve for a full cycle before the second flop samples it.\n\n```systemverilog\nmodule sync2 #(parameter int STAGES = 2) (input logic clk_dst, rst_n, d_async, output logic q);\n  (* ASYNC_REG = \"TRUE\" *) logic [STAGES-1:0] sync_ff;   // keep flops together, no retiming\n  always_ff @(posedge clk_dst or negedge rst_n)\n    if (!rst_n) sync_ff <= '0;\n    else        sync_ff <= {sync_ff[STAGES-2:0], d_async};\n  assign q = sync_ff[STAGES-1];\nendmodule\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_src\", \"wave\": \"p.........\"}, {\"name\": \"d (src)\", \"wave\": \"0.1.......\"}, {\"name\": \"clk_dst\", \"wave\": \"p.........\"}, {\"name\": \"ff1\", \"wave\": \"0..x1.....\"}, {\"name\": \"q\", \"wave\": \"0....1....\"}], \"head\": {\"text\": \"1-2 cycle latency, possibly varying by one cycle\"}}\n```\n\n### Explanation\n- Only valid for single-bit signals, or multi-bit signals guaranteed to change one bit at a time (Gray code).\n- The source signal must be glitch-free (driven directly from a source-domain flop, no combinational logic before the synchronizer).\n- The signal must be held long enough for the destination to sample it (at least ~1.5 destination periods).\n\n### Corner cases & pitfalls\n- Latency is non-deterministic (+/- 1 cycle); designs must not depend on the exact cycle.\n\n### Follow-ups\n- *Pulses?* Use a toggle synchronizer or handshake.\n- *Buses?* Use handshake or async FIFO.",
+   "category": "CDC & Timing",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Why can't you synchronize a multi-bit bus bit-by-bit?",
+   "prompt": "",
+   "answer": "Independent synchronizers resolve bits on different cycles, creating a mixed word. Use handshake, Gray counter, async FIFO.",
+   "solution": "**Key idea:** Each bit's synchronizer can resolve on a different destination cycle, so for one cycle the destination sees a mix of old and new bits: a value that never existed in the source domain.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_dst\", \"wave\": \"p......\"}, {\"name\": \"src bus\", \"wave\": \"=.=....\", \"data\": [\"011\", \"100\"]}, {\"name\": \"bit2 sync\", \"wave\": \"0...1..\"}, {\"name\": \"bit1 sync\", \"wave\": \"1..0...\"}, {\"name\": \"bit0 sync\", \"wave\": \"1...0..\"}, {\"name\": \"dst bus\", \"wave\": \"=..==..\", \"data\": [\"011\", \"001 (!)\", \"100\"]}], \"head\": {\"text\": \"011 -> 100 changes 3 bits; skewed resolution produces a bogus 001\"}}\n```\n\n| Technique | When to use |\n| --- | --- |\n| Gray-coded counter + 2FF | pointers/counters that step by 1 |\n| req/ack handshake (MCP) | occasional data words |\n| async FIFO | streams |\n| data held stable + synchronized valid/enable | quasi-static config |\n\n### Explanation\n- The valid/enable approach: source holds data stable, toggles a single-bit qualifier; destination samples the bus only after the qualifier is synchronized (multi-cycle path).\n- Gray code works only because exactly one bit changes per increment.\n\n### Corner cases & pitfalls\n- Routing skew between bits makes even a 'simultaneous' change arrive at different times.\n\n### Follow-ups\n- *Is Gray code enough for any bus?* No, only when the value changes by +/-1 between samples.",
+   "category": "CDC & Timing",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you pass a single-cycle pulse from a fast clock to a slow clock?",
+   "prompt": "",
+   "answer": "Narrow pulses can be missed; convert to level via toggle, handshake, stretcher or async set.",
+   "solution": "**Key idea:** A pulse shorter than the destination period can fall between destination edges and be missed. Convert it to a level (toggle), stretch it, or use a handshake, then edge-detect in the destination domain.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_fast\", \"wave\": \"p...........\"}, {\"name\": \"pulse\", \"wave\": \"0.10........\"}, {\"name\": \"clk_slow\", \"wave\": \"h.l.h.l.h.l.\"}, {\"name\": \"2FF of pulse\", \"wave\": \"0...........\"}, {\"name\": \"toggle\", \"wave\": \"0..1........\"}, {\"name\": \"toggle sync\", \"wave\": \"0.....1.....\"}, {\"name\": \"pulse_dst\", \"wave\": \"0.......10..\"}], \"head\": {\"text\": \"the raw pulse is never sampled; the toggle level is\"}}\n```\n\n| Method | Throughput | Notes |\n| --- | --- | --- |\n| pulse stretcher | low | stretch >= 1.5 slow periods |\n| toggle synchronizer | 1 event per ~3 dst cycles | simple, no ack |\n| req/ack handshake | lower | sender knows when safe |\n| async FIFO | high | for bursts of events |\n\n### Explanation\n- Fast -> slow is the dangerous direction; slow -> fast with a 2FF and edge detector usually works because the level lasts long enough.\n- Toggle: one flop in source flips per event; destination XORs consecutive synchronized samples.\n\n### Corner cases & pitfalls\n- Back-to-back events closer than the sync latency are merged/lost with toggle or stretcher; use a handshake or FIFO.\n\n### Follow-ups\n- *How is it verified?* CDC tool checks plus assertion that pulses are spaced far enough apart.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Design a toggle (pulse) synchronizer.",
+   "prompt": "",
+   "answer": "Source toggles a bit per event; destination synchronizes and detects change. Needs events separated enough; else handshake/FIFO.",
+   "solution": "**Key idea:** The source flips a toggle flop on each event; the destination synchronizes the level with 2 flops plus a third for edge detection and XORs the last two samples to regenerate a one-cycle pulse.\n\n```systemverilog\nmodule pulse_sync (\n  input  logic clk_s, rst_s_n, pulse_s,\n  input  logic clk_d, rst_d_n,\n  output logic pulse_d);\n  logic tog_s;\n  logic [2:0] sync_d;\n  always_ff @(posedge clk_s or negedge rst_s_n)\n    if (!rst_s_n)     tog_s <= 1'b0;\n    else if (pulse_s) tog_s <= ~tog_s;          // level change per event\n  always_ff @(posedge clk_d or negedge rst_d_n)\n    if (!rst_d_n) sync_d <= '0;\n    else          sync_d <= {sync_d[1:0], tog_s}; // [0],[1] = 2FF, [2] = history\n  assign pulse_d = sync_d[2] ^ sync_d[1];        // one dst-cycle pulse\nendmodule\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_s\", \"wave\": \"p.........\"}, {\"name\": \"pulse_s\", \"wave\": \"010...10..\"}, {\"name\": \"tog_s\", \"wave\": \"0.1.....0.\"}, {\"name\": \"clk_d\", \"wave\": \"p.........\"}, {\"name\": \"sync_d[1]\", \"wave\": \"0...1.....\"}, {\"name\": \"sync_d[2]\", \"wave\": \"0....1....\"}, {\"name\": \"pulse_d\", \"wave\": \"0...10....\"}], \"head\": {\"text\": \"each source pulse becomes one destination pulse\"}}\n```\n\n### Explanation\n- Works in both directions (fast->slow or slow->fast) as long as events are spaced by at least ~2-3 destination cycles.\n- No feedback, so the source cannot know whether the event was seen.\n\n### Corner cases & pitfalls\n- Two source pulses within the sync latency produce two toggles that may cancel out -> event lost.\n\n### Follow-ups\n- *How to make it safe at high rates?* Add a busy flag fed back by handshake, or use a FIFO.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Explain a req/ack handshake for CDC data transfer.",
+   "prompt": "",
+   "answer": "Sender holds data stable with req; waits for synchronized ack before releasing; trades latency for reliability.",
+   "solution": "**Key idea:** The sender puts data on a bus, holds it stable, and raises `req`; the receiver synchronizes `req`, captures data (stable by then), and raises `ack`; the sender synchronizes `ack`, drops `req`, and (4-phase) waits for `ack` to fall. Only single-bit control crosses, the data is sampled when stable.\n\n```mermaid\nsequenceDiagram\n  participant S as \"Source domain\"\n  participant D as \"Destination domain\"\n  S->>S: data <= X (hold stable)\n  S->>D: req = 1 (2FF sync)\n  D->>D: capture data\n  D->>S: ack = 1 (2FF sync)\n  S->>D: req = 0\n  D->>S: ack = 0\n  Note over S,D: 4-phase complete, next word allowed\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_s\", \"wave\": \"p...........\"}, {\"name\": \"data\", \"wave\": \"x=.........x\", \"data\": [\"D0\"]}, {\"name\": \"req\", \"wave\": \"0.1.....0...\"}, {\"name\": \"ack (dst)\", \"wave\": \"0....1.....0\"}, {\"name\": \"ack_sync (src)\", \"wave\": \"0.......1...\"}], \"head\": {\"text\": \"data is stable for the whole req/ack loop\"}}\n```\n\n### Explanation\n- Latency ~ 2 synchronizations each way (4-phase ~ 4 syncs); throughput is low but reliable and clock-ratio independent.\n- 2-phase (toggle) handshake halves the latency by treating each transition as an event.\n\n### Corner cases & pitfalls\n- Data must be driven from flops in the source domain and must not change until ack is seen; CDC tools need it declared as a stable/qualified crossing.\n\n### Follow-ups\n- *When choose FIFO instead?* When you need one word per cycle throughput.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How does an asynchronous FIFO work?",
+   "prompt": "",
+   "answer": "Pointers in separate domains, Gray-coded and synchronized; full/empty computed with synchronized pointers in the respective domains.",
+   "solution": "**Key idea:** A dual-port RAM is written in the write domain and read in the read domain. Each side keeps a binary pointer plus a Gray-coded copy; the Gray pointer is synchronized into the other domain with 2 flops and compared there to produce `full` (write side) and `empty` (read side).\n\n```mermaid\nflowchart LR\n  subgraph WD[\"write clock domain\"]\n    WP[\"wptr bin/gray\"] --> FULL[\"full logic\"]\n  end\n  subgraph RD[\"read clock domain\"]\n    RP[\"rptr bin/gray\"] --> EMPTY[\"empty logic\"]\n  end\n  WP -->|\"waddr\"| MEM[\"dual-port RAM\"]\n  RP -->|\"raddr\"| MEM\n  WP -->|\"wgray 2FF sync\"| EMPTY\n  RP -->|\"rgray 2FF sync\"| FULL\n```\n\n```systemverilog\nmodule async_fifo #(parameter int DW = 8, AW = 4) (\n  input  logic wclk, wrst_n, winc, input logic [DW-1:0] wdata, output logic wfull,\n  input  logic rclk, rrst_n, rinc, output logic [DW-1:0] rdata, output logic rempty);\n  logic [DW-1:0] mem [2**AW];\n  logic [AW:0] wbin, wgray, rbin, rgray, wq1_rgray, wq2_rgray, rq1_wgray, rq2_wgray;\n  logic [AW:0] wbin_n, wgray_n, rbin_n, rgray_n;\n\n  // write side\n  assign wbin_n  = wbin + (winc & ~wfull);\n  assign wgray_n = (wbin_n >> 1) ^ wbin_n;\n  always_ff @(posedge wclk or negedge wrst_n)\n    if (!wrst_n) {wbin, wgray, wfull} <= '0;\n    else begin\n      wbin  <= wbin_n;  wgray <= wgray_n;\n      wfull <= (wgray_n == {~wq2_rgray[AW:AW-1], wq2_rgray[AW-2:0]});\n    end\n  always_ff @(posedge wclk) if (winc && !wfull) mem[wbin[AW-1:0]] <= wdata;\n  always_ff @(posedge wclk or negedge wrst_n)\n    if (!wrst_n) {wq2_rgray, wq1_rgray} <= '0; else {wq2_rgray, wq1_rgray} <= {wq1_rgray, rgray};\n\n  // read side\n  assign rbin_n  = rbin + (rinc & ~rempty);\n  assign rgray_n = (rbin_n >> 1) ^ rbin_n;\n  always_ff @(posedge rclk or negedge rrst_n)\n    if (!rrst_n) begin {rbin, rgray} <= '0; rempty <= 1'b1; end\n    else begin\n      rbin <= rbin_n; rgray <= rgray_n;\n      rempty <= (rgray_n == rq2_wgray);\n    end\n  assign rdata = mem[rbin[AW-1:0]];\n  always_ff @(posedge rclk or negedge rrst_n)\n    if (!rrst_n) {rq2_wgray, rq1_wgray} <= '0; else {rq2_wgray, rq1_wgray} <= {rq1_wgray, wgray};\nendmodule\n```\n\n### Explanation\n- Pointers are AW+1 bits: the extra MSB distinguishes full (wrapped once more) from empty (equal).\n- Flags are *pessimistic*: full is seen late deasserting, empty is seen late deasserting, never falsely clear -> safe.\n- Based on Cummings, \"Simulation and Synthesis Techniques for Asynchronous FIFO Design\".\n\n### Corner cases & pitfalls\n- Depth must be a power of two for this Gray scheme.\n- Gray pointers must be registered (not combinational) before crossing.\n\n### Follow-ups\n- *Why is pessimism OK?* It only costs throughput, never correctness.",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "coding",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Why are async FIFO pointers Gray-coded?",
+   "prompt": "",
+   "answer": "Gray code changes one bit between adjacent values, so a synchronized pointer is either old or new, safe to compare.",
+   "solution": "**Key idea:** Consecutive Gray values differ in exactly one bit, so if the synchronizer samples a pointer mid-change, the destination sees either the old or the new value, never a garbage value. With binary, 0111 -> 1000 flips 4 bits and could be sampled as any of 16 values.\n\n| Decimal | Binary | Gray | Bits changed (bin / gray) |\n| --- | --- | --- | --- |\n| 0 | 000 | 000 | - |\n| 1 | 001 | 001 | 1 / 1 |\n| 2 | 010 | 011 | 2 / 1 |\n| 3 | 011 | 010 | 1 / 1 |\n| 4 | 100 | 110 | 3 / 1 |\n| 5 | 101 | 111 | 1 / 1 |\n| 6 | 110 | 101 | 2 / 1 |\n| 7 | 111 | 100 | 1 / 1 |\n\n```systemverilog\nfunction automatic logic [N-1:0] bin2gray(input logic [N-1:0] b);\n  return b ^ (b >> 1);\nendfunction\nfunction automatic logic [N-1:0] gray2bin(input logic [N-1:0] g);\n  for (int i = N-1; i >= 0; i--) gray2bin[i] = ^(g >> i);\nendfunction\n```\n\n### Explanation\n- An off-by-one sampled pointer only makes full/empty conservative, never wrong.\n- The Gray property holds across the wrap (7 -> 0: 100 -> 000) only for power-of-two ranges.\n\n### Corner cases & pitfalls\n- The pointer must advance by at most 1 per source clock, and must come straight from a flop (no glitches).\n\n### Follow-ups\n- *Non power of two depth?* Use a different encoding (e.g. Gray range offset) or a handshake-based pointer crossing.",
+   "category": "CDC & Timing",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How is the async FIFO full condition computed?",
+   "prompt": "",
+   "answer": "Compare next write Gray pointer with synchronized read Gray pointer with upper bits inverted (top two bits for the Cummings scheme).",
+   "solution": "**Key idea:** In the write domain, compare the *next* write Gray pointer with the synchronized read Gray pointer whose two MSBs are inverted: full when the writer is exactly one lap (DEPTH entries) ahead of the reader.\n\n```systemverilog\n// AW address bits, pointers are AW+1 bits wide\nassign wfull_val = (wgray_next == {~wq2_rgray[AW:AW-1], wq2_rgray[AW-2:0]});\nalways_ff @(posedge wclk or negedge wrst_n)\n  if (!wrst_n) wfull <= 1'b0; else wfull <= wfull_val;\n```\n\n| DEPTH = 4 (AW = 2) | binary (3b) | Gray (3b) |\n| --- | --- | --- |\n| rptr = 0 | 000 | 000 |\n| wptr = 4 (one lap ahead) | 100 | 110 |\n| compare: Gray(w) vs rgray with 2 MSBs inverted |  | 110 == ~(00)0 = 110 -> FULL |\n\n### Explanation\n- In binary, full is `wbin[AW] != rbin[AW] && wbin[AW-1:0] == rbin[AW-1:0]`.\n- In Gray, the second MSB also flips between laps, hence the inversion of the top **two** bits.\n- Using the *next* pointer makes `full` registered and asserted the same cycle the last slot is written.\n\n### Corner cases & pitfalls\n- Inverting only the MSB in Gray form is a classic bug: it never matches correctly.\n\n### Follow-ups\n- *Almost-full?* Convert synced rgray to binary and subtract.",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How is the async FIFO empty condition computed?",
+   "prompt": "",
+   "answer": "Empty when the next read Gray pointer equals the synchronized write Gray pointer, compared in the read domain; reset alignment essential.",
+   "solution": "**Key idea:** In the read domain, empty is asserted when the next read Gray pointer equals the write Gray pointer synchronized into the read domain. Reset must initialize both pointers to the same value so the FIFO starts empty.\n\n```systemverilog\nassign rempty_val = (rgray_next == rq2_wgray);\nalways_ff @(posedge rclk or negedge rrst_n)\n  if (!rrst_n) rempty <= 1'b1;            // empty out of reset\n  else         rempty <= rempty_val;\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"wclk\", \"wave\": \"p...........\"}, {\"name\": \"winc\", \"wave\": \"0.10........\"}, {\"name\": \"rclk\", \"wave\": \"p...........\"}, {\"name\": \"rq2_wgray\", \"wave\": \"=.....=.....\", \"data\": [\"000\", \"001\"]}, {\"name\": \"rempty\", \"wave\": \"1......0..10\"}, {\"name\": \"rinc\", \"wave\": \"0.........10\"}], \"head\": {\"text\": \"empty deasserts ~2-3 rclk after the write (sync latency), reasserts right after the read\"}}\n```\n\n### Explanation\n- Equality of all bits (including the wrap bit) means same lap, same address -> empty.\n- Because the write pointer is seen late, `empty` stays asserted a few cycles longer than necessary: safe pessimism.\n\n### Corner cases & pitfalls\n- Asserting reset in one domain only can leave pointers mismatched -> phantom data; reset both domains together.\n\n### Follow-ups\n- *Almost-empty?* Requires gray-to-binary conversion of the synced pointer.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Can you build an async FIFO with a non-power-of-two depth?",
+   "prompt": "",
+   "answer": "Classic Gray-pointer FIFOs need power-of-two depth; non-power-of-two requires extra logic or different architecture.",
+   "solution": "**Key idea:** Not with the classic Gray-pointer design: wrapping a binary counter at a non-power-of-two value (e.g. 5 -> 0) changes several Gray bits at once, breaking the one-bit-change property. You need extra logic or another architecture.\n\n| Depth 6, naive wrap | binary | Gray | bits changed |\n| --- | --- | --- | --- |\n| 4 -> 5 | 100 -> 101 | 110 -> 111 | 1 |\n| 5 -> 0 (wrap) | 101 -> 000 | 111 -> 000 | **3 (unsafe)** |\n\n| Option | Idea |\n| --- | --- |\n| Round depth up to power of two | simplest; e.g. 6 -> 8 |\n| Symmetric Gray range | count over the middle 2N codes of a 2^k Gray sequence so wrap changes one bit (even depths only) |\n| Handshake-synchronized binary pointers | transfer pointer value with req/ack (lower update rate) |\n| Credit-based flow control | count credits instead of comparing pointers |\n\n### Explanation\n- `$clog2(DEPTH)` only sizes the pointers; it does not make wrap-around CDC-safe.\n- Even depths can use a Gray sub-sequence trick; odd depths cannot keep the single-bit property across wrap.\n\n### Corner cases & pitfalls\n- Sync FIFOs (single clock) can be any depth: binary pointers with explicit wrap and a counter are fine.\n\n### Follow-ups\n- *Why not just use a 2^n FIFO?* Usually that is the answer unless area is critical.",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Are blocking assignments allowed inside a clocked always block?",
+   "prompt": "",
+   "answer": "Legal but model immediate sequential updates rather than parallel register updates; use NBAs for state, blocking only for careful temporaries.",
+   "solution": "**Key idea:** They are legal but model immediate sequential updates: a variable assigned with `=` and read later in the same block becomes combinational logic, while one read before its assignment or outside the block becomes a flop. NBAs are clearer and avoid inter-block races; blocking is only acceptable for block-local temporaries.\n\n```systemverilog\nalways @(posedge clk) begin\n  b = a;      // b: flop (read by other blocks -> RACE)\n  c = b;      // c: flop fed by a (b's new value) -> one stage, not two\nend\n\nalways_ff @(posedge clk) begin\n  b <= a;     // two-stage pipeline, order-independent\n  c <= b;\nend\n```\n\n| Style | b | c | Pipeline depth |\n| --- | --- | --- | --- |\n| blocking | flop of a | flop of a (same as b) | 1 |\n| nonblocking | flop of a | flop of b | 2 |\n\n### Explanation\n- If another always block reads `b` at the same edge, it may get the old or new value -> race.\n- Mixing blocking for temporaries and NBA for state inside one `always_ff` is accepted by many teams if temporaries are declared locally.\n\n### Corner cases & pitfalls\n- Lint rule: no blocking assignment to a variable that is read outside its block.\n\n### Follow-ups\n- *Can the same variable use both?* No: illegal in always_ff and a lint error elsewhere.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you use temporary variables in sequential logic without creating extra registers?",
+   "prompt": "",
+   "answer": "Temp assigned and consumed in the same clocked process creates no register; NBAs determine the state elements.",
+   "solution": "**Key idea:** Declare the temporary inside the clocked block, assign it with `=` *before* reading it, and read it only in that block in the same clock; it then synthesizes as combinational logic, and only the NBA targets become flops.\n\n```systemverilog\nalways_ff @(posedge clk) begin\n  logic [8:0] sum;          // automatic temp, local to this block\n  sum = a + b;              // combinational\n  if (sum[8]) acc <= 8'hFF; // saturate\n  else        acc <= sum[7:0];\nend\n```\n\n```mermaid\nflowchart LR\n  A[\"a\"] --> ADD[\"+ (sum, combinational)\"]\n  B[\"b\"] --> ADD\n  ADD --> SAT[\"saturate mux\"] --> ACC[\"acc (flop)\"]\n```\n\n### Explanation\n- A temp that is read *before* it is written in the block would need its previous-cycle value -> a flop is inferred.\n- Declaring it inside the `begin...end` prevents other blocks from reading it.\n\n### Corner cases & pitfalls\n- Some lint/coding standards still forbid `=` in always_ff; then compute the temp in an `always_comb` instead.\n\n### Follow-ups\n- *Is the temp visible in waves?* Often not after synthesis; in RTL sim yes.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is the recommended combinational next-state FSM coding style?",
+   "prompt": "",
+   "answer": "Separate next-state logic from state registers; default next_state = state to avoid latches.",
+   "solution": "**Key idea:** Separate the state register (`always_ff`) from next-state/output logic (`always_comb`); in the combinational block default `next_state = state` and default all outputs, then override in the case items. This avoids latches and makes the registered state explicit.\n\n```systemverilog\ntypedef enum logic [1:0] {IDLE, REQ, WAIT_ACK} state_e;\nstate_e state, next_state;\n\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n) state <= IDLE;\n  else        state <= next_state;\n\nalways_comb begin\n  next_state = state;   // default: stay\n  req_o      = 1'b0;    // default outputs\n  unique case (state)\n    IDLE:     if (start) next_state = REQ;\n    REQ:      begin req_o = 1'b1; next_state = WAIT_ACK; end\n    WAIT_ACK: begin req_o = 1'b1; if (ack) next_state = IDLE; end\n    default:  next_state = IDLE;\n  endcase\nend\n```\n\n```mermaid\nstateDiagram-v2\n  [*] --> IDLE\n  IDLE --> REQ: start\n  REQ --> WAIT_ACK\n  WAIT_ACK --> IDLE: ack\n  WAIT_ACK --> WAIT_ACK: !ack\n```\n\n### Explanation\n- Two-process style keeps timing clear: everything in always_comb is combinational.\n- Registered outputs (three-process) can be added when outputs must be glitch-free.\n\n### Corner cases & pitfalls\n- Forgetting the `next_state = state` default creates latches.\n\n### Follow-ups\n- *One-process FSM?* Fine but outputs become registered one cycle later.",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Moore vs Mealy FSM — what is the difference?",
+   "prompt": "",
+   "answer": "Moore outputs depend only on state; Mealy on state and inputs, faster but may glitch.",
+   "solution": "**Key idea:** Moore outputs depend only on the current state (change only after a clock edge, glitch-free if registered); Mealy outputs depend on state and inputs (react in the same cycle, usually fewer states, but can glitch and create long combinational paths).\n\n|  | Moore | Mealy |\n| --- | --- | --- |\n| Output depends on | state | state + inputs |\n| Latency | 1 cycle after input | same cycle |\n| States for '101' detector | 4 | 3 |\n| Glitch risk | low | inputs propagate to outputs |\n\n```mermaid\nstateDiagram-v2\n  S0 --> S1: 1/0\n  S1 --> S2: 0/0\n  S2 --> S1: 1/1\n  S1 --> S1: 1/0\n  S0 --> S0: 0/0\n  S2 --> S0: 0/0\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p......\"}, {\"name\": \"in\", \"wave\": \"1.01...\"}, {\"name\": \"mealy_out\", \"wave\": \"0..10..\"}, {\"name\": \"moore_out\", \"wave\": \"0...10.\"}], \"head\": {\"text\": \"Mealy asserts during the cycle the last '1' arrives; Moore one cycle later\"}}\n```\n\n### Explanation\n- The diagram is a Mealy overlapping '101' detector (output on transition).\n- A Moore version needs an extra S3 state whose output is 1.\n\n### Corner cases & pitfalls\n- Mealy outputs feeding another Mealy FSM can form combinational loops.\n\n### Follow-ups\n- *How to make a Mealy output glitch-free?* Register it (then it behaves with Moore timing).",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "One-hot vs binary FSM encoding — trade-offs?",
+   "prompt": "",
+   "answer": "Binary uses ~log2(N) flops; one-hot uses N flops but simpler decode and often faster; choice depends on area/timing/power.",
+   "solution": "**Key idea:** Binary uses ceil(log2 N) flops but needs decode logic; one-hot uses N flops, each state decode is a single bit, giving faster next-state logic (popular on FPGAs with abundant flops). Gray encoding minimizes toggles for sequential state sequences.\n\n| Encoding | Flops (N=8) | State decode | Speed | Power |\n| --- | --- | --- | --- | --- |\n| binary | 3 | 3-input compare | slower | few flops, more toggles |\n| one-hot | 8 | 1 bit | fast | 2 flops toggle per transition |\n| Gray | 3 | 3-input compare | medium | 1 toggle for sequential transitions |\n\n```systemverilog\n// one-hot with enum: explicit values\ntypedef enum logic [3:0] {IDLE = 4'b0001, RD = 4'b0010, WR = 4'b0100, DONE = 4'b1000} st_e;\n// reverse-case idiom for one-hot decode\nalways_comb begin\n  next = st_e'('0);\n  unique case (1'b1)\n    state[0]: next = start ? RD : IDLE;\n    state[1]: next = WR;\n    state[2]: next = DONE;\n    state[3]: next = IDLE;\n  endcase\nend\n```\n\n### Explanation\n- Synthesis can re-encode FSMs automatically (FSM extraction) unless told to preserve encoding.\n- ASIC choice depends on state count, timing, area, power and safety requirements.\n\n### Corner cases & pitfalls\n- One-hot has many illegal states (2^N - N); add recovery logic or assertions.\n\n### Follow-ups\n- *Safe FSM?* Tools can add Hamming-distance-3 encodings and recovery for radiation environments.",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you handle illegal states in an FSM?",
+   "prompt": "",
+   "answer": "Include default transition to a known state and assertions that the state is legal; one-hot can be zero-hot/multi-hot.",
+   "solution": "**Key idea:** Add a `default` transition to a known safe state, assert that the state is always legal (e.g. `$onehot(state)`), and if required by safety specs, ask synthesis to keep the recovery logic (\"safe FSM\"), because it may otherwise optimize the unreachable default away.\n\n```systemverilog\nalways_comb begin\n  next_state = state;\n  case (state)\n    IDLE: ...;\n    RUN : ...;\n    default: next_state = IDLE;          // recover from illegal codes\n  endcase\nend\n\n// one-hot sanity\na_onehot: assert property (@(posedge clk) disable iff (!rst_n) $onehot(state))\n  else $error(\"illegal FSM state %b\", state);\n```\n\n```mermaid\nstateDiagram-v2\n  IDLE --> RUN: start\n  RUN --> IDLE: done\n  ILLEGAL --> IDLE: default branch\n  RUN --> ILLEGAL: SEU / X / bug\n```\n\n### Explanation\n- Illegal states come from bugs, X propagation, uninitialized flops, or single-event upsets.\n- Zero-hot and multi-hot are the illegal patterns for one-hot encoding.\n- Synthesis treats unreachable states as don't care; use the tool's safe-FSM attribute to keep recovery.\n\n### Corner cases & pitfalls\n- `unique case` without default plus an illegal state yields a runtime warning but undefined hardware behavior.\n\n### Follow-ups\n- *How to verify recovery?* Force the state register to an illegal value in simulation or use formal.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are the advantages of SystemVerilog enums?",
+   "prompt": "",
+   "answer": "Enums name states/modes with packed representation, improve readability, type checking and waveform debug.",
+   "solution": "**Key idea:** Enums give names to encodings (readable code and waveforms), are strongly typed (assigning a plain int needs a cast), can have explicit base types/values, and provide methods like `.name()`, `.next()`, `.first()`, `.num()`.\n\n```systemverilog\ntypedef enum logic [1:0] {IDLE = 2'b00, RUN = 2'b01, DONE = 2'b10} state_e;\nstate_e st;\nst = RUN;                 // ok\n// st = 2'b01;            // error: int -> enum needs a cast\nst = state_e'(2'b01);     // explicit cast\n$display(\"state = %s\", st.name());   // prints RUN\nfor (state_e s = s.first(); ; s = s.next()) begin\n  $display(\"%s\", s.name());\n  if (s == s.last()) break;\nend\n```\n\n| Method | Returns |\n| --- | --- |\n| first()/last() | first/last member |\n| next(N)/prev(N) | member N away (wraps) |\n| num() | number of members |\n| name() | string name |\n\n### Explanation\n- Waveform viewers show names instead of raw bits.\n- Out-of-range values (via cast) are possible; `$cast` checks legality.\n- Enums are packed, so they synthesize to the base type.\n\n### Corner cases & pitfalls\n- 4-state base type defaults to X at sim start; 2-state (`int`) enums default to the first member's value only if it is 0.\n\n### Follow-ups\n- *Enum in randomization?* `rand state_e s;` randomizes only among legal members.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Packed vs unpacked arrays — what is the difference?",
+   "prompt": "",
+   "answer": "Packed dimensions are part of the vector (bitwise ops); unpacked are separate elements (memories, collections).",
+   "solution": "**Key idea:** Packed dimensions (left of the name) form one contiguous bit vector usable in arithmetic/bitwise ops and slicing; unpacked dimensions (right of the name) are separate elements, like an array of words or a memory.\n\n```systemverilog\nlogic [3:0][7:0] pk;     // packed: 32-bit vector, pk[2] is a byte\nlogic [7:0] up [4];      // unpacked: 4 separate bytes\nlogic [7:0] mem [0:1023];// memory: maps to RAM\n\npk = 32'hDEAD_BEEF;      // whole-vector assignment\npk[0] = 8'hEF;           // byte select\nup = '{8'h1, 8'h2, 8'h3, 8'h4};   // assignment pattern\n// up = 32'h0;           // ERROR: cannot assign a vector to unpacked array\n{>>{up}} = pk;           // streaming operator to convert\n```\n\n|  | Packed | Unpacked |\n| --- | --- | --- |\n| Declared | `logic [3:0][7:0] a` | `logic [7:0] a [4]` |\n| Treated as integer | yes | no |\n| Element types | bit-level types only | any type (class, real, struct) |\n| Typical use | buses, structured fields | memories, collections |\n\n### Explanation\n- Packed structs/unions also form vectors.\n- Indexing order: unpacked dims first, then packed: `logic [3:0][7:0] x [2]` -> `x[1][3][7]`.\n\n### Corner cases & pitfalls\n- Large packed arrays are slow in simulation; memories should be unpacked.\n\n### Follow-ups\n- *Dynamic/associative/queue arrays?* All unpacked kinds used in testbenches.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do synthesis tools infer memories, and what is read-during-write behavior?",
+   "prompt": "",
+   "answer": "Coding style (sync read/write), depth, width and target decide RAM vs flops; read-during-write must be explicit.",
+   "solution": "**Key idea:** Coding a memory array with a synchronous write and a (preferably) registered read lets tools map it to block RAM/SRAM; asynchronous reads map to LUTRAM or flops. When reading and writing the same address in one cycle you must define whether the read returns old data (read-first), new data (write-first) or is undefined.\n\n```systemverilog\nmodule sp_ram #(parameter int DW = 32, AW = 10) (input logic clk, we,\n       input logic [AW-1:0] addr, input logic [DW-1:0] wdata, output logic [DW-1:0] rdata);\n  logic [DW-1:0] mem [2**AW];\n  always_ff @(posedge clk) begin\n    if (we) mem[addr] <= wdata;\n    rdata <= mem[addr];        // read-first (old data) because of NBA\n  end\nendmodule\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.....\"}, {\"name\": \"we\", \"wave\": \"0.10..\"}, {\"name\": \"addr\", \"wave\": \"=.=...\", \"data\": [\"A\", \"A\"]}, {\"name\": \"wdata\", \"wave\": \"x.=x..\", \"data\": [\"NEW\"]}, {\"name\": \"rdata (read-first)\", \"wave\": \"x.=.=.\", \"data\": [\"OLD\", \"NEW\"]}, {\"name\": \"rdata (write-first)\", \"wave\": \"x.=...\", \"data\": [\"NEW\"]}], \"head\": {\"text\": \"same-address read during write\"}}\n```\n\n### Explanation\n- Read-first vs write-first is determined by coding: `rdata <= we ? wdata : mem[addr]` gives write-first.\n- ASIC SRAMs are instantiated from memory compilers; behavioral models must match their read-during-write spec.\n\n### Corner cases & pitfalls\n- An asynchronous reset on the memory array or a read with reset prevents BRAM inference.\n\n### Follow-ups\n- *Dual-port with two clocks?* Read-during-write across ports is often undefined; avoid or arbitrate.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What read-during-write modes exist for memories, and how do you code each?",
+   "prompt": "",
+   "answer": "Same-address read/write may return old, new, or device-specific data; consult macro/FPGA docs and code to the required mode.",
+   "solution": "**Key idea:** For a same-address read and write in the same cycle, a memory can return old data (read-first), new data (write-first / write-through), or keep the previous output (no-change); some dual-port macros leave it undefined. Code the mode the target macro actually implements, and check its datasheet.\n\n| Mode | rdata when we && raddr == waddr | RTL pattern |\n| --- | --- | --- |\n| read-first | old mem[addr] | `rdata <= mem[addr];` (NBA, write in same block) |\n| write-first | wdata | `rdata <= we ? wdata : mem[addr];` |\n| no-change | previous rdata | `if (!we) rdata <= mem[addr];` |\n| undefined (true dual-port, 2 clocks) | X / garbage | avoid by arbitration or add assertion |\n\n```systemverilog\n// write-first single-port\nalways_ff @(posedge clk) begin\n  if (we) mem[addr] <= wdata;\n  rdata <= we ? wdata : mem[addr];\nend\n\n// flag the undefined case in a dual-port model\na_no_collision: assert property (@(posedge clk) !(we_a && re_b && addr_a == addr_b));\n```\n\n### Explanation\n- Simulation of a behavioral model shows whatever the RTL was coded to do; the silicon macro may behave differently, so the model must match the macro spec.\n- Bypass logic (forwarding wdata) can implement write-first on top of a read-first macro.\n\n### Corner cases & pitfalls\n- Collision on a true dual-port SRAM with two clocks can corrupt the *written* data too on some macros.\n\n### Follow-ups\n- *How do you verify it?* Directed same-address tests plus a cover property on the collision condition.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What causes synthesis vs simulation mismatches?",
+   "prompt": "",
+   "answer": "RTL semantics differ from hardware: incomplete sensitivity, #delays, init assumptions, X-optimism, ambiguous reset. Lint, CDC, formal, GLS expose them.",
+   "solution": "**Key idea:** Mismatches arise when simulation semantics of RTL differ from how synthesis interprets it: incomplete sensitivity lists, `#` delays, `initial` values, X-optimism, `full_case/parallel_case` pragmas, casex, and ambiguous resets. Catch them with lint, gate-level simulation, formal equivalence and X-prop.\n\n| Cause | RTL sim | Synthesized hardware |\n| --- | --- | --- |\n| incomplete sensitivity list | misses changes | pure combinational |\n| `#5` delays | delayed | ignored |\n| `initial q = 0` | q starts 0 | random power-up (ASIC) |\n| `// synopsys full_case` | latch/hold for missing items | don't care -> optimized |\n| X on `if` condition | takes else branch | either branch |\n| casex with X selector | matches an item | unknown |\n\n```mermaid\nflowchart LR\n  RTL[\"RTL\"] --> LINT[\"Lint\"]\n  RTL --> SIM[\"RTL simulation\"]\n  RTL --> SYN[\"Synthesis\"] --> NET[\"Netlist\"]\n  NET --> LEC[\"Formal equivalence vs RTL\"]\n  NET --> GLS[\"Gate-level sim\"]\n```\n\n### Explanation\n- Formal equivalence (LEC) proves netlist == RTL, but it uses the same interpretation as synthesis (pragmas, X as don't care), so it cannot catch every simulation-only mismatch; GLS catches X/reset/initialization issues.\n- Coding guidelines: `always_comb`, no delays in RTL, explicit resets, `unique/priority` instead of pragmas.\n\n### Corner cases & pitfalls\n- Mismatches can pass all RTL tests and only appear in silicon or GLS.\n\n### Follow-ups\n- *Why is GLS still used?* Reset/X issues, timing annotation (SDF), power-up behavior, DFT logic.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is X-optimism in RTL simulation?",
+   "prompt": "",
+   "answer": "if/case give a definite result when the control is X, hiding unknown states; use assertions, case equality, unique case, X-prop.",
+   "solution": "**Key idea:** RTL `if`/`case` statements treat an X condition as false (or match no item) and pick a definite branch, so the X disappears even though real hardware could take either path. This hides bugs like missing resets.\n\n```systemverilog\nlogic sel = 1'bx;      // e.g. un-reset flop\nalways_comb\n  if (sel) y = a;      // X is not true -> else branch\n  else     y = b;      // RTL: y = b (looks fine!)\n// hardware: y could be a or b -> real bug hidden\n```\n\n| Construct | sel = X behavior | Hardware reality |\n| --- | --- | --- |\n| if (sel) | else branch | a or b |\n| case (sel) | default / no match | any item |\n| y = sel ? a : b | bitwise merge: X where a != b | a or b (this one is accurate) |\n\n### Explanation\n- Mitigations: `assert (!$isunknown(sel))` on control signals, `unique case` (warns on no-match), X-prop simulation modes (e.g. VCS `-xprop`, Xcelium X-prop) that make if/case propagate X.\n- Reset all control flops; datapath flops can stay un-reset if validated by control.\n\n### Corner cases & pitfalls\n- Tests that pass in RTL may fail in GLS because GLS doesn't have the optimism.\n\n### Follow-ups\n- *What does the ternary do with X?* Merges a and b bitwise: bits where they agree stay known.",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is X-pessimism in gate-level simulation?",
+   "prompt": "",
+   "answer": "GLS produces X where hardware resolves deterministically, e.g. mux with X select and equal inputs; X-prop balances optimism/pessimism.",
+   "solution": "**Key idea:** Gate-level models can produce X where real hardware is deterministic: e.g. a mux with select = X and both data inputs equal to 1 still gives 1 in silicon, but some cell models output X. It causes false failures that waste debug time.\n\n| Logic | Inputs | Hardware | Pessimistic GLS |\n| --- | --- | --- | --- |\n| mux | a=1, b=1, sel=X | 1 | X (in some cell models) |\n| y = (s & a) | (~s & a) | a=1, s=X | 1 | X |\n| reconvergent X | x ^ x | 0 | X |\n\n```systemverilog\n// RTL ternary is accurate here: equal inputs give a known output\nassign y = sel ? a : b;      // sel=X, a=b=1 -> y=1\n// gate-level AND-OR implementation: (sel & a) | (~sel & b)\n// sel=X -> (X & 1) | (X & 1) = X | X = X  -> pessimistic\n```\n\n### Explanation\n- Optimism (RTL) hides bugs; pessimism (GLS) reports false bugs. X-prop modes try to balance by computing the merge of all possible branch results.\n- Fix GLS pessimism by resetting the offending flops or using initialization only for verified-don't-care flops (not by blindly forcing).\n\n### Corner cases & pitfalls\n- Blanket `+initreg` random initialization can also hide real reset bugs.\n\n### Follow-ups\n- *Formal X analysis?* Some formal tools prove whether an X can reach outputs (X-propagation checks).",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "force/release vs procedural assignment — when do you use force?",
+   "prompt": "",
+   "answer": "force overrides drivers until release; debug/testbench feature only. Deposit sets without overriding drivers.",
+   "solution": "**Key idea:** `force` overrides all other drivers of a net/variable until `release`; it is a debug/testbench tool (error injection, bypassing blocks), never synthesizable RTL. A procedural assignment is just one driver update and can be overwritten by the next one; 'deposit' (simulator API, e.g. `$deposit`/UVM `uvm_hdl_deposit`) sets a value once without holding it.\n\n```systemverilog\ninitial begin\n  #100 force dut.u_core.pll_lock = 1'b1;   // hold regardless of drivers\n  #500 release dut.u_core.pll_lock;        // design drives again\n\n  // UVM backdoor equivalents\n  void'(uvm_hdl_force  (\"tb.dut.err_inj\", 1'b1));\n  void'(uvm_hdl_deposit(\"tb.dut.cnt\",     8'hFE)); // design may overwrite next cycle\n  void'(uvm_hdl_release(\"tb.dut.err_inj\"));\nend\n```\n\n| Operation | Overrides drivers | Duration |\n| --- | --- | --- |\n| procedural `=`/`<=` | no (variable updated once) | until next write |\n| force | yes | until release |\n| deposit | no | until design drives again |\n\n### Explanation\n- After `release` on a variable, it keeps the forced value until the next procedural write; a net immediately takes its driver's value.\n- Forcing internal signals couples the TB to hierarchy; keep forces in a dedicated error-injection component.\n\n### Corner cases & pitfalls\n- Forcing a signal in a gate-level netlist may fail because names change after synthesis.\n\n### Follow-ups\n- *Use in UVM?* Typically via `uvm_hdl_force` in an error-injection sequence.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "$display vs $strobe vs $monitor?",
+   "prompt": "",
+   "answer": "$display prints immediately; $strobe prints at end of time step after NBA; $monitor prints when arguments change.",
+   "solution": "**Key idea:** `$display` prints immediately when executed (Active region, may show pre-NBA values); `$strobe` prints once at the end of the time step (Postponed, settled values); `$monitor` prints whenever any argument changes (Postponed).\n\n```systemverilog\nalways @(posedge clk) begin\n  q <= d;\n  $display(\"display q=%0d\", q);   // OLD q\n  $strobe (\"strobe  q=%0d\", q);   // NEW q (after NBA)\nend\ninitial $monitor(\"%0t a=%0b b=%0b\", $time, a, b);  // prints on every change of a or b\n```\n\n| Task | When | Values | How often |\n| --- | --- | --- | --- |\n| $display | immediately | current (may be pre-NBA) | each call |\n| $write | immediately, no newline | current | each call |\n| $strobe | end of time step | final | once per call |\n| $monitor | end of time step | final | whenever an arg changes |\n\n### Explanation\n- Only one `$monitor` is active at a time; `$monitoroff/$monitoron` control it.\n- In UVM, prefer `uvm_info` (verbosity, IDs, report catcher) over raw `$display`.\n\n### Corner cases & pitfalls\n- `$strobe` called from multiple processes still prints in unspecified order.\n\n### Follow-ups\n- *Fully settled sample in SVA?* Assertions use Preponed sampled values instead.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What do $timeformat, timeunit and timeprecision do?",
+   "prompt": "",
+   "answer": "timeunit/timeprecision define a module's time scale/precision; prefer explicit declarations over inherited `timescale.",
+   "solution": "**Key idea:** `timeunit` sets the unit for delay numbers in a scope (e.g. `#5` = 5 ns), `timeprecision` sets the rounding resolution; `$timeformat(units, precision, suffix, width)` controls how `%t` prints times.\n\n```systemverilog\nmodule tb;\n  timeunit 1ns;\n  timeprecision 1ps;\n  initial begin\n    $timeformat(-9, 3, \" ns\", 10);    // print %t in ns with 3 decimals\n    #2.5;                             // 2.500 ns\n    $display(\"now = %t\", $realtime); // \"now =   2.500 ns\"\n  end\nendmodule\n```\n\n| $timeformat arg | Meaning | Example |\n| --- | --- | --- |\n| units | power of 10 (-9 = ns, -12 = ps) | -9 |\n| precision | digits after the decimal point | 3 |\n| suffix | string appended | \" ns\" |\n| min width | field width | 10 |\n\n### Explanation\n- Delays are rounded to the precision: with 1 ns / 1 ps, `#1.2345` becomes about 1.235 ns (1235 ps).\n- The simulator's global precision is the finest precision of all modules.\n- `$time` returns an integer in the module's unit (rounded); `$realtime` returns a real.\n\n### Corner cases & pitfalls\n- Using `$time` in a 1ns-unit module when events happen at 0.5 ns shows rounded values.\n\n### Follow-ups\n- *How is `#1step` defined?* One global precision unit; used in clocking block input skew.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "`timescale vs timeunit/timeprecision — which is better?",
+   "prompt": "",
+   "answer": "`timescale is a preprocessor directive affecting subsequent files; timeunit/timeprecision are scoped language constructs, clearer and order-independent.",
+   "solution": "**Key idea:** `` `timescale`` is a compiler directive that applies to every following file until another `` `timescale``, so its effect depends on file compilation order; `timeunit`/`timeprecision` are language declarations scoped to the module/package/program/interface they are in, so they are order-independent.\n\n```systemverilog\n`timescale 1ns/1ps      // file a.sv: also applies to b.sv if compiled after a.sv\nmodule a; endmodule\n\nmodule b;               // b.sv: explicit, unaffected by compile order\n  timeunit 1ns;\n  timeprecision 1ps;\nendmodule\n\n// SV-2009 shorthand\nmodule c; timeunit 1ns / 1ps; endmodule\n```\n\n|  | `timescale | timeunit / timeprecision |\n| --- | --- | --- |\n| Kind | preprocessor directive | language construct |\n| Scope | all subsequent compilation | enclosing design element |\n| Compile-order sensitive | yes | no |\n| Missing | tool default or error if some files have it | inherits from `timescale or default |\n\n### Explanation\n- Many simulators error when some modules have a timescale and others don't.\n- Precedence: a `timeunit` declaration in a module overrides any `` `timescale`` for that module.\n\n### Corner cases & pitfalls\n- A package compiled first with no time declarations may pick up the tool default (often 1s!).\n\n### Follow-ups\n- *Command-line override?* e.g. `-timescale=1ns/1ps` for files with none.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Can # delay controls be used in synthesizable RTL?",
+   "prompt": "",
+   "answer": "# delays model simulation timing and don't synthesize; RTL describes logic, timing constraints decide physical delay.",
+   "solution": "**Key idea:** Synthesis ignores `#` delays (with a warning) because physical delay comes from cells and wires, constrained by SDC and verified by STA. In RTL they only change simulation, which risks sim/synth mismatch, so keep them out of RTL (except sometimes a small `#1` on flop outputs in legacy code for waveform readability).\n\n```systemverilog\nalways_ff @(posedge clk) q <= #1 d;   // simulation-only, synthesis ignores\nassign #2 y = a & b;                   // ignored by synthesis\n// timing intent belongs in SDC:\n//   create_clock -period 2.0 [get_ports clk]\n//   set_max_delay 1.5 -from [get_ports a] -to [get_ports y]\n```\n\n| Where | # delay OK? |\n| --- | --- |\n| Synthesizable RTL | no (ignored) |\n| Testbench stimulus | yes |\n| Behavioral models (memories, PLL) | yes |\n| Gate-level | from SDF / specify blocks |\n\n### Explanation\n- Zero-delay RTL plus STA is the standard flow; timing is never verified by RTL simulation.\n- `#1` on NBAs can mask race conditions in the testbench rather than fixing them.\n\n### Corner cases & pitfalls\n- Delays inside an `always_comb` are illegal.\n\n### Follow-ups\n- *How to model a clock in a TB?* `always #5 clk = ~clk;` with an explicit timeunit.",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Transport vs inertial delay — what is the difference?",
+   "prompt": "",
+   "answer": "Inertial delay suppresses pulses shorter than the delay; transport preserves them. RTL synthesis doesn't use # delays.",
+   "solution": "**Key idea:** Inertial delay (default for continuous assigns and gates) filters pulses shorter than the delay, like a real gate's capacitance; transport delay (modeled with a delayed NBA, `q <= #d x`) passes every pulse, like an ideal wire.\n\n```systemverilog\nassign #3 y_inertial = a;                  // pulses < 3 are swallowed\nalways @(a) y_transport <= #3 a;            // every edge reproduced 3 units later\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"a\", \"wave\": \"0.10..1...0.\"}, {\"name\": \"y_inertial (#3)\", \"wave\": \"0.....1...0.\"}, {\"name\": \"y_transport (#3)\", \"wave\": \"0...10..1...\"}], \"head\": {\"text\": \"the 1-unit-wide pulse on a is filtered by inertial delay but kept by transport delay (not to exact scale)\"}}\n```\n\n### Explanation\n- SDF back-annotation uses pulse-rejection limits (PATHPULSE) to control which pulses become X or are filtered.\n- Synthesis ignores both; they are only modeling concepts.\n\n### Corner cases & pitfalls\n- Blocking `#3 y = a;` inside an always block delays the whole process and misses events that happen during the wait.\n\n### Follow-ups\n- *Use in TB?* Transport-style delays model board/cable delays in interface BFMs.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What are specify blocks used for?",
+   "prompt": "",
+   "answer": "Specify blocks describe path delays and timing checks for gate-level simulation; not synthesizable RTL.",
+   "solution": "**Key idea:** A `specify ... endspecify` block in a (usually cell-level) module describes pin-to-pin path delays and timing checks (`$setup`, `$hold`, `$width`...). SDF back-annotation fills in the actual delays for gate-level simulation. They are not synthesizable functional RTL.\n\n```systemverilog\nmodule DFF (input D, CK, output reg Q);\n  always @(posedge CK) Q <= D;\n  specify\n    specparam tCQ = 0.12, tSU = 0.05, tH = 0.02;\n    (posedge CK => (Q +: D)) = tCQ;        // clock-to-Q path delay\n    $setup(D, posedge CK, tSU);\n    $hold (posedge CK, D, tH);\n  endspecify\nendmodule\n```\n\n```mermaid\nflowchart LR\n  LIB[\"cell library .v (specify blocks)\"] --> GLS[\"gate-level simulation\"]\n  SDF[\"SDF from STA / P&R\"] -->|annotate delays| GLS\n  NET[\"netlist\"] --> GLS\n```\n\n### Explanation\n- Parallel `=>` and full `*>` path connections; edge-sensitive and state-dependent paths are allowed.\n- Timing-check violations print messages and can make the output X via notifier registers.\n\n### Corner cases & pitfalls\n- Running GLS without SDF uses the specparam defaults or unit delays; results do not reflect real timing.\n\n### Follow-ups\n- *Who writes them?* Library vendors; designers rarely do.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do $setup/$hold timing checks in simulation relate to STA?",
+   "prompt": "",
+   "answer": "$setup/$hold report violations in gate-level/timing models; they don't replace STA.",
+   "solution": "**Key idea:** System timing checks (`$setup`, `$hold`, `$setuphold`, `$recovery`, `$width`, `$period`) in cell models report violations during gate-level simulation for the vectors actually simulated; STA checks all paths exhaustively without vectors. Simulation checks complement, never replace, STA.\n\n```systemverilog\nspecify\n  $setuphold(posedge CK, D, 0.05, 0.02, notifier);   // violation -> notifier toggles\n  $recovery (posedge RN, posedge CK, 0.10);\n  $width    (posedge CK, 0.30);\nendspecify\n// UDP flop sets Q = X when notifier toggles\n```\n\n|  | Timing checks in GLS | STA |\n| --- | --- | --- |\n| Coverage | only simulated scenarios | all paths |\n| Needs vectors | yes | no |\n| Finds | async crossings, real violations in tests, X from notifier | setup/hold/recovery on all paths |\n| Speed | slow | fast |\n\n### Explanation\n- CDC synchronizer first-stage flops legitimately violate setup/hold; disable checks on those (e.g. `$setuphold` with `+notimingcheck` per instance) or they produce X.\n- GLS with SDF is used to validate constraints (false/multicycle paths) and reset/initialization behavior.\n\n### Corner cases & pitfalls\n- Turning off all timing checks globally hides real problems.\n\n### Follow-ups\n- *What is a notifier?* A reg toggled on violation that the UDP uses to force X.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Immediate vs concurrent assertions?",
+   "prompt": "",
+   "answer": "Immediate assertions execute when procedural control reaches them; concurrent assertions sample on clock events and describe temporal relations.",
+   "solution": "**Key idea:** Immediate assertions are procedural statements checked when execution reaches them (like an `if`); concurrent assertions are clocked, sample values in the Preponed region, and describe temporal behavior across cycles.\n\n```systemverilog\n// immediate: in procedural code\nalways_comb begin\n  a_onehot: assert ($onehot0(gnt)) else $error(\"multiple grants %b\", gnt);\nend\n\n// concurrent: temporal, clocked\na_req_ack: assert property (@(posedge clk) disable iff (!rst_n)\n                            req |-> ##[1:3] ack)\n           else $error(\"ack not within 3 cycles\");\n```\n\n|  | Immediate | Concurrent |\n| --- | --- | --- |\n| Location | procedural code | module/interface/program/checker or procedural (inferred clock) |\n| Timing | evaluated when executed | every clock tick |\n| Multi-cycle behavior | no | yes (sequences) |\n| Sampling | current values (deferred variants exist) | Preponed sampled values |\n| Formal tools | limited | first-class |\n\n### Explanation\n- Deferred immediate assertions (`assert #0` / `assert final`) avoid glitch failures in combinational code.\n- Concurrent assertions are the main tool for protocol, FSM, and handshake checks and are bindable with `bind`.\n\n### Corner cases & pitfalls\n- An immediate assertion in an `always_comb` can fire on zero-time glitches; use `assert final`.\n\n### Follow-ups\n- *Where do action blocks run?* Reactive region for concurrent assertions.",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "SVA |-> vs |=> implication?",
+   "prompt": "",
+   "answer": "|-> overlapped: consequent starts same cycle; |=> non-overlapped: one clock later.",
+   "solution": "**Key idea:** `a |-> b` (overlapped): if `a` matches, `b` must hold in the **same** clock tick where `a` ended. `a |=> b` (non-overlapped): `b` must hold on the **next** tick; it is equivalent to `a |-> ##1 b`.\n\n```systemverilog\n// grant in the same cycle as request\np_same: assert property (@(posedge clk) req |-> gnt);\n// grant one cycle after request\np_next: assert property (@(posedge clk) req |=> gnt);\n// equivalent\np_next2: assert property (@(posedge clk) req |-> ##1 gnt);\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p......\"}, {\"name\": \"req\", \"wave\": \"0.10...\"}, {\"name\": \"gnt (|-> passes)\", \"wave\": \"0.10...\"}, {\"name\": \"gnt (|=> passes)\", \"wave\": \"0..10..\"}], \"head\": {\"text\": \"req sampled high at edge 2: |-> checks gnt at edge 2, |=> at edge 3\"}}\n```\n\n### Explanation\n- If the antecedent is false the property passes vacuously (watch for vacuity in coverage).\n- Both are only allowed in properties, not in sequences.\n\n### Corner cases & pitfalls\n- A common off-by-one bug is writing `|->` when the design responds one cycle later.\n\n### Follow-ups\n- *How to check vacuity?* Add `cover property (req)` or use tool vacuity reports.",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What do $past, $rose and $fell do in SVA?",
+   "prompt": "",
+   "answer": "$past gets a previous sampled value; $rose/$fell detect 0->1 and 1->0 transitions.",
+   "solution": "**Key idea:** `$past(sig, N)` returns the sampled value N clock ticks ago (default 1); `$rose(sig)` is true when the LSB sampled value went 0->1 since the previous tick; `$fell(sig)` when it went 1->0. `$stable` and `$changed` complete the set.\n\n```systemverilog\n// data must be stable while valid && !ready (backpressure)\na_hold: assert property (@(posedge clk) disable iff (!rst_n)\n  $past(valid && !ready) |-> $stable(data) && valid);\n\n// a rising start must be followed by busy next cycle\na_busy: assert property (@(posedge clk) $rose(start) |=> busy);\n\n// counter increments by 1 when en\na_inc: assert property (@(posedge clk) en |=> cnt == $past(cnt) + 1'b1);\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p......\"}, {\"name\": \"start\", \"wave\": \"0.1..0.\"}, {\"name\": \"$rose(start)\", \"wave\": \"0.10...\"}, {\"name\": \"$fell(start)\", \"wave\": \"0....10\"}], \"head\": {\"text\": \"sampled-value functions compare the current and previous sampled value\"}}\n```\n\n### Explanation\n- Values are from the Preponed region, so `$rose` is true at the first clock edge where the sampled value is 1 and the previous was 0.\n- `$past(x, 2, en)` uses a gating expression: only ticks where `en` was true count.\n\n### Corner cases & pitfalls\n- At the first clock tick, `$past` returns the initial value (often X/0) -> guard with reset or `disable iff`.\n\n### Follow-ups\n- *`$rose` on a vector?* Only the LSB is considered; use `$changed` for vectors.",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What does disable iff do in an assertion?",
+   "prompt": "",
+   "answer": "disable iff turns off a concurrent assertion while reset or another condition is true, avoiding false failures.",
+   "solution": "**Key idea:** `disable iff (expr)` asynchronously aborts any in-progress attempt and suppresses new ones while `expr` is true, so resets do not produce false failures. Aborted attempts count as disabled, not passed/failed.\n\n```systemverilog\na_req_ack: assert property (@(posedge clk) disable iff (!rst_n)\n  req |-> ##[1:4] ack);\n\n// default for all assertions in the scope\ndefault disable iff (!rst_n);\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.........\"}, {\"name\": \"rst_n\", \"wave\": \"1...0..1..\"}, {\"name\": \"req\", \"wave\": \"0.1.......\"}, {\"name\": \"ack\", \"wave\": \"0.........\"}, {\"name\": \"attempt\", \"wave\": \"0.=.x.....\", \"data\": [\"running\", \"\"]}], \"head\": {\"text\": \"reset asserted mid-attempt: the attempt is disabled, no failure reported\"}}\n```\n\n### Explanation\n- The disable condition is evaluated asynchronously (current values, not sampled), unlike the property itself.\n- Only one `disable iff` per property; nested not allowed.\n\n### Corner cases & pitfalls\n- Using `disable iff` with a signal that glitches can randomly cancel checks; use a clean synchronized reset.\n\n### Follow-ups\n- *Cover with disable iff?* Disabled attempts are not counted as covered.",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a cover property and why use it?",
+   "prompt": "",
+   "answer": "cover property checks that a temporal scenario occurs at least once; confirms interesting states/corners are reachable.",
+   "solution": "**Key idea:** `cover property` records whether a temporal scenario ever happens. In simulation it measures functional coverage of corner cases; in formal it proves reachability (and gives a witness trace). It also exposes vacuous assertions.\n\n```systemverilog\n// back-to-back writes with backpressure in between\nc_b2b_bp: cover property (@(posedge clk) disable iff (!rst_n)\n  (valid && ready) ##1 (valid && !ready)[*2:5] ##1 (valid && ready));\n\n// FIFO reaches full then empty\nc_full_empty: cover property (@(posedge clk) full ##[1:$] empty);\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.......\"}, {\"name\": \"valid\", \"wave\": \"01.....0\"}, {\"name\": \"ready\", \"wave\": \"010..10.\"}, {\"name\": \"c_b2b_bp hit\", \"wave\": \"0.....10\"}], \"head\": {\"text\": \"the cover fires when the whole sequence matches\"}}\n```\n\n### Explanation\n- Assert = must always hold; cover = must happen at least once.\n- Pair every important assertion with a cover of its antecedent to prove it is not vacuously passing.\n- Cover results appear in the coverage database alongside covergroups.\n\n### Corner cases & pitfalls\n- An unreachable cover in formal means either a design bug or over-constrained assumptions.\n\n### Follow-ups\n- *cover sequence vs cover property?* `cover sequence` counts every match (including multiple per attempt).",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "assume vs assert in formal verification?",
+   "prompt": "",
+   "answer": "Assertions describe what design must satisfy; assumptions constrain the environment. Over-constraining can mask bugs.",
+   "solution": "**Key idea:** `assert` states what the design must guarantee (the tool tries to find a counterexample); `assume` restricts the inputs/environment to legal behavior (the tool only explores traces satisfying it). Over-constraining assumptions can make a buggy design pass, so assumptions must be reviewed and ideally checked as assertions on the neighboring block.\n\n```systemverilog\n// environment rule: master never drops valid without handshake\nm_valid_hold: assume property (@(posedge clk) disable iff (!rst_n)\n  valid && !ready |=> valid && $stable(data));\n\n// DUT obligation\na_no_overflow: assert property (@(posedge clk) disable iff (!rst_n)\n  full |-> !wr_accept);\n\n// sanity: make sure assumptions don't kill interesting traces\nc_full: cover property (@(posedge clk) full);\n```\n\n```mermaid\nflowchart LR\n  ENV[\"assume: legal inputs\"] --> DUT[\"DUT\"]\n  DUT --> CHK[\"assert: required behavior\"]\n  ENV -. \"assume at block level\" .-> PEER[\"assert at neighbor / system level (assume-guarantee)\"]\n```\n\n### Explanation\n- In simulation, an `assume` is checked like an assertion (input violations reported).\n- Assume-guarantee: an assumption on block B's inputs becomes an assertion on block A's outputs.\n\n### Corner cases & pitfalls\n- `assume property (0)` or contradictory assumptions make every assertion trivially proven; formal tools report 'over-constrained' / unreachable covers.\n\n### Follow-ups\n- *restrict property?* Constrains formal like assume but is not checked in simulation.",
+   "category": "SVA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is formal equivalence checking?",
+   "prompt": "",
+   "answer": "Formal equivalence checks two versions produce equivalent behavior under assumptions; proves over huge state spaces.",
+   "solution": "**Key idea:** Equivalence checking (LEC) proves that two designs (e.g. RTL vs synthesized netlist, or RTL before/after a refactor) produce identical outputs for all inputs, by matching state points and comparing the combinational logic cones between them. It is exhaustive, unlike simulation.\n\n```mermaid\nflowchart LR\n  REF[\"reference (RTL)\"] --> MAP[\"map key points: flops, latches, ports\"]\n  IMP[\"implementation (netlist)\"] --> MAP\n  MAP --> CMP[\"compare logic cones (SAT / BDD)\"]\n  CMP -->|equal| PASS[\"equivalent\"]\n  CMP -->|counterexample| FAIL[\"non-equivalent point + vector\"]\n```\n\n| Type | Compares | Example tools / use |\n| --- | --- | --- |\n| Combinational (LEC) | 1:1 mapped flops | RTL vs netlist after synthesis, ECO, scan insertion |\n| Sequential (SEC) | designs with different state encoding/retiming | clock gating, pipelining changes |\n\n### Explanation\n- LEC runs after synthesis, DFT insertion, place & route and every ECO.\n- Constraints (e.g. scan mode = 0) are needed so test logic doesn't create false differences.\n\n### Corner cases & pitfalls\n- LEC proves equivalence, not correctness: a bug in RTL is faithfully reproduced in the netlist.\n\n### Follow-ups\n- *Why not just GLS?* LEC is exhaustive and much faster; GLS is for timing, X, reset behavior.",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What do lint and CDC tools check?",
+   "prompt": "",
+   "answer": "Lint finds coding/structural issues; CDC tools analyze crossings for sync/handshake/FIFO/reconvergence; neither replaces simulation/STA.",
+   "solution": "**Key idea:** Lint finds structural/coding problems statically (width mismatches, latches, multiple drivers, unused signals, risky constructs). CDC tools find unsafe clock-domain crossings (missing synchronizers, multi-bit crossings, reconvergence, glitchy logic before sync). Both complement simulation and STA; neither proves functionality.\n\n| Tool | Typical findings |\n| --- | --- |\n| Lint (Spyglass, Ascent, Verilator --lint) | width mismatch, inferred latch, multi-driver, incomplete case, unused/undriven, combinational loop, blocking in seq |\n| CDC (Spyglass CDC, Questa CDC, Meridian) | unsynchronized crossing, multi-bit bus without protocol, reconvergence, combinational logic before synchronizer, reset crossings |\n| RDC | async reset domain crossings causing metastability on reset assertion |\n\n```mermaid\nflowchart LR\n  RTL[\"RTL\"] --> LINT[\"Lint\"] --> CDC[\"CDC / RDC\"] --> SIM[\"Simulation + assertions\"] --> SYN[\"Synthesis\"] --> STA[\"STA\"]\n```\n\n### Explanation\n- Run lint at every commit; it is cheap and catches bugs before simulation.\n- CDC requires clock/reset constraints (SDC-like) to know which domains exist.\n- Waivers must be reviewed: a blanket waiver hides real problems.\n\n### Corner cases & pitfalls\n- CDC structural checks pass even if the protocol (e.g. holding data stable) is violated; add assertions for that.\n\n### Follow-ups\n- *How is CDC verified functionally?* Metastability injection in simulation and formal CDC protocol checks.",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is CDC reconvergence and why is it a problem?",
+   "prompt": "",
+   "answer": "Separately synchronized related signals reconverge and settle on different cycles, creating transient wrong combinations; use a coherent protocol.",
+   "solution": "**Key idea:** When related signals are synchronized separately and then combined in the destination domain, their synchronizers can resolve on different cycles, so the combination briefly shows a state that never existed in the source domain.\n\n```mermaid\nflowchart LR\n  A[\"a (src)\"] --> SA[\"2FF sync\"] --> AND[\"a_s AND NOT b_s\"]\n  B[\"b (src)\"] --> SB[\"2FF sync\"] --> AND\n  AND --> FSM[\"dst logic sees bogus pulse\"]\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk_dst\", \"wave\": \"p......\"}, {\"name\": \"a, b (src, change together)\", \"wave\": \"0.1....\"}, {\"name\": \"a_s\", \"wave\": \"0..1...\"}, {\"name\": \"b_s (one cycle later)\", \"wave\": \"0...1..\"}, {\"name\": \"a_s & !b_s\", \"wave\": \"0..10..\"}], \"head\": {\"text\": \"a and b rise together in the source; destination sees a glitch pulse\"}}\n```\n\n### Explanation\n- Fix: synchronize one combined/encoded signal (e.g. Gray-coded state, or a single 'valid' that qualifies a stable bus) instead of separate bits.\n- Divergence-reconvergence also happens when one synchronized signal fans out to several synchronizers.\n- CDC tools flag reconvergence; functional simulation needs metastability injection to expose it.\n\n### Corner cases & pitfalls\n- Reconvergence through sequential logic (after a few flops) is also flagged and still dangerous.\n\n### Follow-ups\n- *When is it acceptable?* When the combined signals are Gray-coded (only one changes at a time).",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How should an asynchronous reset be handled across clock domains?",
+   "prompt": "",
+   "answer": "Reset is CDC-like; assertion may be async, deassertion synchronized independently per domain.",
+   "solution": "**Key idea:** Treat reset as a crossing: assert asynchronously everywhere, but synchronize deassertion separately in each destination clock domain with its own reset synchronizer, and sequence releases if domains depend on each other.\n\n```mermaid\nflowchart LR\n  POR[\"por_n (async)\"] --> RS1[\"rst_sync clkA\"] --> DA[\"domain A flops\"]\n  POR --> RS2[\"rst_sync clkB\"] --> DB[\"domain B flops\"]\n  POR --> RS3[\"rst_sync clkC\"] --> DC[\"domain C flops\"]\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"por_n\", \"wave\": \"0..1........\"}, {\"name\": \"clkA\", \"wave\": \"p...........\"}, {\"name\": \"rstA_n\", \"wave\": \"0....1......\"}, {\"name\": \"clkB (slow)\", \"wave\": \"h.l.h.l.h.l.\"}, {\"name\": \"rstB_n\", \"wave\": \"0.......1...\"}], \"head\": {\"text\": \"each domain leaves reset aligned to its own clock\"}}\n```\n\n### Explanation\n- Reset Domain Crossing (RDC): if a flop in reset domain R1 is reset asynchronously while it drives a flop in domain R2 that is not being reset, R2 can capture a metastable value. Fix with isolation/synchronization or by gating the receiving enable during reset.\n- Different domains leave reset at different times: handshake signals must be robust to that (e.g. receivers ignore inputs until ready).\n\n### Corner cases & pitfalls\n- Using one synchronized reset (from clkA) in clkB is itself an unsynchronized crossing.\n\n### Follow-ups\n- *What about warm resets in only one domain?* That's the classic RDC scenario.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What determines synchronizer MTBF?",
+   "prompt": "",
+   "answer": "MTBF depends on destination frequency, data toggle rate, settling time and technology metastability parameters; extra stages improve it exponentially.",
+   "solution": "**Key idea:** MTBF = e^(t_r / tau) / (T_0 x f_clk x f_data): it falls with destination clock frequency and data toggle rate, and grows exponentially with the resolution time t_r (slack available for settling) relative to the flop's time constant tau. Adding a stage adds about one clock period to t_r.\n\n| Parameter | Effect on MTBF |\n| --- | --- |\n| f_clk (destination) up | down (less t_r, more samples) |\n| f_data up | down (more chances) |\n| t_r up (extra stage, less logic between flops) | exponentially up |\n| tau down (better sync cell) | exponentially up |\n\n| Example: tau = 20 ps, T_0 = 50 ps, f_clk = 1 GHz, f_data = 100 MHz | MTBF |\n| --- | --- |\n| t_r = 0.5 ns (2FF with routing) | e^25 / 5e6 = 1.4e4 s (about 4 hours) |\n| t_r = 1.5 ns (3FF) | e^75 / 5e6 = 7e25 s |\n\n### Explanation\n- Numbers above are illustrative; real tau/T_0 come from the library characterization.\n- Each extra nanosecond of t_r multiplies MTBF by e^(1ns/tau): huge.\n- System MTBF = 1 / sum(1/MTBF_i) over all synchronizers in the chip.\n\n### Corner cases & pitfalls\n- Logic between the two synchronizer flops eats t_r; keep them adjacent with nothing in between.\n\n### Follow-ups\n- *Target?* Typically thousands of years per synchronizer, more for automotive/medical.",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you pass a counter value across clock domains?",
+   "prompt": "",
+   "answer": "Binary counters change multiple bits; use Gray-coded counters for monotonically changing counts crossing domains.",
+   "solution": "**Key idea:** A binary counter can flip many bits at once (0111 -> 1000), so direct synchronization can capture garbage. Convert to Gray code in the source domain (registered), synchronize the Gray value with 2FF, and convert back to binary in the destination.\n\n```systemverilog\n// source domain\nalways_ff @(posedge clk_s) begin\n  cnt_bin  <= cnt_bin + inc;\n  cnt_gray <= (cnt_bin + inc) ^ ((cnt_bin + inc) >> 1);   // registered Gray\nend\n// destination domain\nalways_ff @(posedge clk_d) {g2, g1} <= {g1, cnt_gray};\nalways_comb for (int i = 0; i < W; i++) cnt_d_bin[i] = ^(g2 >> i);  // gray2bin\n```\n\n| Binary transition | bits changing | Gray transition | bits changing |\n| --- | --- | --- | --- |\n| 0111 -> 1000 | 4 | 0100 -> 1100 | 1 |\n| 0011 -> 0100 | 3 | 0010 -> 0110 | 1 |\n\n### Explanation\n- Requirement: counter changes by at most 1 per source clock, and the destination may see it 1-2 cycles late (value is stale but valid).\n- For arbitrary jumps, use a handshake that holds the value stable while it is sampled.\n\n### Corner cases & pitfalls\n- Generating Gray combinationally from binary right before the synchronizer can glitch; register it.\n\n### Follow-ups\n- *Fast source, slow destination?* Gray still works; the destination may skip values but never sees invalid ones.",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Explain the ready/valid handshake.",
+   "prompt": "",
+   "answer": "Transfer on clock edge when valid and ready high; producer holds valid/data stable while ready=0.",
+   "solution": "**Key idea:** The producer asserts `valid` with data; the consumer asserts `ready` when it can accept; a transfer happens on every rising clock edge where `valid && ready`. Once valid is high, the producer must hold valid and data stable until the transfer; valid must not depend combinationally on ready.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p........\"}, {\"name\": \"valid\", \"wave\": \"01...0.1.\"}, {\"name\": \"ready\", \"wave\": \"0.0.1...1\"}, {\"name\": \"data\", \"wave\": \"x=...x.=.\", \"data\": [\"D0\", \"D1\"]}, {\"name\": \"transfer\", \"wave\": \"0...10..1\"}], \"head\": {\"text\": \"D0 waits under backpressure, transfers when ready rises; D1 transfers immediately\"}}\n```\n\n```systemverilog\n// protocol checks\na_hold:   assert property (@(posedge clk) disable iff (!rst_n)\n            valid && !ready |=> valid && $stable(data));\na_no_x:   assert property (@(posedge clk) disable iff (!rst_n) valid |-> !$isunknown(data));\n```\n\n### Explanation\n- Decouples producer and consumer timing; both can stall.\n- Ready may wait for valid (AXI allows that); valid must never wait for ready, or the two can deadlock.\n- Throughput is one transfer per cycle when both stay high.\n\n### Corner cases & pitfalls\n- Dropping valid before ready (retracting) violates AXI-style protocols.\n\n### Follow-ups\n- *How to break the combinational ready path?* Skid buffer / register slice.",
+   "category": "Protocols",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is backpressure and how must upstream logic handle it?",
+   "prompt": "",
+   "answer": "Downstream deasserts ready; upstream must hold the item until transfer; changing data while valid violates protocol.",
+   "solution": "**Key idea:** Backpressure is the downstream deasserting `ready` because it cannot accept data. The upstream must keep the current item (valid and data unchanged) until the handshake completes, and stall or buffer any new items behind it.\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p........\"}, {\"name\": \"valid\", \"wave\": \"01......0\"}, {\"name\": \"ready\", \"wave\": \"1.0..1...\"}, {\"name\": \"data\", \"wave\": \"x==..===x\", \"data\": [\"A\", \"B\", \"C\", \"D\", \"E\"]}, {\"name\": \"accepted\", \"wave\": \"x=...===x\", \"data\": [\"A\", \"B\", \"C\", \"D\"]}], \"head\": {\"text\": \"B is held for 3 cycles of backpressure, then C and D flow\"}}\n```\n\n```systemverilog\n// upstream stage with stall\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n)                  out_valid <= 1'b0;\n  else if (!out_valid || out_ready) begin   // load only when empty or transferring\n    out_valid <= in_valid;\n    out_data  <= in_data;\n  end\nassign in_ready = !out_valid || out_ready;  // propagate backpressure\n```\n\n### Explanation\n- `in_ready = !out_valid || out_ready` is the standard pipeline stage; it propagates ready combinationally back through stages (timing concern for long pipelines).\n- Data loss bug: overwriting `out_data` while `out_valid && !out_ready`.\n\n### Corner cases & pitfalls\n- Testbenches must randomize ready (including long stalls) to exercise backpressure.\n\n### Follow-ups\n- *Verification?* Assert data stability under backpressure; scoreboard order checking.",
+   "category": "Protocols",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Design a skid buffer for a ready/valid interface.",
+   "prompt": "",
+   "answer": "Small elastic buffer that breaks timing paths while preserving ready/valid; absorbs a transfer when downstream ready changes late.",
+   "solution": "**Key idea:** A skid buffer registers `ready` toward the upstream (breaking the combinational ready path) and adds one spare register to catch the item that was sent in the cycle when downstream ready dropped. It keeps full throughput with registered ready.\n\n```systemverilog\nmodule skid_buffer #(parameter int W = 32) (\n  input  logic clk, rst_n,\n  input  logic         s_valid, output logic s_ready, input  logic [W-1:0] s_data,\n  output logic         m_valid, input  logic m_ready, output logic [W-1:0] m_data);\n  logic         skid_valid;\n  logic [W-1:0] skid_data;\n\n  // upstream ready is a register: high when the skid slot is empty\n  always_ff @(posedge clk or negedge rst_n)\n    if (!rst_n) begin\n      skid_valid <= 1'b0; m_valid <= 1'b0;\n    end else begin\n      if (s_ready) begin                      // can accept from upstream\n        if (m_valid && !m_ready) begin        // output stalled -> park in skid\n          skid_valid <= s_valid;\n          skid_data  <= s_data;\n        end else begin                        // output free -> pass through\n          m_valid <= s_valid;\n          m_data  <= s_data;\n        end\n      end else if (m_ready) begin             // drain skid into output\n        m_valid    <= 1'b1;\n        m_data     <= skid_data;\n        skid_valid <= 1'b0;\n      end\n    end\n  assign s_ready = !skid_valid;\nendmodule\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"p.......\"}, {\"name\": \"s_valid\", \"wave\": \"01......\"}, {\"name\": \"s_data\", \"wave\": \"x====.==\", \"data\": [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\"]}, {\"name\": \"m_ready\", \"wave\": \"1..01...\"}, {\"name\": \"s_ready\", \"wave\": \"1...01..\"}, {\"name\": \"skid\", \"wave\": \"x...=x..\", \"data\": [\"C\"]}, {\"name\": \"m_data\", \"wave\": \"x.==.===\", \"data\": [\"A\", \"B\", \"B\", \"C\", \"D\"]}], \"head\": {\"text\": \"m_ready drops: C goes into the skid slot, s_ready drops a cycle later, nothing is lost\"}}\n```\n\n### Explanation\n- Two storage slots (output register + skid register); `s_ready` depends only on a flop -> no combinational path from m_ready to s_ready.\n- Throughput stays one item per cycle when m_ready is high.\n- Also called a register slice (AXI) or elastic buffer.\n\n### Corner cases & pitfalls\n- Only the valid flags need reset; data registers can stay un-reset. Verify with randomized m_ready (including long stalls) and an in-order scoreboard.\n\n### Follow-ups\n- *Why not just register ready?* Without the skid slot, the item sent during the late-ready cycle would be lost.",
+   "category": "Digital Design",
+   "difficulty": "Hard",
+   "type": "coding",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do combinational ready/valid loops form, and how do you break them?",
+   "prompt": "",
+   "answer": "Combinational ready backward + valid forward can loop across modules; break with registered signals or skid buffer.",
+   "solution": "**Key idea:** If block A's valid depends combinationally on its ready input and block B's ready depends combinationally on its valid input, connecting them creates a combinational loop across the module boundary. Break it by registering one direction (skid buffer/register slice) and by never making valid depend on ready.\n\n```mermaid\nflowchart LR\n  A[\"block A: valid = f(ready)\"] -->|valid| B[\"block B: ready = g(valid)\"]\n  B -->|ready| A\n```\n\n| Rule | Effect |\n| --- | --- |\n| valid must not depend combinationally on ready | removes the loop by protocol (AXI rule) |\n| insert register slice / skid buffer | breaks long ready paths for timing |\n| document combinational paths in interface spec | integration-time visibility |\n\n### Explanation\n- Even without a true loop, a long combinational ready chain through many stages limits frequency.\n- Lint across hierarchy (or synthesis) reports the loop; simulation may hang in delta cycles.\n\n### Corner cases & pitfalls\n- 'ready depends on valid' is allowed by AXI; 'valid depends on ready' is not. Both together = loop.\n\n### Follow-ups\n- *Where to place slices?* At block or subsystem boundaries and long wires.",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do you design a parameterized SystemVerilog interface?",
+   "prompt": "",
+   "answer": "Interfaces bundle signals with modports for directional views; parameters customize widths/options for reuse.",
+   "solution": "**Key idea:** An interface bundles related signals (plus modports, clocking blocks, tasks and assertions) and can be parameterized for widths/options, giving a reusable connection for both RTL and testbench.\n\n```systemverilog\ninterface axis_if #(parameter int DW = 32, parameter bit HAS_LAST = 1) (input logic clk, rst_n);\n  logic          tvalid, tready;\n  logic [DW-1:0] tdata;\n  logic          tlast;\n\n  modport src (output tvalid, tdata, tlast, input tready, clk, rst_n);\n  modport snk (input  tvalid, tdata, tlast, output tready, input clk, rst_n);\n\n  clocking drv_cb @(posedge clk);\n    default input #1step output #1;\n    output tvalid, tdata, tlast; input tready;\n  endclocking\n\n  a_hold: assert property (@(posedge clk) disable iff (!rst_n)\n            tvalid && !tready |=> tvalid && $stable(tdata));\nendinterface\n\naxis_if #(.DW(64)) s_axis (.clk(clk), .rst_n(rst_n));\n```\n\n```mermaid\nflowchart LR\n  SRC[\"producer (modport src)\"] --> IF[\"axis_if #(DW=64)\"] --> SNK[\"consumer (modport snk)\"]\n  TB[\"UVM driver (virtual axis_if)\"] -.-> IF\n```\n\n### Explanation\n- Parameters must match between the interface instance and the virtual interface type in the TB (`virtual axis_if #(64)`).\n- Embedding protocol assertions in the interface checks every instance automatically.\n\n### Corner cases & pitfalls\n- Parameterized virtual interfaces make UVM components parameterized too; a common workaround is using max width or an abstract class (polymorphic interface).\n\n### Follow-ups\n- *Can interfaces be synthesized?* Yes, flattened to signals by synthesis.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a modport?",
+   "prompt": "",
+   "answer": "A modport defines how a module views interface signals, making directions explicit and checkable.",
+   "solution": "**Key idea:** A modport defines a directional view of an interface for a particular user (master, slave, monitor), so the compiler can check that a module only drives what it should.\n\n```systemverilog\ninterface bus_if (input logic clk);\n  logic req, gnt;\n  logic [31:0] addr;\n  modport master  (input clk, gnt, output req, addr);\n  modport slave   (input clk, req, addr, output gnt);\n  modport monitor (input clk, req, gnt, addr);\nendinterface\n\nmodule cpu (bus_if.master bus);\n  always_ff @(posedge bus.clk) bus.req <= 1'b1;   // legal\n  // assign bus.gnt = 1'b1;                       // compile error: gnt is input\nendmodule\n```\n\n| Modport | req | gnt | addr |\n| --- | --- | --- | --- |\n| master | output | input | output |\n| slave | input | output | input |\n| monitor | input | input | input |\n\n### Explanation\n- Modports can also export/import tasks and functions and include clocking blocks (`modport tb (clocking cb)`).\n- Selecting the modport can be done in the module header or at instantiation (`cpu u_cpu(.bus(b.master))`).\n\n### Corner cases & pitfalls\n- Without a modport, all signals are inout-like and direction errors go undetected.\n\n### Follow-ups\n- *Virtual interface with modport?* `virtual bus_if.master vif;` restricts the class view as well.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a SystemVerilog package and why use it?",
+   "prompt": "",
+   "answer": "A package stores shared types, parameters, functions and classes for reuse and consistency.",
+   "solution": "**Key idea:** A package is a named scope holding shared types, parameters, functions, tasks, classes and covergroups, imported by modules, interfaces and other packages. It gives one typed definition instead of duplicated `include text.\n\n```systemverilog\npackage bus_pkg;\n  parameter int AW = 32;\n  typedef enum logic [1:0] {READ, WRITE, IDLE} op_e;\n  typedef struct packed { op_e op; logic [AW-1:0] addr; } req_t;\n  function automatic logic parity(input logic [AW-1:0] a); return ^a; endfunction\nendpackage\n\nmodule dut import bus_pkg::*; (input req_t req, output logic p);\n  assign p = parity(req.addr);\nendmodule\n```\n\n```mermaid\nflowchart LR\n  PKG[\"bus_pkg\"] --> DUT[\"dut\"]\n  PKG --> TB[\"tb / UVM env\"]\n  PKG --> IF[\"interface\"]\n```\n\n### Explanation\n- `import pkg::*` makes names visible on demand; `pkg::name` is explicit.\n- Packages must be compiled before files that use them.\n- Packages cannot contain module instances or hierarchical references.\n\n### Corner cases & pitfalls\n- Wildcard imports from two packages with the same name cause ambiguity errors only when the name is used.\n\n### Follow-ups\n- *Package vs `include?* Package is a single compiled scope; `include duplicates text into each unit.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "`include vs package — what is the compilation unit issue?",
+   "prompt": "",
+   "answer": "`include is textual inclusion for macros/small declarations; packages provide scoped typed reuse. Prefer packages.",
+   "solution": "**Key idea:** `` `include`` pastes text into the current file, so the same declarations get compiled into each unit that includes them (different types, possible collisions). A package is compiled once and imported, giving one shared, typed definition.\n\n|  | `include | package |\n| --- | --- | --- |\n| Mechanism | text substitution | named scope, import |\n| Type identity | each include creates a new type | one type everywhere |\n| Collisions | names leak into $unit / module | scoped (pkg::name) |\n| Use for | macros, files inside a package (UVM pattern) | types, params, classes |\n\n```systemverilog\n// typical UVM structure: classes included INTO a package\npackage my_agent_pkg;\n  import uvm_pkg::*;\n  `include \"uvm_macros.svh\"\n  `include \"my_item.sv\"\n  `include \"my_driver.sv\"\nendpackage\n\n// declarations outside any module/package go into $unit (compilation-unit scope) - avoid\n```\n\n### Explanation\n- Classes defined in two different scopes via `include are different types even with identical text: casting between them fails.\n- `$unit` scope depends on whether the tool compiles files as one unit or separately: non-portable.\n\n### Corner cases & pitfalls\n- Include guards (`` `ifndef FOO_SV``) avoid double inclusion inside one unit but not across packages.\n\n### Follow-ups\n- *Why include classes into the package?* One file per class for readability, single type identity via the package.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Macro vs parameter — when do you use each?",
+   "prompt": "",
+   "answer": "Macros are text substitution without type/scope; parameters are elaboration-time constants and safer for configuration.",
+   "solution": "**Key idea:** A macro is preprocessor text substitution with no type or scope; a parameter is a typed elaboration-time constant scoped to a module/package that can be overridden per instance. Use parameters for hardware configuration and macros only for compile-time switches or repetitive syntax.\n\n```systemverilog\n`define WIDTH 32                     // global text, last definition wins\n`define MAX(a,b) ((a) > (b) ? (a) : (b))\n\nmodule m #(parameter int WIDTH = 32) (...);   // per-instance, typed\n`ifdef ASSERT_ON\n  a_chk: assert property (...);\n`endif\nendmodule\n```\n\n|  | Macro | Parameter |\n| --- | --- | --- |\n| Evaluated | preprocessing (text) | elaboration |\n| Type checked | no | yes |\n| Per-instance value | no (global) | yes |\n| Scope | file order dependent | module/package |\n| Good for | ifdef switches, UVM boilerplate | widths, depths, features |\n\n### Explanation\n- Macro arguments need parentheses to avoid precedence bugs (`` `MAX(a+1, b)``).\n- Redefining a macro in another file silently changes behavior depending on compile order.\n\n### Corner cases & pitfalls\n- Using `` `define`` for widths makes it impossible to instantiate two variants of a module.\n\n### Follow-ups\n- *UVM macros?* `uvm_component_utils`, `uvm_info` — boilerplate generation is a legitimate macro use.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Interface vs module port lists — when is an interface better?",
+   "prompt": "",
+   "answer": "Interfaces bundle signals and protocol behavior, reducing port lists; useful for standard buses and verification.",
+   "solution": "**Key idea:** Interfaces group related signals (plus modports, assertions, clocking blocks) into one port, reducing long, error-prone port lists and enabling virtual-interface connectivity in testbenches. Plain ports are more explicit and sometimes better supported by downstream tools for simple blocks.\n\n|  | Port list | Interface |\n| --- | --- | --- |\n| Adding a signal | edit every module and instance | edit the interface only |\n| Direction checking | per port | via modport |\n| TB access | hierarchical refs | virtual interface |\n| Embedded checks | no | assertions, coverage |\n| Tool support | universal | most tools; some flows flatten |\n\n```systemverilog\n// before\nmodule dma (input logic clk, rst_n, output logic awvalid, input logic awready,\n            output logic [31:0] awaddr, /* ... 40 more AXI signals ... */);\n// after\nmodule dma (input logic clk, rst_n, axi_if.master m_axi);\n```\n\n### Explanation\n- Interfaces shine for standard buses (AXI, APB, AHB) and verification connectivity.\n- At the top level / chip boundary, plain ports are usually kept for pad and tool compatibility.\n\n### Corner cases & pitfalls\n- Generic interface ports (`interface bus`) without a type reduce checking; use typed ports.\n\n### Follow-ups\n- *Can an interface have ports?* Yes (e.g. clk, rst_n).",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a virtual interface?",
+   "prompt": "",
+   "answer": "A class-level handle to a concrete interface instance; lets drivers/monitors access DUT signals without hard-coded hierarchy.",
+   "solution": "**Key idea:** A virtual interface is a variable in a class that holds a handle to a real (static) interface instance, letting dynamic class-based TB components (drivers, monitors) access DUT signals without hard-coded hierarchical paths. In UVM it is passed through `uvm_config_db`.\n\n```systemverilog\n// top module\nmodule tb_top;\n  bit clk;\n  axis_if vif_inst (.clk(clk), .rst_n(rst_n));\n  dut u_dut (.s_axis(vif_inst));\n  initial begin\n    uvm_config_db#(virtual axis_if)::set(null, \"uvm_test_top.env.agt*\", \"vif\", vif_inst);\n    run_test();\n  end\nendmodule\n\n// driver\nclass axis_driver extends uvm_driver #(axis_item);\n  virtual axis_if vif;\n  function void build_phase(uvm_phase phase);\n    super.build_phase(phase);\n    if (!uvm_config_db#(virtual axis_if)::get(this, \"\", \"vif\", vif))\n      `uvm_fatal(\"NOVIF\", \"virtual interface not set\")\n  endfunction\nendclass\n```\n\n```mermaid\nflowchart LR\n  TOP[\"tb_top: axis_if instance\"] -->|config_db set| CDB[\"uvm_config_db\"]\n  CDB -->|get in build_phase| DRV[\"driver.vif\"]\n  CDB -->|get| MON[\"monitor.vif\"]\n  DRV --> PINS[\"DUT pins via vif\"]\n```\n\n### Explanation\n- Classes cannot contain static interface instances; virtual interfaces bridge static and dynamic worlds.\n- The same component can be reused for multiple instances by pointing it to different interfaces.\n\n### Corner cases & pitfalls\n- Null virtual interface at run time -> fatal; always check the `get` return value.\n\n### Follow-ups\n- *Abstract class alternative?* 'Polymorphic interface': an abstract API class implemented inside the interface.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a clocking block and how does it prevent races?",
+   "prompt": "",
+   "answer": "Clocking block defines sampled/driven signals relative to a clock with skews, avoiding TB/DUT races.",
+   "solution": "**Key idea:** A clocking block groups signals synchronous to a clock and defines when the TB samples them (input skew, default #1step = just before the edge) and when it drives them (output skew after the edge). The TB thus never reads or writes at the exact same instant the DUT does.\n\n```systemverilog\ninterface bus_if (input logic clk);\n  logic req, gnt;\n  clocking cb @(posedge clk);\n    default input #1step output #1ns;\n    output req;\n    input  gnt;\n  endclocking\n  modport tb (clocking cb);\nendinterface\n\n// in driver\n@(vif.cb);                 // wait for clocking event\nvif.cb.req <= 1'b1;        // driven 1ns after the edge\nif (vif.cb.gnt) ...        // value sampled 1step before the edge\n```\n\n```wavedrom\n{\"signal\": [{\"name\": \"clk\", \"wave\": \"0.1...0.1...\"}, {\"name\": \"gnt (DUT)\", \"wave\": \"0..1........\"}, {\"name\": \"cb.gnt sampled\", \"wave\": \"0.......1...\"}, {\"name\": \"cb.req driven\", \"wave\": \"0..1........\"}], \"head\": {\"text\": \"input sampled just before the edge (#1step); output driven after it (#1ns)\"}}\n```\n\n### Explanation\n- Clocking-block drives are applied in the Re-NBA region; sampling uses Preponed values, so DUT and TB orders don't matter.\n- `##N` delays count clocking events of the default clocking block.\n\n### Corner cases & pitfalls\n- Mixing direct signal writes (`vif.req = 1`) with clocking-block drives on the same signal causes confusing behavior.\n\n### Follow-ups\n- *Input skew #0?* Samples in Observed region (after design settles) - can see same-edge DUT updates.",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is a program block and is it still needed?",
+   "prompt": "",
+   "answer": "Program block separates TB activity from design in scheduling; modern flows prefer clocking blocks and classes.",
+   "solution": "**Key idea:** A `program` block runs its code in the Reactive region, separating testbench execution from design (Active) execution to avoid races, and ends simulation when all programs finish. Modern UVM environments rarely use it; classes plus clocking blocks provide the same separation.\n\n|  | module | program |\n| --- | --- | --- |\n| Scheduling region | Active | Reactive |\n| Can contain always blocks | yes | no |\n| Can instantiate modules | yes | no |\n| Implicit $finish when done | no | yes |\n\n```systemverilog\nprogram automatic test (bus_if.tb bus);\n  initial begin\n    bus.cb.req <= 1'b1;\n    ##5;\n    $display(\"gnt=%0b\", bus.cb.gnt);\n  end   // simulation ends when all program initial blocks complete\nendprogram\n```\n\n### Explanation\n- UVM recommends running `run_test()` from a module (`tb_top`), not a program, so the UVM scheduler isn't restricted.\n- Clocking blocks already move TB drives to Re-NBA and sample in Preponed.\n\n### Corner cases & pitfalls\n- Mixing programs with UVM can cause end-of-test surprises (program-triggered `$finish`).\n\n### Follow-ups\n- *Can a program call a module task?* Yes, but a module cannot call into a program.",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "How do randomization and constraints work, and what does solve...before do?",
+   "prompt": "",
+   "answer": "Class randomization subject to constraints; describe legal scenarios without over-constraining; solve-before influences ordering.",
+   "solution": "**Key idea:** `rand`/`randc` class members are randomized by `randomize()` subject to all active constraints; the solver picks uniformly from the *legal solution space*. `solve a before b` changes the probability distribution (not the legal set) by picking `a` first.\n\n```systemverilog\nclass pkt;\n  rand bit       is_small;\n  rand bit [9:0] len;\n  constraint c_len  { is_small -> len < 16; len > 0; }\n  constraint c_ord  { solve is_small before len; }   // 50% small, not 16/1023\nendclass\n\npkt p = new();\nassert (p.randomize() with { len != 8; });           // inline constraint\np.c_ord.constraint_mode(0);                          // disable a constraint\np.is_small.rand_mode(0);                             // freeze a variable\n```\n\n| Without solve-before | With solve is_small before len |\n| --- | --- |\n| P(is_small=1) = 15 / (15 + 1023) ~ 1.4% | P(is_small=1) = 50% |\n| uniform over all (is_small, len) pairs | is_small chosen first, then len |\n\n### Explanation\n- Good constraints describe legality; distributions (`dist`) and solve-before shape interesting stimulus.\n- `pre_randomize`/`post_randomize` hooks compute derived fields.\n- Always check the `randomize()` return value (failure leaves values unchanged).\n\n### Corner cases & pitfalls\n- Over-constraining prevents hitting corner cases; under-constraining creates illegal stimulus. `randc` variables cannot appear in solve-before.\n\n### Follow-ups\n- *Soft constraints?* `soft len == 64;` can be overridden by later constraints without failure.",
+   "category": "SV Constraints",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "What is functional coverage and how is it different from code coverage?",
+   "prompt": "",
+   "answer": "Functional coverage measures whether intended scenarios/values/crosses were exercised; complements code coverage.",
+   "solution": "**Key idea:** Functional coverage (covergroups, cover properties) measures whether specified scenarios, values, crosses and transitions were exercised; code coverage (line, branch, toggle, FSM, expression) measures which RTL was executed. 100% code coverage can still miss important protocol combinations.\n\n```systemverilog\ncovergroup cg_pkt @(posedge clk iff valid && ready);\n  cp_len:  coverpoint len  { bins small = {[1:15]}; bins mid = {[16:255]}; bins big = {[256:1023]}; }\n  cp_type: coverpoint kind { bins rd = {READ}; bins wr = {WRITE}; }\n  cp_bp:   coverpoint stall_cycles { bins none = {0}; bins some = {[1:3]}; bins long = {[4:$]}; }\n  x_len_type: cross cp_len, cp_type;\n  cp_seq:  coverpoint kind { bins wr_after_rd = (READ => WRITE); }\nendgroup\n```\n\n|  | Code coverage | Functional coverage |\n| --- | --- | --- |\n| Source | automatic from RTL | written from the verification plan |\n| Answers | what code ran | what features/scenarios were tested |\n| Misses | missing features, combinations | untested code (unless reviewed) |\n\n### Explanation\n- Use both: code holes reveal untested logic; functional holes reveal untested features.\n- Coverage closure drives test/constraint tuning in constrained-random flows.\n\n### Corner cases & pitfalls\n- Coverage sampled at the wrong time (e.g. without the handshake qualifier) inflates numbers.\n\n### Follow-ups\n- *Cross explosion?* Use `ignore_bins`/`illegal_bins` and `binsof` to prune crosses.",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Describe a robust RTL verification and sign-off flow.",
+   "prompt": "",
+   "answer": "Combine spec review, coding standards, lint, CDC/RDC, simulation with directed and CR tests, assertions, coverage, formal, synthesis checks, STA, power and GLS. No single tool proves correctness.",
+   "solution": "**Key idea:** No single tool proves correctness; a sign-off flow layers checks that each catch a different class of risk: spec review -> lint/CDC/RDC -> simulation (directed + constrained random) with assertions and coverage -> formal where valuable -> synthesis/LEC -> STA/power -> gate-level and timing validation.\n\n```mermaid\nflowchart TD\n  SPEC[\"spec review + verification plan\"] --> LINT[\"lint, CDC, RDC\"]\n  LINT --> SIM[\"UVM simulation: directed + constrained random\"]\n  SIM --> ASSERT[\"assertions + functional/code coverage closure\"]\n  ASSERT --> FORMAL[\"formal: property, connectivity, X, unreachability\"]\n  FORMAL --> SYN[\"synthesis + LEC\"]\n  SYN --> STA[\"STA + power analysis\"]\n  STA --> GLS[\"gate-level sim with SDF, low-power sim (UPF)\"]\n  GLS --> SIGN[\"sign-off review: coverage, bug trend, waivers\"]\n```\n\n| Stage | Catches |\n| --- | --- |\n| Lint | coding/structural errors |\n| CDC/RDC | crossing and reset hazards |\n| Simulation + coverage | functional bugs, untested features |\n| Formal | corner cases, deadlocks, proofs |\n| LEC | synthesis/ECO errors |\n| STA | timing |\n| GLS | X/reset/init, timing-constraint mistakes |\n\n### Explanation\n- Sign-off criteria: 100% plan items covered, code coverage reviewed with waivers, zero open critical bugs, bug-rate trend flattened, all lint/CDC waivers reviewed.\n- Regressions run continuously with seeds; failures triaged daily.\n\n### Corner cases & pitfalls\n- Treating coverage percentage as the goal instead of verifying the plan's features.\n\n### Follow-ups\n- *When is verification done?* When sign-off criteria are met and the bug discovery rate has converged, not when tests pass.",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  }
+ ]
+}

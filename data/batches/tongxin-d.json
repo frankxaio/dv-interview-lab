@@ -1,0 +1,812 @@
+[
+ {
+  "id": "tongxin-271",
+  "title": "Functional Coverage Not 100% - Analysis and Strategy",
+  "prompt": "",
+  "source_notes": "Inspect unhit bins and map each to a requirement. Determine whether reachable, stimulus missing, sampling wrong, or overconstrained. Add directed constraints/sequences for reachable gaps and justify exclusions. Do not change bins simply to obtain 100%.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-272",
+  "title": "Multi-Channel DUT with Credit-Based Flow Control",
+  "prompt": "",
+  "source_notes": "Track credits per channel: decrement on sends and increment on releases. Assert no send without credit, no over-return. Exercise simultaneous send/release, imbalance, delayed returns, reset, and starvation.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-273",
+  "title": "Constrained-Random Verification - How It Works",
+  "prompt": "",
+  "source_notes": "Describe legal input space with constraints, randomize reproducibly, drive transactions, check with assertions/reference models, and use coverage to find gaps and guide constraints. Directed tests address rare boundaries.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-274",
+  "title": "FP Multiplier ALU Verification Strategy",
+  "prompt": "",
+  "source_notes": "Use a bit-accurate IEEE-754 reference. Cover normals, zeros, infinities, NaNs, subnormals, boundary exponents, rounding modes and ties, overflow/underflow, and exception flags.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-275",
+  "title": "FIFO Verification - What to Verify, How, Corner Cases",
+  "prompt": "",
+  "source_notes": "Verify order, data integrity, capacity, empty/full flags, and reset. Exercise fill/drain, simultaneous push/pop, wraparound, bursts, overflow/underflow attempts. Use a queue reference model.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-276",
+  "title": "Systolic Array UVM Testbench - PE Level and Sub-System Level",
+  "prompt": "",
+  "source_notes": "At PE level, verify MAC arithmetic, saturation, enable/reset, latency. At array level, model data movement, wavefront scheduling, accumulation, and boundaries. Test matrix dimensions, stalls, tiling, flush.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-277",
+  "title": "512-bit Transaction Split-Reassemble Over 64-bit Link",
+  "prompt": "",
+  "source_notes": "Eight 64-bit beats. Define beat/byte order, IDs, last indication, backpressure. Reassemble only accepted beats, detect missing/duplicate/out-of-order pieces, compare the full payload.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-278",
+  "title": "Out-of-Order Scoreboard - Track and Match with Associative Array",
+  "prompt": "",
+  "source_notes": "Store expected transactions keyed by unique ID. On response, reject unknown IDs, compare, delete. Check ID reuse, duplicates, timeouts, reset, and leftovers. If multiple requests per ID are legal, use a queue per ID.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-279",
+  "title": "Debug Scoreboard Mismatch - Step-by-Step Approach",
+  "prompt": "",
+  "source_notes": "Start at the first mismatch; confirm checker alignment, reference inputs, reset, acceptance events. Trace one transaction through driver, input monitor, DUT, output monitor, and model. Compare widths, signedness, masks, endian, latency, IDs. Classify DUT vs monitor vs model fault.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-280",
+  "title": "Router UVM Testbench - Complete Design",
+  "prompt": "",
+  "source_notes": "Ingress agents and egress monitors, an independent route/arbitration model, packet reconstruction, and a scoreboard for delivery and data integrity. Check flow control, buffer limits, multicast/drop rules, fairness, errors, and reset.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-281",
+  "title": "req/ack Handshake Testbench with Latency Checking",
+  "prompt": "",
+  "source_notes": "Generate requests, monitor requests and acks, measure latency. Check min/max latency, no extra ack, request stability, reset. Cover zero/min/max delay and back-to-back traffic.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-282",
+  "title": "Out-of-Order Packet Scoreboard with Reconstruction",
+  "prompt": "",
+  "source_notes": "Collect fragments by packet ID and index, track a received bitmap, reconstruct once complete, then compare. Reject duplicates, invalid indices, unknown IDs, and late fragments.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-283",
+  "title": "Credit Release Handshake Checker with SVA",
+  "prompt": "",
+  "source_notes": "Maintain a checker credit count updated by sends/releases and assert legal bounds. SVA can check stable release metadata during stalls and ack latency. A boolean assertion alone cannot catch excess credits without state.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-284",
+  "title": "Lane Redundancy Remapping - SV Constraint Generator",
+  "prompt": "",
+  "source_notes": "Constrain logical-to-physical lane indices in range, exclude failed lanes, require distinct mappings, and obey adjacency rules. Check enough healthy lanes exist.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-285",
+  "title": "PHY Link Training - Delay Code Sweep with PRBS Error Injection",
+  "prompt": "",
+  "source_notes": "Sweep delay codes, wait for settling, apply PRBS, count errors per window. Find the passing eye and choose the center. Inject errors to verify thresholds, retraining, and reporting.",
+  "category": "Verification Planning",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-286",
+  "title": "12-Channel 32-bit Coverage Strategy",
+  "prompt": "",
+  "source_notes": "Cover each channel for valid transfers, data patterns, boundaries, stalls, errors. Cross channel with mode/status. Avoid crossing all 32-bit values; use walking ones/zeros and toggle coverage for bit-level exercise.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-287",
+  "title": "UVM Backdoor Access - HDL Path and Usage",
+  "prompt": "",
+  "source_notes": "Configure valid HDL paths, then use RAL backdoor or uvm_hdl_read/deposit/force. Consider simulator optimization/access flags (+acc). Force persists until release; deposit does not.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-288",
+  "title": "Firmware Writes 1 to enable_reg but Device Does Not Start - Debug",
+  "prompt": "",
+  "source_notes": "Confirm the write reached the correct address with correct byte enables. Trace bus completion, decode, register storage, clock/reset/power state, prerequisite configuration, and start-event generation. Check self-clearing/edge semantics.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-289",
+  "title": "DV Environment for Software-Programmed Threshold Transaction Limiter",
+  "prompt": "",
+  "source_notes": "Monitor programming writes and transactions. Model threshold meaning, update timing, comparison, and counter reset. Check limits 0/1/max, threshold changes while active, exact crossing, backpressure, interrupts.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-290",
+  "title": "128-bit Parallel Bus - Stuck-at Fault and Short Wire Test Patterns",
+  "prompt": "",
+  "source_notes": "All-zero/all-one patterns for stuck-at faults. Walking-one and walking-zero patterns isolate lines and expose shorts. Unique per-wire temporal signatures can distinguish wires efficiently (log2 N patterns).",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-291",
+  "title": "Using AI-Generated Code in Verification - Risks and Workflow",
+  "prompt": "",
+  "source_notes": "Treat generated code as an untrusted draft: review against the spec, compile/lint, run edge cases, compare with an independent model. Do not use the same generated algorithm as both implementation and oracle.",
+  "category": "Verification Planning",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-292",
+  "title": "Memory Debug - Frontdoor Write + Backdoor Peek to Find Swap Bug",
+  "prompt": "",
+  "source_notes": "Write address-distinct patterns through the frontdoor, inspect physical locations via backdoor. Compare expected mapping to actual storage. Also read frontdoor because symmetric write/read swaps can cancel and hide a fault.",
+  "category": "Verification Planning",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-293",
+  "title": "Memory Verification - Complete Strategy and UVM Environment",
+  "prompt": "",
+  "source_notes": "Verify address/data integrity, masks, latency, collisions, initialization, ECC, reset. Use a sparse reference memory and monitor-driven checking. Apply address-distinct, walking-bit, checkerboard, random patterns plus concurrent accesses.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-294",
+  "title": "Streaming Log Analyzer",
+  "prompt": "",
+  "source_notes": "Read line by line, parse recognized formats, maintain counts/state without loading the file. Track line numbers, distinguish malformed records. O(total input) time, memory proportional to retained state.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-295",
+  "title": "Cross-Array Two-Sum Index Pairs",
+  "prompt": "",
+  "source_notes": "Hash values of the second array to lists of indices. For each a[i], look up target-a[i] and emit every (i,j). O(n+m+K) where K is the output size.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-296",
+  "title": "Reverse a 32-Bit Unsigned Integer",
+  "prompt": "",
+  "source_notes": "Repeat 32 times: `out=(out<<1)|(x&1u); x>>=1;`. Reverses bit order. Use unsigned shifts. Test zero, all ones, each single bit.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-297",
+  "title": "Python: Extract error lines using regex",
+  "prompt": "",
+  "source_notes": "Compile a regex for the severity format and iterate the file, emitting matching lines with line numbers. Avoid matching incidental words like 'error_count=0'.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-298",
+  "title": "C: Check if the N-th bit is 1",
+  "prompt": "",
+  "source_notes": "For unsigned x and 0<=n<W: `((x>>n)&1u)!=0`. Validate n first; out-of-range shifts are undefined in C.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-299",
+  "title": "Algorithm: Find the Element That Appears Once (XOR Trick)",
+  "prompt": "",
+  "source_notes": "XOR all elements when exactly one occurs once and others occur twice. Pairs cancel; O(n) time, O(1) space. Fails for arbitrary multiplicities.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-300",
+  "title": "C++ Algorithm: Count Pairs with Equal Digit Sum",
+  "prompt": "",
+  "source_notes": "Compute each number's digit sum, keep counts by sum; when a number with sum s arrives, add count[s] to total then increment. O(n*d). Use a wide counter.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-301",
+  "title": "C++ Design: Container with ADD, EXISTS, GET_COUNT",
+  "prompt": "",
+  "source_notes": "unordered_map value->count. ADD increments, EXISTS checks count>0, GET_COUNT uses find (avoid operator[] insertion). O(1) average.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-302",
+  "title": "C++ Algorithm: Array Pair Product Query with Point Update",
+  "prompt": "",
+  "source_notes": "For sum of pairwise products in a range, store range sum S and square-sum Q in a segment tree; answer (S*S-Q)/2 with O(log n) updates/queries.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-303",
+  "title": "Reverse a Linked List",
+  "prompt": "",
+  "source_notes": "prev=null, cur=head; loop: next=cur->next; cur->next=prev; prev=cur; cur=next. Return prev. O(n) time, O(1) space.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-304",
+  "title": "C: memcpy Safety Issues and Best Practices",
+  "prompt": "",
+  "source_notes": "memcpy requires valid nonoverlapping ranges; use memmove for overlap. Check capacity, length overflow, pointer validity. Don't memcpy non-trivially-copyable C++ objects.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-305",
+  "title": "Minimize Result by Adding Parentheses to Expression",
+  "prompt": "",
+  "source_notes": "For A+B, enumerate every opening position in A and closing position in B; evaluate left*(inner_left+inner_right)*right (absent factors = 1), keep the minimum. O(|A|*|B|).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-306",
+  "title": "Robot Matrix Diagonal Traversal",
+  "prompt": "",
+  "source_notes": "Iterate diagonal sum d=0..R+C-2, visit (r,c) with r+c=d in bounds, reversing direction on alternate diagonals for zigzag. O(R*C).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-307",
+  "title": "Online Interval Merge with Streaming Input",
+  "prompt": "",
+  "source_notes": "Maintain disjoint sorted intervals in an ordered map. For new [L,R], find neighbors, merge all overlapping, erase them, insert merged. O(log m + k).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-308",
+  "title": "Count Digits 0, 2, 4 in Range [0, n]",
+  "prompt": "",
+  "source_notes": "Digit DP with tight/started flags, or place-value counting per digit; zero needs special handling for leading zeros. O(log n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-309",
+  "title": "Longest Contiguous Same-Character Substring",
+  "prompt": "",
+  "source_notes": "Single scan tracking current run length and best run. Reset on change. O(n) time, O(1) space.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-310",
+  "title": "Place Lamp to Illuminate Maximum Objects",
+  "prompt": "",
+  "source_notes": "For points on a line and fixed-length coverage, sort positions and use two pointers for the largest window with span <= L. O(n log n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-311",
+  "title": "Cyclic Shift Validation",
+  "prompt": "",
+  "source_notes": "Equal-length strings are rotations iff s2 is a substring of s1+s1. Use KMP for O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-312",
+  "title": "Memory Allocator Simulation",
+  "prompt": "",
+  "source_notes": "Keep free intervals sorted by address, allocated blocks keyed by ID. Allocate with first/best fit plus alignment and split; free validates and coalesces neighbors. Handle exhaustion, double free.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-313",
+  "title": "Byte Stream Chunk Merging",
+  "prompt": "",
+  "source_notes": "Represent chunks by offset+data; merge contiguous ranges, define overlap policy (must match / prefer / report conflict), preserve gaps.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-314",
+  "title": "Merge Intervals and Return All Unique Numbers",
+  "prompt": "",
+  "source_notes": "Sort by start, merge overlaps, then enumerate integers in merged ranges. O(n log n + K).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-315",
+  "title": "Sliding Window Maximum Sum and Starting Index",
+  "prompt": "",
+  "source_notes": "Sum the first k, then slide adding new and subtracting outgoing; track best sum and index. Initialize from a real window so all-negative arrays work. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-316",
+  "title": "Index of Second Smallest Element",
+  "prompt": "",
+  "source_notes": "Track smallest and second-smallest with indices in one pass. Clarify whether duplicates count. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-317",
+  "title": "Tournament Elimination Bracket",
+  "prompt": "",
+  "source_notes": "Single elimination with n players needs exactly n-1 matches. Use byes if n is not a power of two.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-318",
+  "title": "Move Zeros to End (LC 283)",
+  "prompt": "",
+  "source_notes": "Write index compacts nonzeros in order, then fill the rest with zeros. Stable, O(n), O(1) space.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-319",
+  "title": "Array Deduplication - O(n^2) to O(n) Optimization",
+  "prompt": "",
+  "source_notes": "Hash set of seen values, append first occurrences (order preserved). O(n) expected. For sorted input, two pointers with O(1) space.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-320",
+  "title": "Fibonacci: Recursive vs Iterative, Complexity, and Sequence Output",
+  "prompt": "",
+  "source_notes": "Naive recursion is exponential O(phi^n) with O(n) depth; memoization O(n)/O(n); iterative two-variable O(n)/O(1).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-321",
+  "title": "Parse Mixed UVM/Custom Simulation Log File",
+  "prompt": "",
+  "source_notes": "Stream the file and dispatch recognized UVM/custom patterns to dedicated parsers. Normalize severity, time, component, ID, message. Don't double-count the UVM report summary.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-322",
+  "title": "Check if a Number Is a Power of 2 (Bit Manipulation)",
+  "prompt": "",
+  "source_notes": "`n != 0 && (n & (n-1)) == 0`. A power of two has exactly one set bit.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-323",
+  "title": "Maximum Subarray Sum with Subset Tracking (Kadane's)",
+  "prompt": "",
+  "source_notes": "Track current sum/start; restart when extending is worse; update best and [start,end]. Initialize from the first element so all-negative input works. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-324",
+  "title": "Count Number of 1 Bits in Binary (Popcount)",
+  "prompt": "",
+  "source_notes": "Repeat `n &= n-1; count++` until zero (Brian Kernighan). O(number of ones).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-325",
+  "title": "Longest Consecutive Sequence (LC 128)",
+  "prompt": "",
+  "source_notes": "Put values in a hash set; start counting only from x where x-1 is absent; extend while successors exist. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-326",
+  "title": "Longest Substring Without Duplicates (C++)",
+  "prompt": "",
+  "source_notes": "Sliding window with last-seen positions; on repeat inside window move left to last_seen+1; track max. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-327",
+  "title": "Elevator Cargo - Minimum Trips with Weight Limit",
+  "prompt": "",
+  "source_notes": "If at most two items per trip: sort, two pointers pairing lightest with heaviest if they fit. Arbitrary items per trip is bin packing (NP-hard).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-328",
+  "title": "Python - Remove Vowels / Remove Consonants from String",
+  "prompt": "",
+  "source_notes": "`''.join(c for c in s if c.lower() not in 'aeiou')`. When removing consonants, keep vowels plus non-letters if intended. O(n).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-329",
+  "title": "Sort Python Dictionary by Value; Regex Match Two Strings",
+  "prompt": "",
+  "source_notes": "`sorted(d.items(), key=lambda kv: kv[1])`. Use re.search / re.match / re.fullmatch deliberately; plain equality uses ==.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-330",
+  "title": "Sort Log File by Age and Write to Output",
+  "prompt": "",
+  "source_notes": "Parse age as a number, keep record and index, stable-sort by age, write output. Lexicographic sorting of ages gives wrong order.",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-331",
+  "title": "Python - Find Unpaired Numbers in a List",
+  "prompt": "",
+  "source_notes": "Use Counter and select values with odd counts (or count==1 if exactly one occurrence is required).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-332",
+  "title": "Find the 3rd Smallest Value in an Integer Stream",
+  "prompt": "",
+  "source_notes": "Keep a max-heap of size three of the smallest values; replace top when a smaller value arrives. O(n log 3).",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-333",
+  "title": "Stacked NMOS Current Mirror Analysis",
+  "prompt": "",
+  "source_notes": "A cascode mirror keeps the output transistor's drain voltage steadier, increasing output resistance and current accuracy, at the cost of higher output compliance voltage. Check saturation of all devices.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-334",
+  "title": "CMOS Inverter Vin-Vout Transfer Curve, Cascaded Stages",
+  "prompt": "",
+  "source_notes": "Output near VDD at low Vin, near ground at high Vin, with a high-gain transition where both devices conduct. Sizing shifts the switching threshold. Cascaded stages restore levels; odd count inverts.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-335",
+  "title": "NMOS Pass-Gate Chain with Threshold Compensation",
+  "prompt": "",
+  "source_notes": "An NMOS passes a strong 0 but a weak 1 (VDD - Vt, worse with body effect). Transmission gates or boosted gates improve high-level transfer.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-336",
+  "title": "Ring Oscillator and Single Inverter Feedback",
+  "prompt": "",
+  "source_notes": "Ring oscillator uses an odd number N of inverters; f ≈ 1/(2*N*t_pd). A single inverter with feedback tends to settle near its switching point rather than robustly oscillate.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-337",
+  "title": "Pulse Latch - Pulse Generator Circuit",
+  "prompt": "",
+  "source_notes": "Combine clk with an inverted delayed clk to make a narrow pulse on the rising edge; the latch is transparent during that pulse. Pulse width must satisfy latch timing across PVT.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-338",
+  "title": "Logical Effort - FO3, Sizing, F=GH",
+  "prompt": "",
+  "source_notes": "Stage delay d=g*h+p; path effort F=G*B*H. Optimal stage effort ≈ F^(1/N). FO3 means load is 3x the input capacitance.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-339",
+  "title": "Circuit Optimization Techniques",
+  "prompt": "",
+  "source_notes": "Sizing, buffering, logic restructuring, reduced fanout, clock gating, voltage scaling, pipelining — trade delay vs power vs area.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-340",
+  "title": "Two-Stage Inverter VDDh->VDDl vs VDDl->VDDh",
+  "prompt": "",
+  "source_notes": "Low-to-high crossing can leave the high-voltage PMOS partly on (static current, bad VIH); high-to-low can violate input limits. Use level shifters.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-341",
+  "title": "NAND2 Sizing from Corresponding Inverter",
+  "prompt": "",
+  "source_notes": "Series NMOS each ~2x the inverter NMOS width; each parallel PMOS ~ same as the inverter PMOS.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-342",
+  "title": "Master-Slave DFF - Component Purpose and Removal Analysis",
+  "prompt": "",
+  "source_notes": "Opposite-phase master and slave latches give edge-triggered behavior. Feedback retains state; removing isolation permits transparency/race-through.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-343",
+  "title": "tsu, tc2q Measurement in SPICE; tcq vs tdc Plot",
+  "prompt": "",
+  "source_notes": "Sweep data-to-clock separation and record clk-to-Q; define setup/hold as where tcq degrades by a criterion (e.g. 10%). Near the aperture tcq rises sharply (metastability).",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-344",
+  "title": "6T SRAM Operation, SNM, and Sizing",
+  "prompt": "",
+  "source_notes": "Two cross-coupled inverters plus two access transistors. Read: precharge bitlines, assert WL, sense. Pull-down > access for read stability; access > pull-up for writeability. SNM from butterfly curves.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-345",
+  "title": "ROM Types and Sense Amplifier; Timing Order",
+  "prompt": "",
+  "source_notes": "Mask ROM, fuse/antifuse, EPROM/EEPROM/Flash. Sense amp resolves small bitline differences. Read: precharge, decode, activate, develop, sense, capture.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-346",
+  "title": "Electromigration - DC, AC, Iavg, Irms, Black's Equation",
+  "prompt": "",
+  "source_notes": "Current-driven metal atom transport causing voids/shorts. Black's equation: MTTF = A*J^(-n)*exp(Ea/kT). Follow foundry avg/RMS/peak current limits.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-347",
+  "title": "RC Low-Pass Filter - Transfer Function and Cutoff Frequency",
+  "prompt": "",
+  "source_notes": "H(jw)=1/(1+jwRC), fc=1/(2*pi*RC), -3dB at cutoff, -20dB/decade beyond, phase to -90°.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-348",
+  "title": "Emulation versus RTL Simulation and FPGA Prototyping",
+  "prompt": "",
+  "source_notes": "RTL sim: best debug, slow. Emulation: synthesizable design on dedicated hardware, much faster, transactor-based. FPGA prototype: fastest, least visibility, more partitioning/timing effort.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-349",
+  "title": "Behavior Question: Describe Your Most Proud Project",
+  "prompt": "",
+  "source_notes": "Template: 'I built [system] to solve [problem]. I owned [part]. The hardest issue was [challenge]; I chose [approach] because [tradeoff]. I verified it with [evidence]; the result was [measured outcome]. Next time I would improve [lesson].' Don't invent numbers or claim teammates' work.",
+  "category": "Behavioral",
+  "type": "behavioral",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-350",
+  "title": "Behavior Question: Describe an Interesting Bug You Encountered",
+  "prompt": "",
+  "source_notes": "'We saw [symptom] under [trigger]. I reproduced it with [test/seed], narrowed it to [component], found [root cause]. I fixed it, added [focused check], reran [regression]. Lesson: [prevention].' Show how evidence separated DUT vs monitor vs model.",
+  "category": "Behavioral",
+  "type": "behavioral",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-351",
+  "title": "Find the Lighter Stone Among 9 (Balance Scale)",
+  "prompt": "",
+  "source_notes": "Split into three groups of three. Weigh two groups; the lighter one (or the unweighed one if balanced) has it. Then weigh one stone vs another from that group. Two weighings suffice.",
+  "category": "Behavioral",
+  "type": "behavioral",
+  "difficulty": "Medium",
+  "language": "text"
+ }
+]

@@ -1,0 +1,322 @@
+{
+ "source": {
+  "id": "cn-partial",
+  "name": "部分面試題"
+ },
+ "questions": [
+  {
+   "title": "Xilinx FPGA 的體系架構是什麼？",
+   "answer": "Xilinx FPGA 基於 SRAM 查找表，上電需重新配置。內部包括可程式 I/O、CLB（LUT、暫存器、MUX、進位鏈）、Block RAM、時鐘資源（全域、區域、IO 時鐘）、佈線資源、硬核 IP（DSP、MMCM、PCIe、SerDes、ARM 等）。",
+   "solution": "**Key idea:** FPGA = 可程式邏輯（CLB 中的 LUT + FF）+ 可程式互連 + 專用硬核（BRAM、DSP、時鐘管理、高速 I/O），全部由 SRAM 型配置記憶體控制，所以上電後要從 Flash 重新載入 bitstream。\n\n```mermaid\nflowchart TB\n  CFG[\"外部 Flash → 配置控制器 → SRAM 配置位元\"]\n  subgraph FPGA\n    IOB[\"IOB (可程式 I/O, SelectIO, IDDR/ODDR)\"]\n    CLB[\"CLB = 2 x Slice (LUT6, FF, MUX, Carry chain)\"]\n    BRAM[\"Block RAM (36Kb, 可設為 FIFO)\"]\n    DSP[\"DSP48 (乘加器)\"]\n    CLK[\"時鐘: BUFG, BUFR, MMCM / PLL\"]\n    HARD[\"硬核: PCIe, GT SerDes, ARM (Zynq)\"]\n    RT[\"可程式佈線 (switch matrix)\"]\n  end\n  CFG --> FPGA\n```\n\n| 資源 | 功能 |\n| --- | --- |\n| LUT6 | 任意 6 輸入布林函數，也可當 distributed RAM / shift register (SRL) |\n| FF | D 型暫存器，含 CE、SR |\n| Carry chain | 快速加法/比較 |\n| BRAM | 18/36Kb 真雙埠 RAM |\n| DSP48 | 25×18 乘法 + 48-bit 累加 |\n| MMCM/PLL | 倍頻、分頻、相位調整、去抖 |\n| BUFG | 全域低 skew 時鐘網路 |\n\n### Corner cases & pitfalls\n- SRAM 型 FPGA 斷電即失去配置；Flash 型（如 Microsemi）則不需重新配置。\n\n### Follow-ups\n- LUT 如何實現邏輯？把真值表存在 64-bit SRAM，輸入當位址讀出結果。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "FPGA 開發流程？",
+   "answer": "需求分析 → RTL 設計輸入 → 功能仿真（前仿）→ 編譯綜合 → 優化 → 佈局佈線 → 時序仿真（後仿）→ 下載 bit 流除錯。",
+   "solution": "**Key idea:** 先保證功能正確（RTL 仿真），再保證時序收斂（綜合 + 實作 + STA），最後上板驗證。\n\n```mermaid\nflowchart LR\n  A[\"需求 / 架構\"] --> B[\"RTL 設計\"]\n  B --> C[\"功能仿真 (前仿)\"]\n  C --> D[\"綜合 Synthesis\"]\n  D --> E[\"實作: opt / place / route\"]\n  E --> F[\"STA 時序報告 (WNS/WHS)\"]\n  F -->|違例| B\n  F --> G[\"產生 bitstream\"]\n  G --> H[\"上板除錯 (ILA / ChipScope)\"]\n```\n\n```tcl\n# Vivado non-project 流程\nread_verilog [glob rtl/*.v]\nread_xdc constr/top.xdc\nsynth_design -top top -part xc7a100tcsg324-1\nopt_design\nplace_design\nroute_design\nreport_timing_summary -file timing.rpt\nwrite_bitstream -force top.bit\n```\n\n### Explanation\n- 約束（XDC/SDC）在綜合前就要準備：時鐘、I/O delay、false path。\n- 後仿（帶 SDF）在 FPGA 中較少做，多以 STA + 板上 ILA 取代。\n\n### Corner cases & pitfalls\n- 只看功能仿真通過就上板，常因未約束的 I/O 或跨時鐘域出錯。\n\n### Follow-ups\n- ASIC 流程有何不同？多了 DFT、floorplan、CTS、寄生參數提取、DRC/LVS 與 tape-out。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "tcl"
+  },
+  {
+   "title": "計算機體系架構：CPU 由哪些部分組成？",
+   "answer": "CPU 以控制單元、算術邏輯單元、暫存器為核心，並有片內互連；控制器負責取指、解碼、時序、匯流排與中斷控制；運算器負責算術與邏輯運算；暫存器暫存指令、位址、資料與結果。",
+   "solution": "**Key idea:** 馮·諾依曼架構 = 運算器 + 控制器 + 記憶體 + 輸入 + 輸出；CPU 本身包含運算器（ALU + 暫存器）與控制器，經匯流排存取記憶體與 I/O。\n\n```mermaid\nflowchart LR\n  subgraph CPU\n    CU[\"控制單元: PC, IR, 解碼器, 時序產生\"]\n    ALU[\"ALU + 狀態暫存器 (flags)\"]\n    RF[\"暫存器堆 (GPR)\"]\n  end\n  CU -->|控制信號| ALU\n  RF <--> ALU\n  CPU <-->|\"位址/資料/控制匯流排\"| MEM[\"記憶體 (指令 + 資料)\"]\n  CPU <--> IO[\"I/O 裝置\"]\n```\n\n| 部件 | 主要功能 |\n| --- | --- |\n| 控制器 | 取指 (fetch)、解碼 (decode)、產生控制信號、處理中斷 |\n| ALU | 加減乘、AND/OR/NOT、移位、比較 |\n| 暫存器 | PC、IR、MAR/MDR、通用暫存器、狀態旗標 |\n| 片內互連 | 連接上述單元的內部匯流排 |\n\n### Explanation\n- 指令週期：Fetch → Decode → Execute → Memory → Write-back（經典 5 級管線）。\n- 原文「CPU 主要包括運算器、存儲器、控制器」不精確：主記憶體在 CPU 之外，CPU 內只有暫存器與 cache。\n\n### Corner cases & pitfalls\n- 哈佛架構指令與資料分開存取；馮·諾依曼共用。\n\n### Follow-ups\n- 提升 CPU 效能的手段？管線、超純量、分支預測、cache、亂序執行。",
+   "category": "Computer Architecture",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "ARM 架構的特點？",
+   "answer": "ARM 晶片可視為 SoC，CPU 透過 AMBA 匯流排連接 RAM、中斷控制器、DMA 等外設；ARM 是 RISC、低功耗、適合嵌入式；統一編址，32 位 ARM 支援 ≤4GB；（原文寫）ARM 是哈佛結構。",
+   "solution": "**Key idea:** ARM 是 RISC load/store 架構：固定長度指令、大量通用暫存器、只有 load/store 存取記憶體；在 SoC 中透過 AMBA（AXI/AHB/APB）連接周邊，周邊採記憶體映射（統一編址）。\n\n```mermaid\nflowchart LR\n  CPU[\"ARM Core (I-cache + D-cache: 哈佛)\"] --> AXI[\"AXI / AHB 高速匯流排\"]\n  AXI --> SRAM[\"片上 SRAM\"]\n  AXI --> DDR[\"DDR 控制器\"]\n  AXI --> DMA[\"DMA\"]\n  AXI --> BR[\"AHB/AXI → APB bridge\"]\n  BR --> UART[\"UART\"]\n  BR --> GPIO[\"GPIO\"]\n  BR --> TMR[\"Timer\"]\n  GIC[\"中斷控制器 (NVIC/GIC)\"] --> CPU\n```\n\n| 特性 | ARM (RISC) | x86 (CISC) |\n| --- | --- | --- |\n| 指令長度 | 固定 32-bit（Thumb 16/32） | 可變 1~15 bytes |\n| 記憶體存取 | 僅 load/store | 運算指令可直接存取記憶體 |\n| 暫存器 | 16 (AArch32) / 31 (AArch64) GPR | 較少 |\n| 功耗 | 低 | 較高 |\n| I/O 編址 | 統一編址（memory-mapped） | 有獨立 I/O 空間 |\n\n### Explanation\n- 「ARM 是哈佛結構」需修正：多數 ARM 核心在 **cache 層級是哈佛**（I/D 分離），但主記憶體是統一位址空間（修正型哈佛）；Cortex-M3/M4 有分開的 I-Code/D-Code 匯流排。\n- 32-bit 位址可定址 4GB（含所有周邊），LPAE 可擴充。\n\n### Corner cases & pitfalls\n- ARM 是 IP 授權公司，不同廠商 SoC 周邊差異很大。\n\n### Follow-ups\n- Cortex-A/R/M 差別？A 應用處理器（MMU、Linux）、R 即時（車用）、M 微控制器。",
+   "category": "Computer Architecture",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "數位 IC 設計流程（前端 + 後端）",
+   "answer": "前端：規格/需求 → RTL 設計 → RTL 驗證 → 頂層整合驗證 → 邏輯綜合 → 形式驗證 → STA；後端：DFT → 佈局規劃 → 佈局優化 → CTS → 詳細佈線 → 寄生參數提取 → STA/後仿 → 版圖驗證（DRC/LVS）→ 流片、測試。",
+   "solution": "**Key idea:** 前端把 spec 變成「正確且可綜合」的 netlist；後端把 netlist 變成「時序、功耗、DRC/LVS 都乾淨」的 GDSII。\n\n```mermaid\nflowchart TB\n  subgraph FE[\"Front-end\"]\n    S[\"Spec / 架構\"] --> R[\"RTL 設計\"]\n    R --> V[\"功能驗證 (UVM / formal)\"]\n    V --> SY[\"邏輯綜合 (DC/Genus)\"]\n    SY --> DFT[\"DFT 插入 (scan, MBIST)\"]\n    DFT --> LEC[\"形式等價 (LEC)\"]\n    LEC --> STA1[\"STA (pre-layout)\"]\n  end\n  subgraph BE[\"Back-end\"]\n    FP[\"Floorplan / power plan\"] --> PL[\"Placement\"]\n    PL --> CTS[\"Clock Tree Synthesis\"]\n    CTS --> RT[\"Routing\"]\n    RT --> EX[\"RC 提取 (SPEF)\"]\n    EX --> STA2[\"Sign-off STA + 後仿 (SDF)\"]\n    STA2 --> PV[\"DRC / LVS / ERC\"]\n    PV --> TO[\"Tape-out (GDSII)\"]\n  end\n  STA1 --> FP\n```\n\n| 階段 | 主要工具 (Synopsys / Cadence) | 產出 |\n| --- | --- | --- |\n| 仿真 | VCS / Xcelium | 覆蓋率、bug 報告 |\n| 綜合 | Design Compiler / Genus | gate netlist + SDC |\n| 等價 | Formality / Conformal | LEC 報告 |\n| P&R | ICC2 / Innovus | DEF / GDS |\n| STA | PrimeTime / Tempus | 時序報告 |\n| 實體驗證 | IC Validator / Calibre | DRC/LVS clean |\n\n### Explanation\n- 原文把「形式驗證」寫成「綜合後仿真」不精確：形式等價檢查（LEC）是用數學方法比較 RTL 與 netlist，不需刺激；門級仿真是另一件事。\n- DFT 常在綜合時一起插入（scan chain），後端再做 scan reorder。\n\n### Follow-ups\n- 什麼是 ECO？tape-out 前對 netlist/layout 的小修改，避免整個流程重跑。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "DC（Design Compiler）綜合的基本流程？",
+   "answer": "1) 準備設計檔與庫（工藝庫、符號庫、綜合庫）；2) 啟動 DC；3) 讀入前檢查；4) 讀入並查看設計；5) 約束設計（IO、時鐘）；6) 綜合；7) 綜合後檢查（違例、時序、面積報告）；8) 保存結果。",
+   "solution": "**Key idea:** 讀庫 → 讀 RTL（analyze/elaborate/link）→ 下約束（SDC）→ compile → 看報告 → 輸出 netlist/SDC/ddc。\n\n```mermaid\nflowchart LR\n  L[\"設定 target/link library\"] --> RD[\"analyze + elaborate\"]\n  RD --> LK[\"link + check_design\"]\n  LK --> CON[\"SDC: create_clock, set_input_delay, ...\"]\n  CON --> CMP[\"compile_ultra\"]\n  CMP --> RPT[\"report_timing / area / qor\"]\n  RPT -->|違例| CON\n  RPT --> OUT[\"write -f verilog, write_sdc, write_sdf\"]\n```\n\n```tcl\nset_app_var target_library \"slow.db\"\nset_app_var link_library   \"* slow.db\"\nanalyze   -format verilog [glob ../rtl/*.v]\nelaborate top\ncurrent_design top\nlink\ncheck_design > rpt/check_design.rpt\n\ncreate_clock -name clk -period 2.0 [get_ports clk]\nset_clock_uncertainty 0.1 [get_clocks clk]\nset_input_delay  0.6 -clock clk [remove_from_collection [all_inputs] [get_ports clk]]\nset_output_delay 0.6 -clock clk [all_outputs]\nset_load 0.05 [all_outputs]\nset_driving_cell -lib_cell BUFX2 [all_inputs]\n\ncompile_ultra\nreport_timing -max_paths 10 > rpt/timing.rpt\nreport_area   > rpt/area.rpt\nreport_qor    > rpt/qor.rpt\nwrite -format verilog -hierarchy -output out/top_netlist.v\nwrite_sdc out/top.sdc\nwrite -format ddc -hierarchy -output out/top.ddc\n```\n\n### Explanation\n- 庫：`target_library` 給映射用的標準單元，`link_library` 用來解析引用（含 `*` 表示記憶體中的設計），`symbol_library` 用於畫圖。\n- `check_design` 找未連接埠、多驅動、latch 推論等問題。\n\n### Corner cases & pitfalls\n- 忘了 `set_input_delay` 會讓輸入路徑不受約束，綜合結果看似乾淨但實際違例。\n\n### Follow-ups\n- `compile` vs `compile_ultra`？後者使用更多高階優化（retiming、boundary optimization）。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "tcl"
+  },
+  {
+   "title": "FPGA 控制 DDR3 讀寫時，物理層能跑的最高時鐘是多少？還有哪些參數？",
+   "answer": "與 FPGA 速度等級有關：4:1 模式 -1:800Mb/s、-2:1066、-3:1333；2:1 模式 -1:800、-2:1066、-3:1066。專案用 -2 等級，雙沿採樣，PHY 最高 533MHz；但記憶體條僅支援 303.03MHz，因此 PHY 用 303.03MHz、使用者端 150MHz（V6 只支援 2:1）。電壓 1.5V，資料 64bit，位址 16bit。",
+   "solution": "**Key idea:** DDR 在時鐘雙沿傳資料，所以**資料率 (MT/s) = 2 × 記憶體時鐘**；MIG 的使用者端時鐘 = 記憶體時鐘 / (PHY:controller 比例 4:1 或 2:1)。上限取 FPGA 等級與 DRAM 顆粒/模組兩者較小者。\n\n| 參數 | 計算 | 值（本例） |\n| --- | --- | --- |\n| FPGA -2 等級上限 | 1066 Mb/s → 533 MHz | 533 MHz |\n| 記憶體模組上限 | 303.03 MHz（tCK = 3.3 ns） | 取較小 → 303 MHz |\n| 資料率 | 2 × 303 | 606 MT/s |\n| 使用者時鐘 (2:1) | 303 / 2 | ~151.5 MHz |\n| 頻寬 (64-bit) | 606M × 64 / 8 | ~4.85 GB/s (理論) |\n| 使用者資料寬度 (2:1) | 64 × 2 × 2 | 256 bit / user clk |\n\n```mermaid\nflowchart LR\n  APP[\"user logic @151.5MHz, 256-bit\"] --> MIG[\"MIG controller\"]\n  MIG --> PHY[\"PHY @303MHz (2:1)\"]\n  PHY -->|\"DQ x64 @606MT/s, DQS, CK\"| DDR[\"DDR3 SODIMM 1.5V\"]\n```\n\n### Explanation\n- 其他重要參數：CL/CWL、tRCD、tRP、tRFC、tREFI（7.8µs 刷新）、burst length 8（BL8）、bank 數 8、row/column 位址寬度、ODT、ZQ 校準。\n- 實際效率受 row miss、讀寫切換、refresh 影響，常為理論值 60~80%。\n\n### Corner cases & pitfalls\n- 2:1 模式下使用者端每拍傳 4 個 DQ beat（BL8 需 2 拍）；4:1 則一拍完成 BL8。\n- 「位址 16bit」通常指 row address A[15:0]，加上 3-bit bank 與 column。\n\n### Follow-ups\n- 為何需要 write leveling / read leveling？校正 fly-by 拓撲下各 DQS 與 CK 之間的 skew。",
+   "category": "Protocols",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "阻塞賦值與非阻塞賦值的差異？",
+   "answer": "阻塞：右式計算與左式更新完成後才執行下一句，組合邏輯使用；非阻塞：不阻塞下一句，在區塊結束時才統一更新，時序邏輯使用，可避免仿真競爭。",
+   "solution": "**Key idea:** `=` 立即更新、依序執行；`<=` 先計算所有右式（Active region），在 NBA region 才一起更新左式，因此模擬出「所有 FF 同時取樣」的行為。\n\n```verilog\n// 移位暫存器：非阻塞（正確）\nalways @(posedge clk) begin\n  q1 <= d;\n  q2 <= q1;   // 用的是舊 q1\nend\n// 阻塞（錯誤）：q2 立刻等於 d，退化成一級\nalways @(posedge clk) begin\n  q1 = d;\n  q2 = q1;\nend\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p....\" },\n  { \"name\": \"d\", \"wave\": \"01...\" },\n  { \"name\": \"q1 (<=)\", \"wave\": \"0.1..\" },\n  { \"name\": \"q2 (<=)\", \"wave\": \"0..1.\" },\n  { \"name\": \"q2 (=)\", \"wave\": \"0.1..\" }\n],\n  \"head\": { \"text\": \"非阻塞形成兩級移位；阻塞讓 q2 與 q1 同時變化\" } }\n```\n\n| 規則 | 說明 |\n| --- | --- |\n| 時序邏輯 | `always @(posedge clk)` 用 `<=` |\n| 組合邏輯 | `always @(*)` 用 `=` |\n| 不混用 | 同一 always 不混用 `=` 與 `<=` |\n| 不多處驅動 | 同一變數不在多個 always 中賦值 |\n\n### Corner cases & pitfalls\n- 原文「assign 中必須用阻塞賦值」說法不精確：`assign` 是連續賦值（continuous assignment），不屬於阻塞/非阻塞程序賦值。\n\n### Follow-ups\n- 組合邏輯用 `<=` 會怎樣？功能通常仍對，但模擬效率下降且可能需多次 delta 迭代。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "同步復位與非同步復位的差異？什麼是非同步復位、同步釋放？",
+   "answer": "同步復位只在時鐘有效沿生效；非同步復位與時鐘無關。同步復位降低亞穩態機率但耗更多邏輯；FPGA 暫存器有專用非同步復位埠，省資源但增加亞穩態風險。非同步復位同步釋放：把非同步復位先同步化後再作為後續電路的非同步復位。",
+   "solution": "**Key idea:** 非同步 assert（立即復位、不需時鐘）+ 同步 deassert（釋放對齊時鐘沿，滿足 recovery/removal）兼得兩者優點。\n\n```verilog\nmodule rst_sync (\n  input  wire clk,\n  input  wire arst_n,     // 外部非同步復位\n  output wire rst_n_sync  // 給下游 FF 的 async reset\n);\n  reg r1, r2;\n  always @(posedge clk or negedge arst_n) begin\n    if (!arst_n) begin r1 <= 1'b0; r2 <= 1'b0; end\n    else         begin r1 <= 1'b1; r2 <= r1;   end\n  end\n  assign rst_n_sync = r2;\nendmodule\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p.......\" },\n  { \"name\": \"arst_n\", \"wave\": \"1.0.1...\" , \"phase\": 0.5},\n  { \"name\": \"r1\", \"wave\": \"1.0..1..\" },\n  { \"name\": \"rst_n_sync\", \"wave\": \"1.0...1.\" }\n],\n  \"head\": { \"text\": \"assert 立即生效；deassert 經兩級 FF 對齊時鐘\" } }\n```\n\n| 項目 | 同步復位 | 非同步復位 | 非同步復位同步釋放 |\n| --- | --- | --- | --- |\n| 需時鐘才復位 | 是 | 否 | 否 |\n| 釋放時亞穩態 | 無 | 有風險 | 已消除 |\n| 資源 | reset 進入 D 端組合邏輯 | 用 FF 專用 CLR 腳 | 多 2 個 FF |\n| 濾毛刺 | 可以 | 不行（毛刺直接復位） | 不行 |\n\n### Corner cases & pitfalls\n- 同步復位脈寬必須 > 1 個時鐘週期才能被取樣到。\n- 每個時鐘域都需要自己的 reset synchronizer。\n\n### Follow-ups\n- recovery/removal 是什麼？非同步復位釋放相對時鐘沿的 setup/hold 檢查。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "什麼是亞穩態？如何減少亞穩態？",
+   "answer": "亞穩態指觸發器無法在規定時間內到達確定的 0/1 狀態。減少方法：降低時鐘頻率、使用反應更快的 FF、引入同步機制防止傳播、改善時鐘品質（邊沿陡峭）。",
+   "solution": "**Key idea:** 當 D 在 setup/hold 視窗內變化，FF 輸出可能停在中間電壓一段不確定時間；無法消除，只能用同步器給它「解析時間」，把失效機率（MTBF）降到可接受。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk_b\", \"wave\": \"p....\" },\n  { \"name\": \"d (from clk_a)\", \"wave\": \"0.1..\", \"phase\": 0.15 },\n  { \"name\": \"ff1.q\", \"wave\": \"0.x1.\" },\n  { \"name\": \"ff2.q (sync)\", \"wave\": \"0...1\" }\n],\n  \"head\": { \"text\": \"d 在 setup 視窗內變化：ff1 亞穩態，一個週期後 ff2 取樣穩定值\" } }\n```\n\nMTBF = e^(t_r/τ) / (T0 · f_clk · f_data)，其中 t_r 為可用解析時間。每加一級 FF，t_r 增加一個週期，MTBF 呈指數增加。\n\n```verilog\n// 兩級同步器\n(* ASYNC_REG = \"TRUE\" *) reg s1, s2;\nalways @(posedge clk_b or negedge rst_n)\n  if (!rst_n) {s2, s1} <= 2'b0;\n  else        {s2, s1} <= {s1, d_async};\n```\n\n### Explanation\n- 減少方法：\n  1. 多級同步器（2~3 級），同步器 FF 放在一起、中間無組合邏輯。\n  2. 選用 τ 小（快）的 FF。\n  3. 降低時鐘或資料變化頻率。\n  4. 多 bit 用格雷碼 / 握手 / 非同步 FIFO，避免各 bit 解析結果不一致。\n- 原文「改善時鐘品質」影響有限；關鍵是同步結構與解析時間。\n\n### Corner cases & pitfalls\n- 同步器只解決「亞穩態傳播」，不保證資料正確（多 bit 仍需特殊處理）。\n\n### Follow-ups\n- 為什麼兩級通常就夠？典型製程下兩級 MTBF 可達數百年以上。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "FPGA 與 CPLD 的區別？",
+   "answer": "CPLD 基於乘積項，內部 EEPROM/Flash，組合邏輯資源豐富，集成度低、速度慢、可加密；FPGA 基於查找表、內部 SRAM、外掛 Flash，時序邏輯資源豐富、集成度高、速度快、不可加密。",
+   "solution": "**Key idea:** CPLD = 少量大型「乘積項 + 巨集單元」、非揮發、延遲可預測；FPGA = 大量細粒度 LUT + FF、SRAM 配置、容量大。\n\n| 項目 | CPLD | FPGA |\n| --- | --- | --- |\n| 邏輯結構 | 乘積項 (AND-OR array) + macrocell | LUT + FF (CLB) |\n| 配置儲存 | 內建 EEPROM/Flash，上電即用 | SRAM，需外部 Flash 載入 |\n| 規模 | 數百~數千 macrocell | 數萬~數百萬 LUT |\n| 擅長 | 組合邏輯、膠合邏輯、上電時序控制 | 時序邏輯、資料處理、DSP |\n| 延遲 | 固定、可預測 | 依佈線而定 |\n| 硬核 | 很少 | BRAM、DSP、SerDes、CPU |\n| 保密 | 較好（內部儲存） | 需 bitstream 加密（現代 FPGA 支援 AES） |\n\n```mermaid\nflowchart LR\n  subgraph CPLD\n    PT[\"乘積項陣列\"] --> MC[\"Macrocell (OR + FF)\"]\n  end\n  subgraph FPGA\n    LUT[\"LUT6\"] --> FF[\"FF\"] --> SW[\"Switch matrix\"]\n  end\n```\n\n### Corner cases & pitfalls\n- 原文「FPGA 不可加密」已過時：Xilinx 7 系列以後支援 AES-256 bitstream 加密。\n\n### Follow-ups\n- 板上常見用 CPLD 做什麼？電源上電順序、reset 管理、FPGA 配置控制。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "如何用 MUX 和反相器組成 XOR？如何用 MUX 實現 AND、OR？",
+   "answer": "assign z = a ? ~b : b; 凡涉及 MUX，想到 if-else；用基本邏輯閘實現複雜組合邏輯時先化簡。",
+   "solution": "**Key idea:** 2:1 MUX `y = s ? i1 : i0` 是萬能閘：把一個輸入接到 select，另外兩端接常數或另一個輸入（或其反相）即可實現任何 2 輸入函數（Shannon 展開）。\n\n| 函數 | select | i1 (s=1) | i0 (s=0) | Verilog |\n| --- | --- | --- | --- | --- |\n| AND | a | b | 0 | `a ? b : 1'b0` |\n| OR | a | 1 | b | `a ? 1'b1 : b` |\n| NOT | a | 0 | 1 | `a ? 1'b0 : 1'b1` |\n| XOR | a | ~b | b | `a ? ~b : b` |\n| XNOR | a | b | ~b | `a ? b : ~b` |\n| NAND | a | ~b | 1 | `a ? ~b : 1'b1` |\n\n```mermaid\nflowchart LR\n  B[\"b\"] --> INV[\"NOT\"] --> I1[\"MUX in1\"]\n  B --> I0[\"MUX in0\"]\n  A[\"a\"] --> SEL[\"MUX sel\"]\n  I1 --> Y[\"y = a XOR b\"]\n  I0 --> Y\n  SEL --> Y\n```\n\n```verilog\nmodule xor_by_mux(input a, b, output y);\n  wire nb = ~b;\n  assign y = a ? nb : b;   // a=0 → b ; a=1 → ~b\nendmodule\n```\n\n### Explanation\n- Shannon 展開：`f(a,b) = a·f(1,b) + a'·f(0,b)`，MUX 的兩個輸入就是兩個 cofactor。\n- XOR：f(1,b)=~b、f(0,b)=b。\n\n### Corner cases & pitfalls\n- 若不允許反相器，XOR 需兩個 MUX（先用 MUX 做出 ~b：`b ? 0 : 1`）。\n\n### Follow-ups\n- 只用 2:1 MUX 實現 3 輸入函數？用 a 當 select，兩個 cofactor 各自再用 MUX 以 b 展開，共 3 個 MUX。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "浮點數如何定點化（含有號數、無號數）？",
+   "answer": "無號例：3.1415926 定點化，小數部分 0.1415926/2^-10 ≈ 145，得 10'b... 整數 3、小數 145/1024=0.1416015625，量化誤差約 8.96e-6。有號例：9'b1_10_111111 = -1·2^2 + 1·2^1 + 0·2^0 + ... = -1.015625。",
+   "solution": "**Key idea:** Q 格式 `Qm.n`：值 = 整數編碼 / 2^n。定點化 = `round(x · 2^n)`，再以 m+n（+1 符號位）位元表示；有號數用二補數，MSB 權重為負。\n\n**例 1（無號 UQ2.10）**：x = 3.1415926\n- x · 2^10 = 3216.99 → round = 3217 = `12'b11_0010010001`\n- 整數部分 `11` = 3，小數部分 `0010010001` = 145 → 145/1024 = 0.1416015625\n- 量化誤差 = 3.1416015625 − 3.1415926 ≈ 8.96e-6（≤ 2^-11 ≈ 4.9e-4）\n\n**例 2（有號 Q2.6，9-bit）**：`9'b1_10_111111`\n\n| bit | 8 (sign) | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| 值 | 1 | 1 | 0 | 1 | 1 | 1 | 1 | 1 | 1 |\n| 權重 | −2^2 | 2^1 | 2^0 | 2^-1 | 2^-2 | 2^-3 | 2^-4 | 2^-5 | 2^-6 |\n\n= −4 + 2 + 0 + (0.5+0.25+0.125+0.0625+0.03125+0.015625) = −4 + 2 + 0.984375 = **−1.015625**\n（等價：整數碼 `1_1011_1111` = 447 − 512 = −65；−65/64 = −1.015625）\n\n```python\ndef to_fixed(x, int_bits, frac_bits, signed=True):\n    total = int_bits + frac_bits + (1 if signed else 0)\n    q = round(x * (1 << frac_bits))\n    lo, hi = (-(1 << (total - 1)), (1 << (total - 1)) - 1) if signed else (0, (1 << total) - 1)\n    q = max(lo, min(hi, q))                       # 飽和\n    return q & ((1 << total) - 1)                 # 二補數 bit pattern\n\ndef from_fixed(code, int_bits, frac_bits, signed=True):\n    total = int_bits + frac_bits + (1 if signed else 0)\n    if signed and code >> (total - 1):\n        code -= 1 << total\n    return code / (1 << frac_bits)\n\nprint(bin(to_fixed(3.1415926, 2, 10, signed=False)))   # 0b110010010001\nprint(from_fixed(0b110111111, 2, 6))                    # -1.015625\n```\n\n### Corner cases & pitfalls\n- 原文用「除盡」找位數不實際；應依精度需求選 n（誤差 ≤ 2^-(n+1)），並決定截斷或四捨五入。\n- 乘法後小數位數相加（Qa.b × Qc.d → Q(a+c).(b+d)），需重新截位。\n\n### Follow-ups\n- 溢位處理？wrap-around 或飽和（saturation），DSP 中常用飽和。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "python"
+  },
+  {
+   "title": "格雷碼與二進位碼如何互相轉換？轉換電路？格雷碼有何優點？",
+   "answer": "二進位轉格雷：最高位不變，其餘 g[i]=b[i+1]^b[i]，即 b ^ (b>>1)。格雷轉二進位：最高位不變，b[i]=b[i+1]^g[i]。優點：相鄰碼只差一位，適合非同步握手（如非同步 FIFO 指標）、是循環碼。",
+   "solution": "**Key idea:** `gray = bin ^ (bin >> 1)`（並行 XOR）；`bin[i] = ^gray[N-1:i]`（從 MSB 往下累積 XOR，串行鏈）。\n\n| 十進位 | 二進位 | 格雷碼 |\n| --- | --- | --- |\n| 0 | 000 | 000 |\n| 1 | 001 | 001 |\n| 2 | 010 | 011 |\n| 3 | 011 | 010 |\n| 4 | 100 | 110 |\n| 5 | 101 | 111 |\n| 6 | 110 | 101 |\n| 7 | 111 | 100 |\n\n```verilog\nmodule bin2gray #(parameter N = 4) (input [N-1:0] bin, output [N-1:0] gray);\n  assign gray = bin ^ (bin >> 1);\nendmodule\n\nmodule gray2bin #(parameter N = 4) (input [N-1:0] gray, output reg [N-1:0] bin);\n  integer i;\n  always @(*) begin\n    bin[N-1] = gray[N-1];\n    for (i = N-2; i >= 0; i = i - 1)\n      bin[i] = bin[i+1] ^ gray[i];\n  end\nendmodule\n```\n\n```mermaid\nflowchart LR\n  B3[\"b3\"] --> G3[\"g3\"]\n  B3 --> X2[\"XOR\"] --> G2[\"g2\"]\n  B2[\"b2\"] --> X2\n  B2 --> X1[\"XOR\"] --> G1[\"g1\"]\n  B1[\"b1\"] --> X1\n  B1 --> X0[\"XOR\"] --> G0[\"g0\"]\n  B0[\"b0\"] --> X0\n```\n\n### Explanation\n- 優點：相鄰值只變 1 bit → 跨時鐘域取樣時，就算取到轉換中途，也只會是「舊值或新值」，不會出現離譜的中間值。\n- 用於非同步 FIFO 指標、旋轉編碼器、低功耗計數器（翻轉少）。\n\n### Corner cases & pitfalls\n- 只有「每次 +1/−1」的序列才有單 bit 變化特性；任意跳值仍會多 bit 變化。\n- 原文說「格雷碼用最少觸發器編碼狀態機」不正確：最少觸發器是 binary 編碼；格雷碼與 binary 同樣用 log2N 個 FF，好處是相鄰狀態翻轉少。\n- 非 2 的冪深度的 FIFO 不能直接用標準格雷碼。\n\n### Follow-ups\n- gray2bin 是 N-1 級 XOR 鏈，時序長時可用 `bin[i] = ^(gray >> i)` 讓綜合器建 XOR 樹。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "原碼、反碼、補碼，以及有號數、無號數的表示方法？",
+   "answer": "原碼：MSB 為符號，其餘為絕對值，0 有 +0/-0，範圍 ±(2^(n-1)-1)；反碼：負數除符號位外取反；補碼：負數為反碼 +1，0 只有一種表示，範圍 -2^(n-1) ~ 2^(n-1)-1。",
+   "solution": "**Key idea:** 補碼讓減法變加法、0 唯一、範圍多一個負數，所以硬體一律用補碼；負數補碼 = 2^n − |x| = 取反 + 1。\n\n以 4-bit 為例：\n\n| 值 | 原碼 | 反碼 | 補碼 |\n| --- | --- | --- | --- |\n| +7 | 0111 | 0111 | 0111 |\n| +1 | 0001 | 0001 | 0001 |\n| +0 | 0000 | 0000 | 0000 |\n| −0 | 1000 | 1111 | （同 0000） |\n| −1 | 1001 | 1110 | 1111 |\n| −6 | 1110 | 1001 | 1010 |\n| −7 | 1111 | 1000 | 1001 |\n| −8 | 無 | 無 | 1000 |\n| 範圍 | −7~+7 | −7~+7 | −8~+7 |\n\n```verilog\nreg signed [3:0] a = -4'sd6;   // 4'b1010\nreg        [3:0] u = 4'b1010;  // 無號 = 10\ninitial begin\n  $display(\"%0d %0d\", a, u);           // -6 10\n  $display(\"%0d\", a >>> 1);            // -3 (算術右移保留符號)\n  $display(\"%b\", {{4{a[3]}}, a});      // 符號擴展 11111010\nend\n```\n\n### Explanation\n- 原文補碼例：原碼 `10010`（−2）→ 符號不變其餘取反 `11101` → +1 → `11110`，正確。\n- 有號/無號在硬體上 bit pattern 相同，差在比較、右移、擴展、乘法時的解讀。\n\n### Corner cases & pitfalls\n- Verilog 運算式中只要有一個運算元是 unsigned，整個運算式就以 unsigned 處理。\n- −8（`1000`）取補碼仍是 `1000`（溢位）。\n\n### Follow-ups\n- 補碼加法溢位判斷？兩個同號數相加結果符號不同，或 `carry_in(MSB) ^ carry_out(MSB)`。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "IO 介面時序約束的基本概念與約束方法？",
+   "answer": "原文：請參考文件與部落格。",
+   "solution": "**Key idea:** 晶片外部的延遲用 `set_input_delay` / `set_output_delay` 告訴工具「外部已用掉多少時間」，工具據此計算晶片內部 I/O 路徑剩餘的 budget。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p....\" },\n  { \"name\": \"ext launch\", \"wave\": \"x=...\", \"data\": [\"ext FF Tco + board\"] },\n  { \"name\": \"in port data\", \"wave\": \"x.=..\", \"data\": [\"valid\"] },\n  { \"name\": \"internal budget\", \"wave\": \"0.1.0\" }\n],\n  \"head\": { \"text\": \"input_delay = 外部 Tco + 走線延遲；內部可用 = Tclk - input_delay - Tsu\" } }\n```\n\n| 約束 | 意義 | 公式（setup） |\n| --- | --- | --- |\n| `set_input_delay -max` | 外部 FF Tco(max) + 走線(max) | 內部路徑 ≤ T − in_max − Tsu |\n| `set_input_delay -min` | 外部 Tco(min) + 走線(min) | 用於 hold 檢查 |\n| `set_output_delay -max` | 外部 Tsu + 走線(max) | 內部 clk→out ≤ T − out_max |\n| `set_output_delay -min` | −(外部 Th) + 走線(min) | 用於 hold 檢查 |\n\n```tcl\ncreate_clock -name sys_clk -period 10 [get_ports clk]\n# 輸入: 外部器件 Tco 2~4ns, 走線 0.5~1ns\nset_input_delay  -clock sys_clk -max 5.0 [get_ports din*]\nset_input_delay  -clock sys_clk -min 2.5 [get_ports din*]\n# 輸出: 下游 Tsu=2ns, Th=1ns, 走線 1ns\nset_output_delay -clock sys_clk -max 3.0 [get_ports dout*]\nset_output_delay -clock sys_clk -min [expr 1.0 - 1.0] [get_ports dout*]\n# 源同步 DDR 介面加 -clock_fall -add_delay\nset_input_delay -clock rx_clk -max 1.2 -clock_fall -add_delay [get_ports rxd*]\n```\n\n### Explanation\n- 系統同步（common clock）vs 源同步（時鐘隨資料一起送）約束方式不同；源同步需建 virtual/generated clock。\n- 其他 I/O 相關：`set_driving_cell`、`set_load`、`set_max_transition`。\n\n### Corner cases & pitfalls\n- 忘記 `-min` 會導致 hold 不檢查；忘記 `-add_delay` 會讓 rise/fall 約束互相覆蓋。\n\n### Follow-ups\n- 什麼是 virtual clock？不連接到任何 port 的時鐘，用來描述外部器件的時鐘。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "tcl"
+  },
+  {
+   "title": "FPGA 內部有哪些資源？各自功能是什麼？",
+   "answer": "可配置 IO（專用/通用、上下拉）、佈線資源、時鐘資源（全域、區域、IO 時鐘）、CLB（每個含兩個 slice：LUT、FF、進位鏈、MUX）、儲存資源（BRAM 可設單/雙口 RAM、CAM、FIFO；分散式 RAM）、DSP48、硬核（高速收發器、PCIe）。",
+   "solution": "**Key idea:** 寫 RTL 時要知道每段程式碼會「落」到哪種資源：計數器→LUT+FF+carry，大陣列→BRAM，乘法→DSP，時鐘→BUFG/MMCM。\n\n| 資源 | 功能 | RTL 推論範例 |\n| --- | --- | --- |\n| IOB | 電平標準、上下拉、IDDR/ODDR、IDELAY | `IBUF/OBUF` 自動 |\n| CLB/Slice | LUT6 + 8 FF + carry4/carry8 + MUX | 一般邏輯、加法器 |\n| SLICEM | LUT 可當 64-bit distributed RAM / SRL32 | 小 RAM、延遲線 |\n| BRAM | 36Kb 真雙埠、可設 FIFO、ECC | `reg [31:0] mem [0:1023]` 同步讀 |\n| DSP48 | 25×18 乘法 + 48-bit ALU、級聯 | `a*b+c` 並加 pipeline reg |\n| 時鐘 | BUFG 全域、BUFR 區域、MMCM/PLL | `clk_wiz` IP |\n| 硬核 | GTX/GTH、PCIe、Ethernet MAC、Zynq PS | IP |\n\n```verilog\n// 推論 BRAM：同步讀\nreg [31:0] mem [0:1023];\nalways @(posedge clk) begin\n  if (we) mem[waddr] <= wdata;\n  rdata <= mem[raddr];          // 有暫存器 → BRAM\nend\n// 推論 DSP：乘加 + pipeline\nalways @(posedge clk) begin\n  a_r <= a; b_r <= b;\n  p_r <= a_r * b_r;\n  acc <= acc + p_r;\nend\n```\n\n### Corner cases & pitfalls\n- 非同步讀（`assign rdata = mem[raddr]`）只能映射到 distributed RAM。\n- 原文寫「DPS48」應為 DSP48；「內容可定址記憶體 CRAM」應為 CAM。\n\n### Follow-ups\n- 如何確認資源使用？看 utilization report 中 LUT/FF/BRAM/DSP 數量。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "線與（wired-AND）邏輯的基本概念？",
+   "answer": "將兩個閘的輸出端並聯實現「與」的功能稱為線與，也可用於驅動大電流或電平轉換；可用 OD（open-drain）閘實現。",
+   "solution": "**Key idea:** 多個 open-drain/open-collector 輸出接在同一條線上並加上拉電阻：任一輸出拉低線就為 0，全部釋放才被上拉為 1 → 線上電位 = 所有輸出的 AND。\n\n```mermaid\nflowchart LR\n  VDD[\"VDD\"] --> RP[\"上拉電阻 Rp\"] --> BUS[\"共用線 Y = A AND B\"]\n  A[\"OD gate A (NMOS)\"] --> BUS\n  B[\"OD gate B (NMOS)\"] --> BUS\n  BUS --> GND1[\"A 導通時拉到 GND\"]\n```\n\n| A 輸出 | B 輸出 | 線 Y |\n| --- | --- | --- |\n| 0（拉低） | 0 | 0 |\n| 0 | 1（高阻） | 0 |\n| 1（高阻） | 0 | 0 |\n| 1（高阻） | 1（高阻） | 1（上拉） |\n\n```verilog\n// Verilog 中 wand 型別模擬線與；實際 I2C 的寫法\nassign sda = sda_oe ? 1'b0 : 1'bz;   // 只拉低或放開\npullup(sda);\n```\n\n### Explanation\n- 應用：I2C 的 SCL/SDA（多主機仲裁、clock stretching）、中斷線共用、不同電壓間電平轉換（上拉到目標電壓）。\n- 一般 CMOS 推挽輸出不能直接並聯，否則一高一低時 VDD 經兩管短路到 GND。\n\n### Corner cases & pitfalls\n- 上拉電阻太大 → 上升沿慢（RC）；太小 → 拉低時電流大、功耗高。\n\n### Follow-ups\n- 線或（wired-OR）？用 open-source（PMOS）輸出加下拉電阻，或負邏輯下的線與。",
+   "category": "Circuits & Analog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "SRAM 和 DRAM 的內部結構、比較與用途？常見記憶體有什麼差異？",
+   "answer": "SRAM 每 bit 用 6 個電晶體，DRAM 用 1 個電晶體 + 1 個電容。cache 追求速度用 SRAM，主記憶體追求容量用 DRAM；SRAM 不需刷新，DRAM 需不斷刷新；DRAM 集成度高；兩者定址方式也不同。",
+   "solution": "**Key idea:** SRAM 用交叉耦合反相器（雙穩態）存資料，快、不需刷新但面積大；DRAM 用電容電荷存資料，密度高、便宜，但電容會漏電需定期刷新，讀取具破壞性需回寫。\n\n```mermaid\nflowchart LR\n  subgraph SRAM_6T\n    WL1[\"WL\"] --> AX1[\"存取管 M5\"]\n    WL1 --> AX2[\"存取管 M6\"]\n    AX1 --> INV[\"兩個交叉耦合反相器 (4T)\"]\n    AX2 --> INV\n    BL[\"BL / BLB 差動位元線\"] --> AX1\n  end\n  subgraph DRAM_1T1C\n    WL2[\"WL\"] --> T[\"存取電晶體\"]\n    BL2[\"BL\"] --> T --> C[\"儲存電容 Cs\"]\n  end\n```\n\n| 項目 | SRAM | DRAM | Flash |\n| --- | --- | --- | --- |\n| cell | 6T | 1T1C | 浮動閘 1T |\n| 速度 | 最快 (~ns) | 中 (~10s ns) | 慢 (µs 寫) |\n| 刷新 | 不需要 | 需 (~64ms 全部) | 不需要 |\n| 揮發 | 是 | 是 | 否 |\n| 密度/成本 | 低/貴 | 高/便宜 | 最高 |\n| 定址 | 位址一次送入 | 列/行位址分時多工 (RAS/CAS) | page/block |\n| 用途 | cache、暫存器檔、FPGA BRAM | 主記憶體 | 儲存、韌體 |\n\n### Explanation\n- DRAM 讀取時電容電荷分享到位元線，sense amp 放大後必須寫回（restore）。\n- SRAM 讀取也是差動感測，但 cell 本身會維持值。\n\n### Corner cases & pitfalls\n- SRAM 有 read stability / write margin 問題，低電壓下會失效。\n\n### Follow-ups\n- 為什麼 DRAM 有 bank？可在不同 bank 平行做 activate/precharge，隱藏 row 切換延遲。",
+   "category": "Circuits & Analog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "組合邏輯與時序邏輯的差異？",
+   "answer": "組合邏輯任意時刻輸出只與當前輸入有關；時序邏輯輸出不僅取決於當前輸入，還與電路原來的狀態有關。",
+   "solution": "**Key idea:** 組合邏輯 = 無記憶的布林函數 `y = f(x)`；時序邏輯 = 有狀態 `state' = f(state, x)`，透過 FF/latch 記住過去。\n\n| 項目 | 組合邏輯 | 時序邏輯 |\n| --- | --- | --- |\n| 記憶 | 無 | 有（FF、latch） |\n| 時鐘 | 不需要 | 同步電路需要 |\n| 例子 | 加法器、MUX、解碼器 | 計數器、FSM、移位暫存器 |\n| Verilog | `assign`、`always @(*)` + `=` | `always @(posedge clk)` + `<=` |\n| 時序分析 | 傳遞延遲 | setup/hold |\n\n```mermaid\nflowchart LR\n  X[\"輸入 x\"] --> CL[\"組合邏輯 f\"]\n  CL --> FF[\"DFF (state)\"]\n  FF -->|\"回授 state\"| CL\n  CL --> Y[\"輸出 y\"]\n  CLK[\"clk\"] --> FF\n```\n\n```verilog\n// 組合: 4-bit 加法\nassign sum = a + b;\n// 時序: 帶使能計數器\nalways @(posedge clk or negedge rst_n)\n  if (!rst_n) cnt <= 0;\n  else if (en) cnt <= cnt + 1;\n```\n\n### Corner cases & pitfalls\n- `always @(*)` 中 if 沒有 else 或 case 沒 default → 推論出 latch，變成非預期的時序元件。\n- 組合迴路（輸出直接回授到輸入，沒有 FF）會造成振盪或 STA 無法分析。\n\n### Follow-ups\n- Mealy 與 Moore 輸出分別屬於？Moore 輸出只依狀態；Mealy 輸出依狀態 + 輸入（含組合路徑）。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "什麼是競爭與冒險？如何判斷與消除？",
+   "answer": "競爭：信號經不同路徑到達匯合點時間不同；冒險：競爭導致輸出瞬間錯誤。有競爭不一定冒險，有冒險必有競爭。判斷：代數法（式中同時出現 A 與 A'）、卡諾圖法（相切圈）、實驗法。消除：封鎖脈衝、選通脈衝、濾波電容、增加冗餘項。",
+   "solution": "**Key idea:** 以 `Y = A·B + A'·C` 為例，B=C=1 時理論上 Y 恆為 1，但 A 切換時 A 與 A' 經不同延遲，可能短暫兩項都為 0 → 輸出出現 0 毛刺（static-1 hazard）。加入共識項 `B·C` 可消除。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"A\", \"wave\": \"1..0....\" },\n  { \"name\": \"A' (NOT 延遲)\", \"wave\": \"0...1...\" },\n  { \"name\": \"A·B\", \"wave\": \"1..0....\" },\n  { \"name\": \"A'·C\", \"wave\": \"0...1...\" },\n  { \"name\": \"Y\", \"wave\": \"1..01...\" },\n  { \"name\": \"Y + B·C\", \"wave\": \"1.......\" }\n],\n  \"head\": { \"text\": \"B=C=1：A 下降瞬間 Y 出現毛刺；加共識項 B·C 後消失\" } }\n```\n\n| 判斷方法 | 說明 |\n| --- | --- |\n| 代數法 | 某變數同時以原變數與反變數出現，且其他變數取特定值時式子化為 `A + A'` 或 `A·A'` |\n| 卡諾圖 | 兩個相鄰（相切）的圈之間沒有其他圈覆蓋 |\n| 仿真/實驗 | 帶延遲的門級仿真或示波器觀察 |\n\n| 消除方法 | 說明 |\n| --- | --- |\n| 增加冗餘（共識）項 | `Y = AB + A'C + BC` |\n| 輸出加暫存器 | 同步設計：只在時鐘沿取樣，毛刺不影響 |\n| 選通/封鎖脈衝 | 在穩定後才使能輸出 |\n| 濾波電容 | 吸收窄脈衝（會降速） |\n\n### Explanation\n- 同步數位設計中最實用的方法是「組合輸出經過 FF」，只要滿足 setup/hold，毛刺無害。\n- 毛刺危險的場合：作為時鐘、非同步 reset、跨時鐘域信號。\n\n### Corner cases & pitfalls\n- 跨時鐘域前一定要用暫存器輸出，否則組合毛刺可能被另一時鐘域取樣到。\n\n### Follow-ups\n- static vs dynamic hazard？static：應不變卻出現毛刺；dynamic：應變一次卻跳動多次。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "Verilog 有哪些基本運算子？",
+   "answer": "原文：請參考文件與部落格。",
+   "solution": "**Key idea:** 記住幾類容易混淆的：邏輯 vs 位元（`&&` vs `&`）、縮減運算（`&a`）、邏輯 vs 算術移位（`>>` vs `>>>`）、相等 vs case 相等（`==` vs `===`）。\n\n| 類別 | 運算子 | 備註 |\n| --- | --- | --- |\n| 算術 | `+ - * / % **` | `/ %` 一般不可綜合（除非常數 2 的冪） |\n| 關係 | `< <= > >=` | 遇 x/z 結果為 x |\n| 相等 | `== !=` / `=== !==` | `===` 比較 x/z，僅仿真 |\n| 邏輯 | `&& \\|\\| !` | 結果 1-bit |\n| 位元 | `& \\| ^ ~ ~^` | 逐位 |\n| 縮減 | `&a \\|a ^a ~&a ~\\|a ~^a` | 多位 → 1-bit（`^a` 為奇偶校驗） |\n| 移位 | `<< >>` / `<<< >>>` | `>>>` 對 signed 補符號位 |\n| 條件 | `c ? a : b` | MUX |\n| 拼接/複製 | `{a, b}` / `{4{a}}` | 符號擴展 `{{8{x[7]}}, x}` |\n\n```verilog\nwire [3:0] a = 4'b1010, b = 4'b0110;\nwire       l_and = a && b;      // 1 (兩者皆非零)\nwire [3:0] b_and = a & b;       // 0010\nwire       red   = ^a;          // 0 (偶數個 1)\nwire signed [3:0] s = -4'sd4;   // 1100\nwire signed [3:0] sr = s >>> 1; // 1110 (-2)\nwire        [3:0] lr = s >> 1;  // 0110\n```\n\n### Explanation\n- 優先順序（高→低）：單元 `! ~` > `**` > `* / %` > `+ -` > 移位 > 關係 > 相等 > `&` > `^` > `|` > `&&` > `||` > `?:`。\n\n### Corner cases & pitfalls\n- `a & b == c` 實際上是 `a & (b == c)`，要加括號。\n\n### Follow-ups\n- `!a` 與 `~a` 的差別？`!a` 是邏輯非（1-bit），`~a` 逐位取反。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "Verilog 中 case、casez、casex 的區別？",
+   "answer": "case 比較四值 0/1/z/x；casez 將 z（及 ?）視為不在乎；casex 將 z 與 x 都視為不在乎。",
+   "solution": "**Key idea:** `case` 是 `===` 精確比較；`casez` 把 `z/?` 當萬用；`casex` 把 `x/z/?` 當萬用——而且**case 運算式本身**中的 x/z 也會被當成萬用，這是 casex 的危險之處。\n\n| 敘述 | 視為 don't care 的值 | 可綜合 | 建議 |\n| --- | --- | --- | --- |\n| `case` | 無 | 是 | 一般用途 |\n| `casez` | `z`、`?` | 是 | 優先編碼器、指令解碼 |\n| `casex` | `x`、`z`、`?` | 是 | 避免使用 |\n\n```verilog\n// 優先編碼器：用 casez + ?\nalways @(*) begin\n  casez (req)\n    4'b1???: grant = 2'd3;\n    4'b01??: grant = 2'd2;\n    4'b001?: grant = 2'd1;\n    4'b0001: grant = 2'd0;\n    default: grant = 2'd0;\n  endcase\nend\n```\n\n| `sel` 實際值 | `case` 結果 | `casex` 結果 |\n| --- | --- | --- |\n| `2'b1x`（未初始化） | 走 default | 可能匹配 `2'b10` 分支，掩蓋 bug |\n\n### Explanation\n- 仿真時 `casex` 會把未初始化的 X 吃掉，導致 RTL 仿真與 gate 仿真行為不一致（X-optimism）。\n- SystemVerilog 建議使用 `case ... inside` 或 `unique casez`。\n\n### Corner cases & pitfalls\n- 原文「casez 不考慮高阻態 z」意思是「z 位元當 don't care」，並非「不支援 z」。\n\n### Follow-ups\n- `unique case` 與 `priority case` 差異？unique 保證恰好一個分支匹配（可平行化）；priority 保證至少一個匹配且依序。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "Verilog 中哪些語法可綜合、哪些不可綜合？",
+   "answer": "可綜合：always、assign、begin/end、case、wire、reg、integer、for、function、基本閘、if、input/output/inout、module、posedge/negedge、parameter 等。不可綜合：time、defparam、$finish、fork/join、initial、延遲、UDP、wait。部分工具支援：casex/casez、wand、real、disable、forever、arrays、repeat、task、while。避免使用次數不確定的迴圈。",
+   "solution": "**Key idea:** 可綜合 = 能映射成固定的硬體（門、FF、RAM）；與「時間」相關（`#delay`、`wait`、`initial` 中的行為）或「動態」（次數不定的迴圈、fork）一般不可綜合。\n\n| 類別 | 可綜合 | 不可綜合 / 僅仿真 |\n| --- | --- | --- |\n| 結構 | module、port、parameter、generate、instantiation | UDP、defparam（多數工具不建議） |\n| 賦值 | assign、always（comb/seq）、`=` `<=` | `#delay`、`force/release` |\n| 控制 | if/case/casez、固定次數 for、function、task（無時序） | wait、fork/join、forever、while（次數不定）、disable |\n| 型別 | wire、reg、integer（當 32-bit） | real、time、event |\n| 系統 | — | `$display`、`$finish`、`$random` |\n| 初始化 | FPGA 中 `initial` 給 reg 初值可綜合（BRAM 初值） | ASIC 中 initial 不可綜合 |\n\n```verilog\n// 可綜合: 固定次數 for 會被展開\nalways @(*) begin\n  cnt = 0;\n  for (i = 0; i < 8; i = i + 1)\n    cnt = cnt + data[i];      // popcount\nend\n// 不可綜合: 延遲與 wait\ninitial begin\n  #10 rst_n = 1;\n  wait (done);\nend\n```\n\n### Explanation\n- `for` 可綜合的條件：上下界在編譯期為常數，會展開成平行硬體。\n- `task` 若不含時序控制可綜合（相當於內嵌程式碼）。\n\n### Corner cases & pitfalls\n- 綜合工具會忽略 `#delay`（只有 warning），導致 RTL 與 netlist 仿真不一致。\n- 原文把 `wait` 列為不可綜合正確；`repeat` 若次數為常數部分工具可綜合。\n\n### Follow-ups\n- 除法可綜合嗎？常數除數或 2 的冪可以；任意除數會綜合成大型組合除法器，通常改用多週期除法器 IP。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "FIFO 深度如何計算？（例：8-bit 非同步 FIFO，寫 100MHz、讀 95MHz，每包 4Kbit，包間隔足夠大）",
+   "answer": "寫入一個 burst 需 T=500/100MHz，寫入 500 word；同時間讀出 500×95/100=475 word；剩餘 25，深度至少 25。",
+   "solution": "**Key idea:** 深度 = burst 期間「寫入量 − 同時間能讀出量」，再加上同步器延遲的餘量，最後取 2 的冪（非同步 FIFO 格雷碼指標需要）。\n\n**計算**（4Kbit = 4096 bit，寬度 8 bit → 512 words；原文以 4000 bit = 500 words 計算）\n\n| 項目 | 公式 | 4096 bit 版本 | 原文 500 word 版本 |\n| --- | --- | --- | --- |\n| burst 長度 B | 4096 / 8 | 512 | 500 |\n| 寫完時間 T | B / f_wr | 5.12 µs | 5 µs |\n| 同時間讀出 | T × f_rd | 486.4 | 475 |\n| 最少深度 | B − 讀出 | 25.6 → 26 | 25 |\n| 加同步延遲餘量 | +~4 | ~30 | ~29 |\n| 實際選擇 | 2 的冪 | 32 | 32 |\n\n```mermaid\nflowchart LR\n  W[\"寫端 100MHz, 512 words 連續\"] --> F[\"async FIFO\"]\n  F --> R[\"讀端 95MHz, 持續讀\"]\n  F --> D[\"累積 = 512 × (1 - 95/100) ≈ 26\"]\n```\n\n```python\nimport math\ndef fifo_depth(burst, f_wr, f_rd, wr_idle=0, rd_idle=0, sync_margin=4):\n    \"\"\"burst: words written back-to-back; *_idle: idle cycles per valid cycle\"\"\"\n    wr_rate = f_wr / (1 + wr_idle)\n    rd_rate = f_rd / (1 + rd_idle)\n    t = burst / wr_rate\n    left = burst - t * rd_rate\n    need = math.ceil(max(left, 0)) + sync_margin\n    return need, 1 << (need - 1).bit_length()\nprint(fifo_depth(512, 100e6, 95e6))   # (30, 32)\n```\n\n### Explanation\n- 讀端若有空閒週期（如每 2 拍讀 1 次），讀出率要乘上比例。\n- 非同步 FIFO 的 full/empty 經 2 級同步器，判斷有延遲，因此需額外餘量。\n\n### Corner cases & pitfalls\n- 若包間隔不夠大（前一包未清空就來下一包），要用「最壞情況連續兩包背靠背」計算。\n\n### Follow-ups\n- 若讀快寫慢呢？FIFO 理論上深度 1~2 即可（只做跨時鐘），但仍需非同步 FIFO 結構。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "python"
+  },
+  {
+   "title": "常用的高速介面有哪些？",
+   "answer": "PCIe、RapidIO、Ethernet、SATA 等。",
+   "solution": "**Key idea:** 現代高速介面幾乎都是「串列 + SerDes + 嵌入式時鐘（CDR）+ 編碼（8b/10b、128b/130b、PAM4）」，以少量差動對取代寬並列匯流排。\n\n| 介面 | 典型速率 / lane | 編碼 | 用途 |\n| --- | --- | --- | --- |\n| PCIe Gen3/4/5 | 8 / 16 / 32 GT/s | 128b/130b | CPU↔周邊、加速卡 |\n| Ethernet (10G/25G/100G) | 10.3 / 25.8 GBd | 64b/66b | 網路 |\n| SATA 3 | 6 Gb/s | 8b/10b | 硬碟 |\n| USB 3.x | 5 / 10 / 20 Gb/s | 8b/10b、128b/132b | 外接裝置 |\n| RapidIO | 3.125~25 Gb/s | 8b/10b、64b/67b | 嵌入式互連、基地台 |\n| MIPI D-PHY/C-PHY | 1.5~4.5 Gb/s | — | 相機、顯示 |\n| JESD204B/C | 12.5 / 32 Gb/s | 8b/10b、64b/66b | ADC/DAC |\n| DDR4/5、HBM | 3.2~6.4 GT/s | 並列源同步 | 記憶體 |\n\n```mermaid\nflowchart LR\n  TX[\"TX: 資料 → 編碼 → 串化 → 差動驅動\"] -->|\"差動對 + 嵌入式時鐘\"| RX[\"RX: CTLE/DFE 等化 → CDR → 解串 → 解碼\"]\n```\n\n### Explanation\n- 編碼目的：DC 平衡、足夠的轉換密度供 CDR 恢復時鐘、字元對齊。\n- 驗證重點：link training、LTSSM（PCIe）、錯誤注入、流量控制。\n\n### Follow-ups\n- 8b/10b 開銷？20%；128b/130b 約 1.5%。",
+   "category": "Protocols",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "全雙工、半雙工、單工的概念？SPI、UART、I2C 的基本常識？",
+   "answer": "SPI 主從式，至少 4 線（SDI/SDO/SCK/CS），速率可達數 Mbps，比 I2C 快。I2C 雙向兩線（SCL/SDA）、多主機；標準 100kbps、快速 400kbps、高速 3.4Mbps。UART 非同步串口，由鮑率產生器（16 倍過取樣）、收發器組成，兩線；115200 鮑率約 10.27KB/s；一幀包括起始位、資料位、校驗位、停止位。",
+   "solution": "**Key idea:** 單工 = 只能單向；半雙工 = 雙向但不能同時（I2C）；全雙工 = 同時雙向（SPI、UART 有獨立 TX/RX）。\n\n| 項目 | UART | SPI | I2C |\n| --- | --- | --- | --- |\n| 線數 | 2 (TX, RX) | 4 (SCLK, MOSI, MISO, CS_n) | 2 (SCL, SDA) |\n| 時鐘 | 無，非同步，雙方約定鮑率 | 主機提供 | 主機提供 |\n| 雙工 | 全雙工 | 全雙工 | 半雙工 |\n| 拓撲 | 點對點 | 一主多從（每從一條 CS） | 多主多從，7/10-bit 位址 |\n| 速率 | 9600~幾 Mbps | 數十 MHz | 100k/400k/1M/3.4M |\n| 確認 | 無（可 parity） | 無 | 每 byte ACK/NACK |\n| 輸出類型 | 推挽 | 推挽 | open-drain + 上拉 |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"UART TX\", \"wave\": \"10=========1\", \"data\": [\"D0\",\"D1\",\"D2\",\"D3\",\"D4\",\"D5\",\"D6\",\"D7\",\"P\"] }\n],\n  \"head\": { \"text\": \"UART 一幀：start(0) + 8 data (LSB first) + parity + stop(1)\" } }\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"SCL\", \"wave\": \"1.0101010101..\" },\n  { \"name\": \"SDA\", \"wave\": \"10=.=.=.=.0.1.\", \"data\": [\"A6\",\"A5\",\"...\",\"R/W\"] }\n],\n  \"head\": { \"text\": \"I2C：SCL 高時 SDA 下降 = START；SCL 高時 SDA 上升 = STOP\" } }\n```\n\n### Explanation\n- UART 有效速率：115200 baud，8N1 每 byte 10 bit → 11520 B/s ≈ 11.25 KiB/s；8E1（含 parity）每 byte 11 bit → 10473 B/s ≈ 10.2 KiB/s（原文的 10.27KB/s 接近此值）。\n- UART 接收端以 16 倍鮑率過取樣，在每個 bit 中間取樣。\n- SPI 有 4 種 mode（CPOL/CPHA）。\n\n### Corner cases & pitfalls\n- I2C 中 SDA 只能在 SCL 低時變化，否則會被視為 START/STOP。\n\n### Follow-ups\n- I2C clock stretching？從機拉住 SCL 為低，延長時鐘以爭取處理時間。",
+   "category": "Protocols",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "跨時鐘域設計方法？單 bit 與多 bit 如何處理？程式碼怎麼寫？",
+   "answer": "單 bit：兩級同步器（慢到快）；握手回饋機制（快到慢）。多 bit：FIFO。",
+   "solution": "**Key idea:** 單 bit 準位信號 → 2-FF 同步器；快→慢的脈衝 → 脈衝展寬或 toggle + 同步 + 邊沿偵測（或握手）；多 bit → 格雷碼（計數器）、握手 + 資料保持（低頻控制字）、非同步 FIFO（資料流）。\n\n| 情境 | 方法 |\n| --- | --- |\n| 單 bit 準位（慢→快或快→慢但持續夠久） | 2/3 級 FF 同步 |\n| 單 bit 脈衝（快→慢） | toggle 同步器 / 握手 |\n| 多 bit 計數器 | 格雷碼 + 同步 |\n| 多 bit 低頻資料 | req/ack 握手（MCP 公式：資料穩定後才送 enable） |\n| 多 bit 資料流 | 非同步 FIFO |\n\n```verilog\n// 快時鐘域脈衝 → 慢時鐘域脈衝 (toggle synchronizer)\nmodule pulse_sync (\n  input  clk_a, rst_a_n, pulse_a,\n  input  clk_b, rst_b_n,\n  output pulse_b\n);\n  reg tog_a;\n  always @(posedge clk_a or negedge rst_a_n)\n    if (!rst_a_n) tog_a <= 1'b0;\n    else if (pulse_a) tog_a <= ~tog_a;      // 每個脈衝翻轉一次\n\n  reg [2:0] sync_b;\n  always @(posedge clk_b or negedge rst_b_n)\n    if (!rst_b_n) sync_b <= 3'b0;\n    else          sync_b <= {sync_b[1:0], tog_a};\n\n  assign pulse_b = sync_b[2] ^ sync_b[1];    // 邊沿偵測產生單拍脈衝\nendmodule\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk_a\", \"wave\": \"p...........\" },\n  { \"name\": \"pulse_a\", \"wave\": \"010.........\" },\n  { \"name\": \"tog_a\", \"wave\": \"0.1.........\" },\n  { \"name\": \"clk_b\", \"wave\": \"0.1.0.1.0.1.\" },\n  { \"name\": \"sync_b[1]\", \"wave\": \"0...1.......\" },\n  { \"name\": \"sync_b[2]\", \"wave\": \"0.....1.....\" },\n  { \"name\": \"pulse_b\", \"wave\": \"0...1.0.....\" }\n],\n  \"head\": { \"text\": \"單拍快脈衝 → toggle → 慢時鐘域同步 → XOR 產生脈衝\" } }\n```\n\n### Corner cases & pitfalls\n- 原文「兩級同步用於慢到快」：快到慢時只要信號寬度 ≥ 1.5 個慢時鐘週期也可用；短脈衝必須展寬或握手。\n- toggle 法要求兩個脈衝間隔 ≥ 約 2~3 個慢時鐘週期。\n- 多 bit 各自同步會出現 bit 不一致（data incoherency），不可直接用 2-FF。\n\n### Follow-ups\n- 非同步 FIFO 為何用格雷碼指標？每次只變 1 bit，同步過去最多差一個值，full/empty 判斷保守但正確。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "時序器件有哪些？非時序器件有哪些？",
+   "answer": "時序器件：暫存器、觸發器、鎖存器、計數器等；非時序器件：反相器、與閘等邏輯閘電路。",
+   "solution": "**Key idea:** 有「記憶/狀態」的就是時序器件（輸出取決於過去），其他純組合的（閘、MUX、加法器、解碼器）是非時序器件。\n\n| 時序器件 | 觸發方式 | 說明 |\n| --- | --- | --- |\n| D 觸發器 (DFF) | 邊沿 | 最常用的暫存元件 |\n| 鎖存器 (latch) | 準位 | 透明期間 D 直通 |\n| 暫存器 / 移位暫存器 | 邊沿 | 多個 DFF 組成 |\n| 計數器、FSM | 邊沿 | DFF + 回授組合邏輯 |\n| SRAM/RF | — | 儲存單元 |\n\n| 非時序（組合）器件 | 例子 |\n| --- | --- |\n| 邏輯閘 | AND、OR、NOT、XOR、NAND |\n| 選擇/編碼 | MUX、DEMUX、編碼器、解碼器 |\n| 運算 | 加法器、比較器、乘法器（無暫存器時） |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk / en\", \"wave\": \"0.1..0.1..0.\" },\n  { \"name\": \"D\", \"wave\": \"0..1.0..1..0\" },\n  { \"name\": \"latch Q (en=1 透明)\", \"wave\": \"0..1.0..1..0\" },\n  { \"name\": \"DFF Q (上升沿取樣)\", \"wave\": \"0......1....\" }\n],\n  \"head\": { \"text\": \"latch 在 en 高時跟隨 D；DFF 只在上升沿取樣\" } }\n```\n\n### Corner cases & pitfalls\n- 組合 always 少寫 else 會意外推論 latch（時序器件）。\n\n### Follow-ups\n- latch 優缺點？面積小、可做 time borrowing；但時序分析困難、易出毛刺問題。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "能看懂時序約束語句嗎？哪些路徑要檢查？哪些路徑不檢查？",
+   "solution": "**Key idea:** 預設 STA 會檢查所有「起點 → 終點」的同步路徑；設計者用例外約束告訴工具哪些路徑不需檢查（false path）、哪些可放寬（multicycle）、哪些要特殊處理（max_delay）。\n\n| 路徑 | 是否檢查 | 約束 |\n| --- | --- | --- |\n| 同一時鐘域 reg→reg | 檢查 | `create_clock` |\n| 輸入 → reg、reg → 輸出 | 檢查 | `set_input_delay` / `set_output_delay` |\n| 非同步時鐘之間 | 不檢查（由 CDC 結構保證） | `set_clock_groups -asynchronous` 或 `set_false_path` |\n| 準靜態配置暫存器 | 不檢查 | `set_false_path -from cfg_reg*` |\n| 測試模式路徑 | 功能模式不檢查 | `set_case_analysis` |\n| 多週期運算 | 放寬檢查 | `set_multicycle_path` |\n| 非同步 FIFO 格雷碼指標 | 限制最大延遲 | `set_max_delay -datapath_only` |\n| 非同步 reset | 檢查 recovery/removal | 預設 |\n\n```tcl\ncreate_clock -name clk_a -period 5  [get_ports clk_a]\ncreate_clock -name clk_b -period 8  [get_ports clk_b]\ncreate_generated_clock -name clk_div2 -source [get_ports clk_a] -divide_by 2 [get_pins u_div/q_reg/Q]\nset_clock_groups -asynchronous -group {clk_a clk_div2} -group {clk_b}\nset_false_path -from [get_ports test_mode]\nset_multicycle_path 2 -setup -from [get_cells u_mul/a_reg*] -to [get_cells u_mul/p_reg*]\nset_multicycle_path 1 -hold  -from [get_cells u_mul/a_reg*] -to [get_cells u_mul/p_reg*]\nset_max_delay 5 -datapath_only -from [get_cells wptr_gray_reg*] -to [get_cells wptr_sync1_reg*]\n```\n\n### Explanation\n- multicycle setup 設 N 時，hold 通常要設 N−1，否則 hold 檢查會跟著移動而過嚴。\n- `set_clock_groups -asynchronous` 一次切斷兩組時鐘之間所有路徑。\n\n### Corner cases & pitfalls\n- 過度使用 false path 會隱藏真實違例；每條例外都要有設計依據並 review。\n\n### Follow-ups\n- 什麼是 unconstrained path？沒有時鐘或 I/O delay 約束的路徑，報告中要清零。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "tcl"
+  },
+  {
+   "title": "靜態時序分析：建立時間、保持時間、setup/hold slack 如何計算？最高工作頻率怎麼算？",
+   "answer": "建立時間：時鐘沿前資料必須穩定的時間；保持時間：時鐘沿後資料必須穩定的時間。setup 違例：降低頻率、適當增加時鐘延遲；hold 違例：增加資料延遲（插 buffer），hold 與頻率無關。",
+   "solution": "**Key idea:**\n- **Setup slack** = (T + T_capture_clk) − (T_launch_clk + T_cq + T_comb_max + T_su)\n- **Hold slack** = (T_launch_clk + T_cq + T_comb_min) − (T_capture_clk + T_h)\n- **f_max** = 1 / (T_cq + T_comb_max + T_su − T_skew)，其中 T_skew = T_capture − T_launch\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk (launch FF1)\", \"wave\": \"p....\" },\n  { \"name\": \"FF1.Q\", \"wave\": \"x.=..\", \"data\": [\"after Tcq\"] },\n  { \"name\": \"FF2.D\", \"wave\": \"x..=.\", \"data\": [\"after Tcq+Tcomb\"] },\n  { \"name\": \"setup window\", \"wave\": \"0..10\" }\n],\n  \"head\": { \"text\": \"資料必須在下一個時鐘沿 Tsu 前到達 FF2.D\" } }\n```\n\n**數值例**：T_cq = 0.3 ns、T_comb = 2.0~3.2 ns、T_su = 0.2 ns、T_h = 0.1 ns、clock skew（capture 晚到）= +0.2 ns、T = 4 ns\n\n| 檢查 | 計算 | 結果 |\n| --- | --- | --- |\n| Setup slack | (4 + 0.2) − (0.3 + 3.2 + 0.2) | **+0.5 ns** ✔ |\n| Hold slack | (0.3 + 2.0) − (0.2 + 0.1) | **+2.0 ns** ✔ |\n| f_max | 1 / (0.3 + 3.2 + 0.2 − 0.2) = 1 / 3.5 ns | **285.7 MHz** |\n| 組合延遲上限 | T + skew − T_cq − T_su = 4 + 0.2 − 0.5 | **3.7 ns** |\n\n| 違例 | 修復方法 |\n| --- | --- |\n| Setup | 降頻；pipeline 切路徑；邏輯重構、換快速 cell（低 Vt、upsizing）；useful skew（capture 時鐘稍延後） |\n| Hold | 在資料路徑插 buffer/delay cell；減少 capture 端時鐘延遲。與頻率無關 |\n\n### Corner cases & pitfalls\n- 正 skew（capture 晚）幫 setup、害 hold；負 skew 相反。\n- Setup 用 slow corner（max delay），hold 用 fast corner（min delay）。\n- 原文「增加時鐘延遲」解 setup 指的是 capture 端 useful skew，需同時確認 hold。\n\n### Follow-ups\n- 為何 hold 違例不能靠降頻修？hold 公式中沒有 T，同一個時鐘沿的 launch 與 capture 比較。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "靜態時序分析的四類基本時序路徑？什麼是時序路徑？",
+   "answer": "1) 輸入埠 → 觸發器 D；2) 觸發器 CLK → 觸發器 D；3) 觸發器 CLK → 輸出埠；4) 輸入埠 → 輸出埠。時序路徑指點到點的資料通路。",
+   "solution": "**Key idea:** 時序路徑 = 從一個**起點**（輸入埠或時序元件的時鐘腳）經組合邏輯到一個**終點**（時序元件的資料腳或輸出埠）。\n\n```mermaid\nflowchart LR\n  IN[\"輸入埠\"] -->|\"路徑 1: in → reg\"| FF1[\"FF1 (D)\"]\n  FF1 -->|\"路徑 2: reg → reg (CLK→Q→D)\"| FF2[\"FF2 (D)\"]\n  FF2 -->|\"路徑 3: reg → out\"| OUT[\"輸出埠\"]\n  IN -->|\"路徑 4: in → out (純組合)\"| OUT\n```\n\n| 路徑 | 起點 | 終點 | 需要的約束 |\n| --- | --- | --- | --- |\n| 1 in→reg | input port | FF D pin | `set_input_delay` |\n| 2 reg→reg | FF CK pin | FF D pin | `create_clock` |\n| 3 reg→out | FF CK pin | output port | `set_output_delay` |\n| 4 in→out | input port | output port | input + output delay 或 `set_max_delay` |\n\n```tcl\nreport_timing -from [all_inputs]     -to [all_registers -data_pins]   ;# 1\nreport_timing -from [all_registers -clock_pins] -to [all_registers -data_pins] ;# 2\nreport_timing -from [all_registers -clock_pins] -to [all_outputs]     ;# 3\nreport_timing -from [all_inputs]     -to [all_outputs]                ;# 4\n```\n\n### Explanation\n- 還有非同步路徑：FF CK → 另一 FF 的非同步 reset/set 腳，做 recovery/removal 檢查。\n- 時鐘路徑（clock source → FF CK）本身不是資料路徑，但其延遲影響 skew。\n\n### Corner cases & pitfalls\n- 路徑 4 在好的設計中應避免（純組合 feed-through 難以預算時序）。\n\n### Follow-ups\n- 什麼是 clock gating check？檢查 gating cell 的 enable 在時鐘有效期間保持穩定。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "tcl"
+  },
+  {
+   "title": "代碼覆蓋率（code coverage）包括哪些？",
+   "answer": "包括語句覆蓋、判定覆蓋、條件覆蓋、路徑覆蓋。",
+   "solution": "**Key idea:** code coverage 從 RTL 自動推導，回答「程式碼有沒有被執行過」；常見類型由弱到強：statement/line → branch/decision → condition/expression → path，再加上硬體特有的 toggle 與 FSM。\n\n| 類型 | 要求 | `if (a && b) y=1; else y=0;` 需要的測試 |\n| --- | --- | --- |\n| Line / Statement | 每行執行過 | 走 if 與 else 各一次 |\n| Branch / Decision | 每個分支方向都走過 | (1,1) 與任一 false |\n| Condition | 每個子條件各為真/假 | a=0/1、b=0/1 |\n| MC/DC（強化 condition） | 每個子條件能獨立影響結果 | (1,1)、(0,1)、(1,0) |\n| Path | 所有可能路徑組合 | 多個 if 串接時組合爆炸 |\n| Toggle | 每個 bit 0→1、1→0 | 信號翻轉 |\n| FSM | 每個狀態與轉移 | 狀態圖全走過 |\n\n```verilog\nalways @(*) begin\n  if (a && b) y = 1'b1;   // branch T\n  else        y = 1'b0;   // branch F\nend\n// 測試向量: {a,b} = 11, 01, 10 → line/branch/condition/MC-DC 皆 100%\n```\n\n### Explanation\n- VCS：`-cm line+cond+fsm+tgl+branch+assert`；報告用 `urg`。\n- path coverage 很少直接要求，通常以 branch + condition 代替。\n\n### Corner cases & pitfalls\n- 100% code coverage 不代表功能正確；仍需 functional coverage 與 checker。\n\n### Follow-ups\n- 為什麼需要 toggle coverage？檢查 bus 每個 bit 都動過，可抓到接線錯誤（例如高位元恆為 0）。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "邏輯設計中有哪些優化方法？哪些是速度優化方法？",
+   "answer": "速度優化方法：流水線、暫存器平衡、關鍵路徑法、乒乓操作。",
+   "solution": "**Key idea:** 速度（頻率/吞吐）優化本質上是「縮短最長組合路徑」或「增加平行度」；面積優化則是「資源共享、串行化」——兩者常互相取捨。\n\n| 方法 | 原理 | 代價 |\n| --- | --- | --- |\n| 流水線 (pipelining) | 長路徑切段插暫存器 | latency ↑、FF ↑ |\n| 暫存器平衡 (retiming) | 移動暫存器讓各級延遲相近 | 需工具支援 |\n| 關鍵路徑優化 | 把晚到的信號移到靠近輸出的邏輯層；重排 if-else 優先順序 | 設計時間 |\n| 乒乓操作 | 兩組 buffer 交替寫/讀，處理與傳輸平行 | 面積 ×2 |\n| 平行化 / 展開 | 多個運算單元同時處理 | 面積 ↑ |\n| 邏輯複製 | 降低高扇出網的負載 | 面積 ↑ |\n| 面積優化：資源共享 | 多個運算共用一個加法器/乘法器 | 速度 ↓ |\n| 面積優化：串行化 | 用時間換空間 | 吞吐 ↓ |\n\n```verilog\n// 未 pipeline: a*b+c*d 一拍完成，路徑 = 乘法 + 加法\n// pipeline 後: 每級只有乘法或加法\nalways @(posedge clk) begin\n  p1 <= a * b;        // stage 1\n  p2 <= c * d;\n  sum <= p1 + p2;     // stage 2\nend\n```\n\n```mermaid\nflowchart LR\n  IN[\"輸入資料\"] --> SW1{\"寫入選擇\"}\n  SW1 -->|\"奇數幀\"| BA[\"Buffer A\"]\n  SW1 -->|\"偶數幀\"| BB[\"Buffer B\"]\n  BA --> SW2{\"讀出選擇\"}\n  BB --> SW2\n  SW2 --> PROC[\"後級處理\"]\n```\n\n### Explanation\n- 關鍵路徑法：例如把 `if (late_sig && x) ...` 改寫讓 `late_sig` 在最後一級 MUX 選擇。\n- 乒乓：A 寫入時 B 被讀出，下一幀交換，達成無縫連續處理。\n\n### Corner cases & pitfalls\n- pipeline 後控制信號（valid、地址）要同步延遲，否則資料與控制錯位。\n\n### Follow-ups\n- 低功耗優化？clock gating、operand isolation、降低翻轉率、多電壓域。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "非同步復位電路的時序檢查分別叫做什麼？（recovery 與 removal）",
+   "answer": "復位釋放時若剛好在時鐘有效沿附近，暫存器可能亞穩態，因此需做 recovery 與 removal 檢查，類似 setup/hold。恢復時間：非同步控制信號在下個時鐘沿之前變無效的最小時間；若不滿足，該時鐘沿可能失效。",
+   "solution": "**Key idea:** recovery = 非同步 reset **釋放**相對時鐘沿的「setup」；removal = 相對時鐘沿的「hold」。在這段視窗內釋放 reset，FF 可能亞穩態或部分 FF 早一拍、部分晚一拍離開 reset。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"0.1.0.1.0.\" },\n  { \"name\": \"rst_n (OK)\", \"wave\": \"0..1......\" },\n  { \"name\": \"rst_n (violate)\", \"wave\": \"0.....1...\" , \"phase\": 0.3 },\n  { \"name\": \"recovery window\", \"wave\": \"0....1.0..\" },\n  { \"name\": \"removal window\", \"wave\": \"0.....1.0.\" }\n],\n  \"head\": { \"text\": \"rst_n 必須在時鐘沿前 t_rec 釋放，或在時鐘沿後 t_rem 以後才釋放\" } }\n```\n\n| 檢查 | 類比 | 要求 |\n| --- | --- | --- |\n| Recovery | setup | reset 撤銷沿 ≥ t_rec **早於**時鐘有效沿 |\n| Removal | hold | reset 撤銷沿 ≥ t_rem **晚於**時鐘有效沿 |\n\n```verilog\n// 解法：非同步復位、同步釋放 → recovery/removal 在同一時鐘域內由 STA 保證\nalways @(posedge clk or negedge arst_n)\n  if (!arst_n) {rst_s2, rst_s1} <= 2'b00;\n  else         {rst_s2, rst_s1} <= {rst_s1, 1'b1};\nassign rst_n_sync = rst_s2;\n```\n\n### Explanation\n- STA 工具在 FF 的 CLR/PRE 腳上做 recovery/removal 檢查（PrimeTime 預設開啟）。\n- 經 reset synchronizer 後，reset 釋放由同一時鐘發出，可正常收斂。\n\n### Corner cases & pitfalls\n- 大扇出 reset 網路延遲大，即使同步釋放，也可能違反 recovery，需做 reset tree / 管線化 reset。\n\n### Follow-ups\n- reset assert 需要檢查嗎？非同步 assert 不需要對齊時鐘，但 reset 期間時鐘行為無關。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  }
+ ]
+}

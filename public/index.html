@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DV Interview Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ffa116'/%3E%3Cpath d='M9 10l-4 6 4 6M23 10l4 6-4 6M18 8l-4 16' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.css">
+<link rel="stylesheet" id="hl-light" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" id="hl-dark" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" disabled>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/">
+    <span class="logo">&lt;/&gt;</span>
+    <span>DV Interview Lab</span>
+  </a>
+  <nav>
+    <a href="#/" id="nav-problems">Problems</a>
+    <a href="#" id="nav-random" title="Open a random unsolved problem">Random</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="stat" id="stat-solved" title="Solved = best AI score ≥ 8/10">—</div>
+  <button class="icon-btn" id="theme-toggle" title="Toggle light/dark">◐</button>
+</header>
+
+<main id="app"></main>
+
+<template id="tpl-list">
+  <section class="list-page">
+    <aside class="sidebar">
+      <div class="side-title">Topics</div>
+      <ul id="cat-list" class="cat-list"></ul>
+      <div class="side-title">Sources</div>
+      <select id="f-source"><option value="">All sources</option></select>
+    </aside>
+    <div class="list-main">
+      <div class="progress-strip" id="progress-strip"></div>
+      <div class="filters">
+        <input id="f-search" type="search" placeholder="Search questions…  ( / )" autocomplete="off">
+        <select id="f-diff"><option value="">Difficulty</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+        <select id="f-type"><option value="">Type</option><option value="concept">Concept</option><option value="coding">Coding</option><option value="behavioral">Behavioral</option></select>
+        <select id="f-status"><option value="">Status</option><option value="todo">Todo</option><option value="attempted">Attempted</option><option value="solved">Solved</option></select>
+        <button id="btn-pick" class="btn ghost" title="Pick one at random from the current filter">🎲 Pick one</button>
+      </div>
+      <div class="count-line" id="count-line"></div>
+      <div class="table-wrap">
+        <table class="qtable">
+          <thead><tr><th class="c-st">Status</th><th>Title</th><th class="c-cat">Topic</th><th class="c-diff">Difficulty</th><th class="c-type">Type</th><th class="c-best">Best</th></tr></thead>
+          <tbody id="qbody"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-problem">
+  <section class="problem-page">
+    <div class="pane left">
+      <div class="tabs" id="left-tabs">
+        <button data-tab="desc" class="active">Description</button>
+        <button data-tab="sol">Solution</button>
+        <button data-tab="ref">Notes</button>
+        <button data-tab="subs">Submissions</button>
+      </div>
+      <div class="pane-body" id="left-body"></div>
+      <div class="pane-foot">
+        <button class="btn ghost sm" id="btn-prev">← Prev</button>
+        <span class="muted" id="pos-label"></span>
+        <button class="btn ghost sm" id="btn-next">Next →</button>
+      </div>
+    </div>
+    <div class="gutter" id="gutter-v" title="Drag to resize"></div>
+    <div class="pane right">
+      <div class="editor-toolbar">
+        <select id="lang-select" title="Answer language">
+          <option value="text">Plain text / Markdown</option>
+          <option value="systemverilog">SystemVerilog / UVM</option>
+          <option value="verilog">Verilog</option>
+          <option value="python">Python</option>
+          <option value="cpp">C++</option>
+          <option value="c">C</option>
+          <option value="tcl">Tcl / Shell</option>
+        </select>
+        <select id="engine-select" title="Which AI evaluates your answer">
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex</option>
+          <option value="agy">Gemini (agy)</option>
+        </select>
+        <select id="model-select" title="Model used for evaluation">
+          <option value="">Model: default</option>
+        </select>
+        <div class="spacer"></div>
+        <span class="muted small" id="draft-state"></span>
+        <button class="icon-btn" id="btn-reset" title="Clear the editor">⟲</button>
+      </div>
+      <div class="editor-wrap" id="editor-wrap"><textarea id="editor" spellcheck="false"></textarea></div>
+      <div class="gutter-h" id="gutter-h" title="Drag to resize"></div>
+      <div class="console" id="console">
+        <div class="console-head">
+          <span class="console-title">AI Evaluation</span>
+          <span id="verdict-badge"></span>
+          <div class="spacer"></div>
+          <span class="muted small" id="eval-meta"></span>
+          <button class="icon-btn" id="btn-stop" title="Stop" hidden>■</button>
+        </div>
+        <div class="console-body md" id="console-body">
+          <p class="muted">Type your answer, then press <b>AI Evaluate</b> (Ctrl/⌘ + Enter). Your answer is sent to the evaluator you pick (Claude Code, Codex or Gemini via agy) on this machine, which grades it against the question and the reference notes.</p>
+        </div>
+      </div>
+      <div class="action-bar">
+        <button class="btn ghost" id="btn-hint" title="Ask the evaluator for a hint without the answer">💡 Hint</button>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="btn-save" title="Save this answer to your submissions without grading">Save</button>
+        <button class="btn primary" id="btn-eval">✦ AI Evaluate</button>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/verilog/verilog.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/clike/clike.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/shell/shell.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closebrackets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/skins/default.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.5.0/wavedrom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/verilog.min.js"></script>
+<div id="zoom" class="zoom" hidden><div class="zoom-inner"></div><button class="icon-btn zoom-close" title="Close (Esc)">✕</button></div>
+<script src="/app.js"></script>
+</body>
+</html>

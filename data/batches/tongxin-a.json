@@ -1,0 +1,902 @@
+[
+ {
+  "id": "tongxin-001",
+  "title": "Overlapping 1101 Mealy Sequence Detector and Verification",
+  "prompt": "",
+  "source_notes": "Use four states representing matched prefixes: none, 1, 11, and 110. On input 1 in state 110, assert the Mealy output and return to state 1 so overlaps remain possible. Transitions: none→1 on 1; 1→11 on 1 else none; 11 stays on 1 else 110; 110→1 on 1 else none. Verify 1101101 gives two detections, plus reset and near misses.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-002",
+  "title": "Parameterized Gray-Code Transition Checker",
+  "prompt": "",
+  "source_notes": "Compare successive valid samples: `delta = gray ^ prev_gray`. Require `$onehot(delta)` if a transition must occur, or `$onehot0(delta)` if holding is allowed. Also reject X/Z and skip the first sample after reset. This checks the number of changed bits, not whether the bus follows the intended Gray sequence; check binary progression separately if required.",
+  "category": "CDC & Timing",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-003",
+  "title": "Four-Request Locked Fixed-Priority Arbiter",
+  "prompt": "",
+  "source_notes": "Assume request 0 has highest priority. When unlocked, choose the first asserted request. When locked, retain the registered owner until the specified release event, even if a higher-priority request arrives. Grant only one requester and define whether grant remains asserted when the locked owner's request drops. Verify mutual exclusion, priority, lock retention, reset, and potential starvation.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-004",
+  "title": "Parameterized Synchronous FIFO RTL Implementation",
+  "prompt": "",
+  "source_notes": "Use memory, read/write pointers, and an occupancy counter of width `$clog2(DEPTH+1)`. Define accepted push and pop, then increment/decrement count only when exactly one is accepted. Explicitly wrap pointers at DEPTH-1 for arbitrary depth. Define simultaneous operations at full/empty and memory read latency. Verify ordering, boundary behavior, wraparound, and count conservation.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-005",
+  "title": "Setup/Hold, Violations, Two-Flop Synchronizer, and MTBF",
+  "prompt": "",
+  "source_notes": "Setup is the required stable interval before the sampling edge; hold is after it. A violation can cause metastability. A two-flop destination-clock synchronizer lets the first stage resolve before the second samples it. MTBF grows approximately exponentially with available resolution time and falls with clock and input transition rates. It reduces failure probability; it cannot guarantee zero failures or capture every short pulse.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-006",
+  "title": "Five-Stage Pipeline RAW, WAR, WAW, Forwarding, and Stalls",
+  "prompt": "",
+  "source_notes": "RAW is a true dependency on an older instruction's result. Forward EX/MEM or MEM/WB results when available; a load-use dependency commonly needs a stall because data arrives later. A conventional in-order five-stage pipeline with ordered reads and writes avoids WAR and WAW hazards. These arise when operations execute or complete out of order. Branch hazards need prediction, stalls, or flushing.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-007",
+  "title": "Setup/Hold Time: Concepts, Violations, and Fixes",
+  "prompt": "",
+  "source_notes": "For capture-minus-launch skew S, setup requires `T >= tcq_max + tcomb_max + tsetup - S + uncertainty`. Hold requires `tcq_min + tcomb_min >= thold + S + hold_uncertainty`. Improve setup by shortening logic, pipelining, or increasing the period. Fix hold by adding minimum-path delay or changing skew. Lowering frequency usually does not fix hold.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-008",
+  "title": "CDC: Synchronizer Placement",
+  "prompt": "",
+  "source_notes": "Place destination-clock synchronizer stages close together to maximize resolution time. Register source control signals when possible to remove combinational glitches. Do not put combinational logic between stages or use the first-stage output elsewhere. Synchronize before destination-domain fanout. Choose a pulse handshake or asynchronous FIFO when a simple single-bit level synchronizer cannot preserve the information.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-009",
+  "title": "RTL Bug Fix: Synchronous FIFO",
+  "prompt": "",
+  "source_notes": "Needs the original RTL for an exact patch. Typical bugs are incorrect full/empty comparisons, pointer width or wrap errors, conflicting count assignments, and reading/writing while blocked. Compute accepted operations once, update count with a four-case push/pop decision, and use nonblocking assignments for registers. Check memory read latency and same-address read/write behavior against the intended interface.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-010",
+  "title": "RTL Bug Fix: Power Manager (CDC + Blocking/Non-blocking)",
+  "prompt": "",
+  "source_notes": "Needs the power-manager RTL for a line-specific fix. Synchronize asynchronous control levels, use handshakes for commands that must not be lost, and synchronize reset release. Use nonblocking assignments in clocked state updates and blocking assignments in complete combinational next-state logic. Check isolation, retention, power-good, and clock sequencing so an off domain cannot drive unsafe values.",
+  "category": "Behavioral",
+  "type": "behavioral",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-011",
+  "title": "Safety-Aware RTL Design: Techniques and Applications",
+  "prompt": "",
+  "source_notes": "Safety design detects faults and moves to a defined safe state. Examples include ECC/parity, duplicated computation or lockstep, watchdogs, illegal-state detection, and error reporting. Use fault injection to verify detection latency and recovery. Diagnostic coverage and independence matter; duplicating logic alone does not address common-mode faults. The required safe behavior comes from the system safety requirements.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-012",
+  "title": "Security-Aware RTL Design: Techniques and Applications",
+  "prompt": "",
+  "source_notes": "Start with assets, privilege boundaries, and attacker capabilities. Enforce access control, secure reset defaults, debug restrictions, key isolation/zeroization, and validated transaction boundaries. Consider side channels, fault injection, and information leakage through error responses. Verify unauthorized accesses, privilege transitions, malformed commands, and secret handling. Security claims require a stated threat model.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-013",
+  "title": "Low Power RTL Design: Common Techniques and Applications",
+  "prompt": "",
+  "source_notes": "Dynamic power is approximately `alpha*C*V^2*f`. Reduce switching with clock enables, integrated clock gating, operand isolation, and smaller or banked datapaths. Power gating reduces leakage but requires isolation, retention choices, and sequencing. DVFS reduces voltage and frequency together within timing limits. Verify functional behavior across idle, wakeup, and power transitions.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-014",
+  "title": "Lockstep RISC-V: Implementation and Power Impact",
+  "prompt": "",
+  "source_notes": "Run two RISC-V cores on the same architectural inputs and compare defined outputs or commit records. Delayed lockstep can reduce some common-mode timing risks but requires input/output alignment. On mismatch, raise a safety fault and follow a specified recovery policy. Power rises because computation is duplicated plus comparison logic; clock gating during permitted idle periods can reduce the overhead.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-015",
+  "title": "Low Power Techniques Overview",
+  "prompt": "",
+  "source_notes": "Clock gating reduces clock-tree and register switching; operand isolation stops unused combinational activity. Power gating reduces leakage, retention preserves selected state, and isolation clamps signals from off domains. DVFS trades performance for lower voltage/frequency. Memory banking and architectural changes can reduce accesses. Select techniques using measured activity and a clear wakeup/performance budget.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-016",
+  "title": "Multi-Voltage Domain and DVFS Design Details",
+  "prompt": "",
+  "source_notes": "Use level shifters between incompatible voltage domains and isolation when a source can turn off. Retain only state needed after wakeup. For DVFS, normally raise voltage before raising frequency, and lower frequency before lowering voltage. Wait for regulator/PLL stability and quiesce transactions when required. UPF describes power intent; verify each legal state and transition.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-017",
+  "title": "LRU and PLRU Cache Replacement: 16-Way Implementation",
+  "prompt": "",
+  "source_notes": "Exact LRU tracks a total recency order, with at least `ceil(log2(16!)) = 45` bits of information for 16 ways; practical encodings can use more. Tree PLRU uses 15 bits. On access, update the four nodes along the accessed path to point away from that way. Follow the bits to select a victim, preferring invalid ways first. PLRU approximates LRU.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-018",
+  "title": "Parity Check: 16-bit Data Implementation and Gate Layers",
+  "prompt": "",
+  "source_notes": "Even-parity generation is `p = ^data` for 16 data bits. With the stored parity bit, an error indication is `^( {data,p} )`. A balanced tree uses 15 two-input XORs and four logical levels for generation. Parity detects any odd number of bit flips but misses even numbers and cannot identify or correct the bad bit.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-019",
+  "title": "Digital Design: Build an Inverter Using Gates X and Y",
+  "prompt": "",
+  "source_notes": "Missing gate definitions. Derive X and Y truth tables first and try tying inputs together or to constants. A NAND or NOR with both inputs tied to A gives NOT A; XOR with a tied-high input also inverts. If X and Y are non-inverting monotone gates and only ordinary constants are available, inversion cannot be synthesized. The exact construction depends on the supplied gates.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-020",
+  "title": "Verilog: Implement Fibonacci Sequence",
+  "prompt": "",
+  "source_notes": "Keep two registers initialized to 0 and 1. On enable, update `a <= b; b <= a+b;` and define which register is the output. Nonblocking assignments use the old operands, giving 0,1,1,2,3,5,... across updates. Specify reset and finite-width overflow behavior. Check the recurrence, enable holds, and the first few values against a software model.",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-021",
+  "title": "Digital Design: NOR + Two D-FFs Circuit Waveform",
+  "prompt": "",
+  "source_notes": "Missing the circuit diagram, connections, initial state, and clock edges. Write one next-state equation per flip-flop from its D input, then evaluate every register from the same pre-edge state. A NOR output is `~(a|b)`. Tabulate old Q values, D values, and new Q values for each edge. Do not assume a specific waveform from the title alone.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-022",
+  "title": "Debug: Multiple CPUs Reading Inconsistent Data",
+  "prompt": "",
+  "source_notes": "Separate coherence from memory ordering. Check whether the address is cacheable, whether all CPUs observe the same physical address, and whether cache maintenance or barriers are required. Trace writes, invalidations, ownership, and loads. A coherent system may still need synchronization to order operations. Also investigate DMA coherence, stale aliases, races in software, and incorrect cache attributes.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-023",
+  "title": "Computer Architecture: MOESI Protocol - Two Processors Writing Same Cache Line",
+  "prompt": "",
+  "source_notes": "Only one cache can hold writable ownership of a line at a time. A core requesting a write obtains exclusive ownership and invalidates other copies; concurrent ownership requests are serialized by the coherence mechanism. The second writer must acquire ownership after the first. MOESI maintains per-line coherence, but it does not make a software read-modify-write atomic or prevent lost updates.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-024",
+  "title": "Computer Architecture: Cache Types and Write-Back Policy",
+  "prompt": "",
+  "source_notes": "Caches may be direct-mapped, set-associative, or fully associative, and separated into instruction/data caches or unified. Write-back updates the cache and marks a line dirty; dirty data reaches the next level on eviction or explicit writeback. Write-through propagates every write. Write-allocate versus no-write-allocate is a separate miss policy. Explain tradeoffs in latency, traffic, and implementation complexity.",
+  "category": "Computer Architecture",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-025",
+  "title": "Analog/Digital: CMOS Inverter with PMOS and NMOS",
+  "prompt": "",
+  "source_notes": "A CMOS inverter has a PMOS pull-up to VDD and an NMOS pull-down to ground, with common gate input and drain output. Low input turns PMOS on and NMOS off; high input reverses them. During switching both may conduct, causing short-circuit current. Device sizing affects switching threshold, output rise/fall time, and noise margins.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-026",
+  "title": "Analog Circuit: RC Low-Pass Filter",
+  "prompt": "",
+  "source_notes": "For a series resistor and shunt capacitor with output across C, `H(s)=1/(1+sRC)` and `fc=1/(2*pi*RC)`. DC passes; high frequencies are attenuated. At cutoff, magnitude is `1/sqrt(2)` and phase is -45 degrees. The time constant is RC. These formulas assume negligible source impedance and no significant load.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-027",
+  "title": "Digital Design: 2-to-1 MUX Using Only NAND Gates",
+  "prompt": "",
+  "source_notes": "Implement `y=(a & ~s)|(b & s)` with four NAND gates: `ns=NAND(s,s)`, `u=NAND(a,ns)`, `v=NAND(b,s)`, and `y=NAND(u,v)`. The last NAND combines the complemented product terms by De Morgan's law. Test all eight combinations of a, b, and s.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-028",
+  "title": "Sliding Window: Count 1s in a Parameterized Window",
+  "prompt": "",
+  "source_notes": "Use an N-bit shift register and a count of width `$clog2(N+1)`. On each accepted bit, subtract the outgoing bit and add the incoming bit: `next_count = count + new_bit - old_bit`, using widened arithmetic. Define startup as zero-padded or valid-only. Verify all zeros/ones, alternating data, enable gaps, N=1, and reset.",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-029",
+  "title": "Digital Design: 2s Complement Bit Width for A-B",
+  "prompt": "",
+  "source_notes": "For two signed N-bit operands, a full-range signed difference needs N+1 bits. The range is `-(2^N-1)` through `+(2^N-1)`. Sign-extend both operands before subtraction so an intermediate overflow cannot occur. For different widths, use max(widthA,widthB)+1. If the operands have narrower stated ranges, calculate their extrema to find the minimum width.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-030",
+  "title": "Divide-by-3 Clock with 50% Duty Cycle",
+  "prompt": "",
+  "source_notes": "A divide-by-3 signal needs a high duration of 1.5 input periods for 50% duty cycle. Generate a one-cycle-high pulse every three positive edges and OR it with a half-cycle-delayed copy captured on negative edges. Define reset alignment and constrain both edge paths. Verify pulse widths and duty cycle. Use dedicated clocking resources where required by the target technology.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-031",
+  "title": "Digital Design: FIFO Full and Empty Detection",
+  "prompt": "",
+  "source_notes": "In a synchronous FIFO, occupancy zero means empty and occupancy DEPTH means full. Alternatively, extra-wrap-bit pointers distinguish full from empty when address portions match. For a standard power-of-two asynchronous FIFO, compare local Gray pointers with synchronized remote pointers; full comparison inverts the top two remote Gray bits. Flags are local-domain and can deassert conservatively after synchronization delay.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-032",
+  "title": "Digital Design: Synchronous vs Asynchronous Reset - When to Use Each",
+  "prompt": "",
+  "source_notes": "A synchronous reset acts only on a clock edge, simplifying synchronous timing but requiring an active clock. An asynchronous reset can assert immediately, including when clocks are stopped. Its deassertion must satisfy recovery/removal; use asynchronous assertion and synchronized deassertion per domain when appropriate. Consider technology libraries, reset distribution, startup, and retained state.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-033",
+  "title": "Setup/Hold Timing Analysis and Checker",
+  "prompt": "",
+  "source_notes": "Apply max-delay analysis for setup and min-delay analysis for hold, including clock skew and uncertainty. STA checks actual implementation paths. Simulation timing checks use cell models and checks such as `$setuphold`; an RTL clocked assertion cannot measure analog setup/hold behavior or prove metastability absence. A procedural timestamp checker can check specified event spacing, but not replace STA.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-034",
+  "title": "Digital Design: FSM for a Digital Lock with RTL and Assertions",
+  "prompt": "",
+  "source_notes": "Missing the lock code and timing policy. Model the longest matching prefix of the accepted key sequence, transition only on a valid key event, and define wrong-key, timeout, and reset behavior. Assert unlock occurs only after the complete sequence and for the specified duration. Test partial matches, repeated keys, overlaps, wrong keys, and timeout at boundary cycles.",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-035",
+  "title": "Computer Architecture: ROB and CFC - Out-of-Order Execute with In-Order Commit",
+  "prompt": "",
+  "source_notes": "A reorder buffer tracks instructions in program order while execution completes out of order. Commit only completed, exception-free instructions at the head, preserving precise architectural state. Squash younger work after a branch misprediction or exception. CFC is ambiguous in this title. If it means a committed register file, it stores retired state; confirm the course's definition before assigning a specific role.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-036",
+  "title": "Computer Architecture: Two Kinds of RAT and What They Solve",
+  "prompt": "",
+  "source_notes": "A speculative RAT maps architectural registers to the newest allocated physical registers, removing WAR/WAW name dependencies. A retirement RAT records the committed mapping, supporting precise state and recovery. Checkpointed speculative maps can speed branch recovery. Physical-register reclamation must wait until older mappings are no longer needed. Terminology and exact recovery structures vary by implementation.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-037",
+  "title": "Computer Architecture: Purpose of CFC in Tomasulo Machine",
+  "prompt": "",
+  "source_notes": "Classic Tomasulo uses reservation stations, tag-based dependency tracking, and a common data bus for result broadcast. CFC is not a universal Tomasulo term. If the source means a committed register file, its purpose is to retain committed architectural values for precise recovery; a ROB controls retirement. The exact CFC answer needs the original diagram or acronym definition.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-038",
+  "title": "Computer Architecture: MOESI vs MESI - The O State and Performance",
+  "prompt": "",
+  "source_notes": "MOESI adds Owned to MESI. An Owned cache has the dirty shared copy and is responsible for supplying or eventually writing back it; other caches may hold Shared copies while memory remains stale. This can avoid an immediate memory writeback on a remote read of dirty data. Ownership and invalidation still enforce a single writer.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-039",
+  "title": "Computer Architecture: MOESI State Transition Table for 4-Core CMP",
+  "prompt": "",
+  "source_notes": "For a snooping write-back model: local read miss I→S if shared, otherwise E; local write E→M and S/O→M after invalidating sharers. A remote read of M makes the holder O and requester S; a remote read of E makes both S. Remote ownership requests invalidate other copies, with dirty data supplied by M/O. Exact transient states require the chosen bus/directory specification.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-040",
+  "title": "Verilog Macro Define Inside if-else",
+  "prompt": "",
+  "source_notes": "A macro is processed before simulation. A runtime `if/else` does not conditionally execute a `define`; the preprocessor sees directives independently of runtime control flow. Use `ifdef/`ifndef for preprocessing, parameters and generate-if for elaboration, and ordinary if-statements for runtime behavior. Check include order, macro scope, and duplicate definitions.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-041",
+  "title": "Clock Divider Progression & Clock Gating",
+  "prompt": "",
+  "source_notes": "A toggle flip-flop divides by two; cascaded toggles divide further but create multiple clock domains. A counter can generate enables or divided clocks. Clock gating removes selected pulses without changing the remaining edge times. Use a glitch-free ICG, generated-clock constraints, and test enable support. Prefer a clock enable when the implementation and power goals permit it.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-042",
+  "title": "Max Operating Frequency & Hold Violation",
+  "prompt": "",
+  "source_notes": "Maximum frequency follows the worst setup path: `fmax ≈ 1/(tcq_max+tcomb_max+tsetup-skew+uncertainty)`. Hold checks the shortest path between same-cycle edges and is mostly independent of clock period. Fix hold with inserted delay, routing, or skew correction; a slower clock usually helps setup only. Evaluate every mode and process/voltage/temperature corner.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-043",
+  "title": "Dual Sequence Detector FSM (10111 & 10010)",
+  "prompt": "",
+  "source_notes": "Build states for the distinct proper prefixes of 10111 and 10010, sharing common prefixes. After each input, retain the longest suffix that is a prefix of either pattern. A Mealy output fires on the final bit; retain suffix state for overlaps. Verify both patterns, overlap combinations, near matches, and reset against a shift-register reference model.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-044",
+  "title": "4-Input 1024-bit Sorting Network with CAS",
+  "prompt": "",
+  "source_notes": "Use five compare-and-swap units in three layers: compare pairs (0,1) and (2,3), then (0,2) and (1,3), then (1,2). This sorts four keys. If each item is a 1024-bit record, compare its specified key and swap the whole record; if the entire value is the key, use 1024-bit comparisons. Define signedness and equal-key stability; pipeline layers if timing requires it.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-045",
+  "title": "Saturating PE Unit a*b+c",
+  "prompt": "",
+  "source_notes": "Compute the signed or unsigned product at full precision, extend c, then add with enough width to retain carry/sign. For signed W-bit output, clamp above `2^(W-1)-1` or below `-2^(W-1)`; otherwise return the low W bits. Specify scaling, rounding, and pipeline latency. Verify extrema, exact saturation boundaries, and mixed signs.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-046",
+  "title": "Async FIFO Gray Code SDC Constraint",
+  "prompt": "",
+  "source_notes": "Gray coding assumes adjacent pointer transitions cannot arrive as several independent changes. Constrain delay/skew from source Gray registers to the first destination synchronizer stage to a suitable bound, often the faster clock period, using the target STA flow. Mark synchronizers and prevent retiming. A false-path alone removes timing analysis but does not enforce bus coherence.\n\nReference: [AMD bus-skew constraints](https://docs.amd.com/r/2024.2-English/ug903-vivado-using-constraints/About-Bus-Skew-Constraints?contentId=kXqymQdxWW597oxcQ4ClQw)",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-047",
+  "title": "Sequence Detector Optimization",
+  "prompt": "",
+  "source_notes": "Represent states as matched prefixes, share identical behavior, and remove unreachable or equivalent states. Compare Moore and Mealy latency, state encoding, and output glitch requirements. One-hot can reduce decode depth while binary can reduce flip-flop count. Optimize using synthesis timing/area results, then prove equivalence and test overlaps; fewer states do not automatically mean faster hardware.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-048",
+  "title": "Serial Divisibility-by-5 FSM",
+  "prompt": "",
+  "source_notes": "For MSB-first serial bits, let state r be the remainder 0..4. On each accepted bit b, set `r_next=(2*r+b)%5`; divisible means remainder zero at the specified observation point. Define whether leading zeros and the empty input count. For LSB-first input, track bit-position weight modulo 5 instead. Verify with a software modulo reference.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-049",
+  "title": "Single-Port vs Dual-Port SRAM Interface",
+  "prompt": "",
+  "source_notes": "Single-port SRAM supports one access on its port per cycle. Simple dual-port often gives one write port and one read port; true dual-port can allow reads/writes on both. Specify independent clocks, latency, and collision behavior. Check same-address read/write and dual writes against the macro datasheet; they may be undefined. Port count trades area/power for throughput.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-050",
+  "title": "create_generated_clock SDC",
+  "prompt": "",
+  "source_notes": "Declare the primary clock, then describe the generated clock at its output pin with a source pin and transformation, for example `create_generated_clock -name div2 -source [get_pins u_div/CK] -divide_by 2 [get_pins u_div/Q]`. Real pin names and master selection depend on the netlist. Use edge lists or inversion options for more complex waveforms, then inspect reported clocks and timing.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-051",
+  "title": "MSI / MESI / MOESI Cache Coherence Protocols",
+  "prompt": "",
+  "source_notes": "MSI has Modified, Shared, Invalid. MESI adds Exclusive for a clean unshared line, allowing a silent E→M local write. MOESI adds Owned so dirty data can be shared without immediate memory writeback. Coherence serializes writes to each line; it is distinct from memory consistency and synchronization between different addresses.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-052",
+  "title": "Booth Algorithm for Multiplication",
+  "prompt": "",
+  "source_notes": "Radix-2 Booth examines the multiplier's current bit and previous bit. Pair 01 adds the multiplicand; 10 subtracts it; 00 and 11 do nothing, followed by an arithmetic right shift. It compresses runs of ones and supports signed multiplication with proper extension. Radix-4 uses -2,-1,0,+1,+2 multiples and roughly halves partial-product count. Verify negative operands and minimum signed values.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-053",
+  "title": "Two-Stage Pipeline ac + bc with Power Optimization",
+  "prompt": "",
+  "source_notes": "Use distributivity: `a*c+b*c=(a+b)*c`, subject to exact-width and signedness rules. Stage one can register the widened sum; stage two multiplies by c delayed to align. One multiplier may reduce area and switching, but its input is wider. Finite-width truncation or intermediate saturation can invalidate the rewrite. Check equivalence, latency, and actual switching/power reports.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-054",
+  "title": "SRAM Configuration Power Analysis",
+  "prompt": "",
+  "source_notes": "Power depends on depth, width, ports, access rate, banking, supply, and macro design. Compare implementations using the foundry macro's characterized leakage and energy per read/write, with realistic activity. Banking can reduce switched capacitance but adds decode/mux overhead. Unused banks can sleep if supported. No numerical ranking is possible without the candidate configurations and workload.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-055",
+  "title": "4-bit x 4-bit Array Multiplier FA/HA Count",
+  "prompt": "",
+  "source_notes": "For one conventional unsigned 4x4 array, generate 16 partial products with AND gates, then reduce and add them; a common textbook layout uses 8 full adders and 4 half adders. The exact count changes with the reduction topology or signed implementation. Draw the weighted bit columns and count compressors to justify the chosen layout rather than treating the count as universal.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-056",
+  "title": "Latchup Effect in CMOS",
+  "prompt": "",
+  "source_notes": "Latchup is unintended conduction through the parasitic PNPN structure formed by CMOS wells/substrate. Once triggered, it can sustain a large supply-to-ground current. Reduce risk with well/substrate contacts, guard rings, spacing, suitable processes, and limits on injected current or over/undershoot. This is a physical electrical effect, not an RTL latch.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-057",
+  "title": "Tristate Buffer Circuit and Applications",
+  "prompt": "",
+  "source_notes": "A tristate buffer drives 0/1 when enabled and high impedance when disabled. It supports shared buses, especially I/O pins, if only one driver is enabled. Floating buses need a defined bias or keeper where appropriate. Internal FPGA tristates typically synthesize to muxes. Verify no overlapping enables and define behavior when every driver is off.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-058",
+  "title": "2-Stage Synchronizer: Metastability, Design, and Analysis",
+  "prompt": "",
+  "source_notes": "The first destination flop can become metastable; the second samples after a resolution interval. More stages increase MTBF but add latency. Use a recognized synchronizer structure, close placement, and only the final-stage output. It is suitable for a slowly changing single-bit level; short pulses and coherent multibit words need different protocols. Simulation cannot model the real analog failure probability.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-059",
+  "title": "Gray Code Binary Conversion & CDC Use Case",
+  "prompt": "",
+  "source_notes": "Binary to Gray is `g=b^(b>>1)`. Gray to binary uses prefix XOR: MSB is unchanged and each lower binary bit is the XOR of Gray bits above and including it. Adjacent reflected-Gray values differ by one bit, making FIFO pointers safer to synchronize. Physical delay/skew constraints still matter, and sampled pointers can legitimately skip intermediate values.",
+  "category": "CDC & Timing",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-060",
+  "title": "Async FIFO Data Path Handling",
+  "prompt": "",
+  "source_notes": "Store payload in a dual-port memory. The write domain writes data before publishing the advanced write pointer; the read domain observes the synchronized pointer before treating that entry as available. Synchronize Gray pointers, not every payload bit. Respect RAM read latency and ensure an entry is not overwritten before consumption. Verify data order across unrelated clocks and reset sequences.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-061",
+  "title": "Async FIFO Architecture",
+  "prompt": "",
+  "source_notes": "An asynchronous FIFO uses local binary pointers for memory addresses and Gray pointers for crossing domains. Each domain synchronizes the other pointer, computes its own full/empty state, and accepts operations only when permitted. Typical reflected-Gray implementations use power-of-two depth and one extra wrap bit. Flags are conservative because remote updates take time to arrive.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-062",
+  "title": "Same Frequency, Different Phase - Why CDC Still Needed",
+  "prompt": "",
+  "source_notes": "Equal nominal frequencies do not guarantee a safe sampling relationship. Independent clocks can drift in phase and violate setup/hold. Use CDC structures if their relationship is unconstrained. If both clocks have a known fixed relationship generated from a common source, constrain and time the paths as related clocks instead. Frequency equality alone does not establish that relationship.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-063",
+  "title": "FIFO with Non-Power-of-2 Depth",
+  "prompt": "",
+  "source_notes": "A synchronous FIFO can explicitly wrap pointers at DEPTH-1 and use occupancy. A conventional Gray-pointer asynchronous FIFO cannot simply truncate the sequence at arbitrary depth because wrap may change several bits. Use a proven arbitrary-depth scheme or a power-of-two physical FIFO with a safely enforced lower logical capacity. Verify wrap and remote visibility carefully.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-064",
+  "title": "FIFO Registered Output and Empty Flag Design",
+  "prompt": "",
+  "source_notes": "Distinguish memory occupancy from output-valid state. A registered RAM read returns data later, so reserve or pop the entry at request acceptance and assert output valid when data arrives. A first-word-fall-through interface instead prefetches the head. Define whether empty means no stored words or no externally available word. Check the last read, backpressure, and simultaneous refill.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-065",
+  "title": "AXI Valid-Ready Handshake FSM",
+  "prompt": "",
+  "source_notes": "Transfer occurs only on a clock edge with VALID and READY high. A source asserts VALID independently of READY, and holds VALID and payload stable while stalled. A registered source needs an output slot that can be replaced when empty or consumed. AXI's channels handshake independently; the write address and data need not arrive together.\n\nReference: [Arm AXI protocol specification](https://documentation-service.arm.com/static/63ff0ebd56ea36189d4e7ee7)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-066",
+  "title": "Flip-Flop vs Latch",
+  "prompt": "",
+  "source_notes": "A flip-flop samples at an edge. A latch is transparent while its enable level is active and holds afterward. Latches can allow time borrowing but require careful phase/hold analysis. In RTL, use `always_ff` for registers and `always_latch` for intentional latches. An incomplete combinational assignment can infer an unintended latch.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-067",
+  "title": "Avoiding Unintended Latches in RTL",
+  "prompt": "",
+  "source_notes": "Assign every combinational output on every path. Set defaults at the top of `always_comb`, then override in if/case branches; include appropriate default cases. Use blocking assignments in combinational logic. A register retaining its value in a clocked block is intentional state and is not a latch. Inspect synthesis warnings and lint for incomplete assignments.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-068",
+  "title": "Pipeline Waveform - always @(posedge clk) A=en?1:C; B=A; C=B;",
+  "prompt": "",
+  "source_notes": "With blocking assignments in the single shown process, A gets `en?1:old_C`, then B gets new A, and C gets new B. All three end with the same value on that edge; it is not a three-stage pipeline. With nonblocking assignments, B gets old A and C gets old B. The exact waveform still needs initial values and en over time.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-069",
+  "title": "CDC Multi-bit Transfer - Why Not 2-FF Synchronizer?",
+  "prompt": "",
+  "source_notes": "Independent bit synchronizers can deliver bits from different source updates, producing an incoherent word. For stable bundled data, synchronize a request and hold data until acknowledgement. Use an asynchronous FIFO for streams or Gray coding for suitable counters. Synchronizing bits independently is only acceptable when those bits are genuinely independent controls and reconvergence is safe.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-070",
+  "title": "128-bit Priority Arbiter with Logic Depth Analysis",
+  "prompt": "",
+  "source_notes": "For lowest-index priority, derive each grant from its request and absence of all higher-priority requests. A naive serial prefix chain has O(N) depth; a balanced prefix/tree encoder gives approximately O(log2 N), or seven combining levels for 128 inputs, plus output decode. Area and exact delay depend on fanout, cell mapping, and output encoding. Fixed priority can starve low-priority requests.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-071",
+  "title": "Cache - CPU Write, Set Mapping, PLRU",
+  "prompt": "",
+  "source_notes": "A cache address splits into byte offset, set index, and tag. A write hit changes the data and marks dirty for write-back; a write miss follows the allocation policy. For tree PLRU, update bits along the accessed way's path and use them to select a victim, with invalid ways preferred. Exact index bits require capacity, line size, associativity, and address width.",
+  "category": "Computer Architecture",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-072",
+  "title": "Packet Stream Interface Signals",
+  "prompt": "",
+  "source_notes": "A streaming interface commonly has data, valid, ready, start/end-of-packet, byte-valid/keep, and optional ID/destination/error metadata. Define which side drives each signal and what remains stable under backpressure. A beat transfers on valid&&ready. Specify partial last beats, empty packets, interleaving, reset, and error behavior. The title does not identify one particular protocol.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-073",
+  "title": "Implement AND Gate Using 2-to-1 MUX",
+  "prompt": "",
+  "source_notes": "For `y=a&b`, use select a, input 0 tied to 0, and input 1 connected to b: `y = a ? b : 1'b0`. Either operand may be the select. Verify the four input combinations.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "tongxin-074",
+  "title": "Race Condition in Verilog initial Blocks",
+  "prompt": "",
+  "source_notes": "Separate initial blocks run concurrently in the active region; their ordering is unspecified. If one writes a variable and another reads it at the same time, the result can be race-dependent. Put ordered operations in one process, use an event/handshake, or sample in a suitable clocking region. A #0 delay is not a robust general race fix.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-075",
+  "title": "Polymorphism and Inheritance in SystemVerilog/UVM",
+  "prompt": "",
+  "source_notes": "Inheritance derives a specialized class from a base class. A base handle can reference a derived object; a virtual method call dispatches to the object's runtime type. UVM uses this for configurable drivers, sequences, and factory overrides. Nonvirtual methods use static dispatch. Use `$cast` when recovering a derived handle, and check success before accessing derived members.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-076",
+  "title": "Timescale Directive - 1ns/1ps",
+  "prompt": "",
+  "source_notes": "`timescale 1ns/1ps` means delays use nanoseconds and are rounded to picosecond precision. For example #1.25 is 1.25 ns. Prefer explicit `timeunit 1ns; timeprecision 1ps;` within design units to avoid file-order dependence. Precision affects rounding and simulation cost; it does not change a declared clock frequency automatically.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-077",
+  "title": "D Flip-Flop RTL with Power Supply Check",
+  "prompt": "",
+  "source_notes": "For a behavioral power model, sample D on the active clock edge only when supply is valid; otherwise assign the specified unknown, clamp, or retained behavior. Ordinary synthesizable RTL does not implement physical supply checking. A power-aware flow uses UPF and library power models for corruption, isolation, and retention. The desired power-off behavior must be specified.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-078",
+  "title": "Clock Gating - Basic and ICG with Negative Latch",
+  "prompt": "",
+  "source_notes": "Directly ANDing clk with an asynchronous enable can create short pulses. An ICG holds enable stable during the clock-high interval, often using a low-level latch, then ANDs the held enable with clk. Test enable is typically included. Check glitch-free operation, scan use, and enable timing. Use the target library's approved gating cell and STA checks.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-079",
+  "title": "Voting Machine - 3 Judges + Super Judge Veto",
+  "prompt": "",
+  "source_notes": "If a proposal passes with at least two of three judges unless the super judge vetoes, `pass=(a&b | a&c | b&c) & ~veto`. If the super judge also has a vote or override approval, the equation changes. Confirm that policy first, then verify all input combinations and any registered timing requirements.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-080",
+  "title": "NAND Gate - CMOS, Stick Diagram, EM",
+  "prompt": "",
+  "source_notes": "A CMOS NAND2 has series NMOS devices to pull down only when both inputs are high, and parallel PMOS devices to pull up when either input is low. A stick diagram shows topology and layer connectivity, not final dimensions. EM checks depend on current density, duty cycle, temperature, and physical wiring. Exact layout/EM conclusions need dimensions and current data.",
+  "category": "Circuits & Analog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-081",
+  "title": "CMOS DFF (Master-Slave Latch) with Tri-State Buffer",
+  "prompt": "",
+  "source_notes": "A master-slave DFF combines two opposite-phase latches. In a positive-edge version, the master is transparent low and the slave high. Tristate inverters/buffers can switch between input sampling and feedback retention. Verify nonoverlap, setup/hold, and feedback stability. A gate-level transistor implementation needs the supplied circuit; behavioral RTL alone does not establish transistor timing.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-082",
+  "title": "What Does This Circuit Do?",
+  "prompt": "",
+  "source_notes": "Missing circuit. Identify inputs, outputs, storage elements, and feedback, derive Boolean and next-state equations, then enumerate states or simulate representative stimuli. State the observed function only after checking reset and timing behavior. The question title cannot determine whether it is a divider, latch, detector, or another function.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-083",
+  "title": "Sequence Detector FSM (1011 Pattern)",
+  "prompt": "",
+  "source_notes": "For overlapping 1011, use matched-prefix states none, 1, 10, 101. Complete on input 1 in state 101, then retain state 1. From 101 on 0 go to 10; from 1 on 1 stay at 1; from 10 on 0 return to none. A Moore implementation needs an output state and adjusted overlap transitions.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-084",
+  "title": "Minimum FIFO Depth Calculation",
+  "prompt": "",
+  "source_notes": "Calculate worst-case backlog as cumulative accepted writes minus cumulative reads over all time, including startup latency, bursts, stalls, clock phase, and flag synchronization delays. Required depth is the maximum backlog plus any specified margin. If long-term write rate exceeds read rate without backpressure, no finite FIFO prevents overflow. Average rates alone are insufficient.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-085",
+  "title": "Blocking vs NBA Pipeline - A=in, B=A, C=B",
+  "prompt": "",
+  "source_notes": "Blocking `A=in; B=A; C=B;` in one clocked process propagates the current input to all three immediately within that process. Nonblocking `A<=in; B<=A; C<=B;` samples old RHS values and creates three register stages. Count latency using explicitly numbered sampling edges. Other processes reading blocking-updated values on the same edge can race.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-086",
+  "title": "Error Window FSM with 64-Cycle Counter",
+  "prompt": "",
+  "source_notes": "Define what opens the window, whether the trigger cycle counts, and what retriggers do. For exactly 64 eligible cycles, use a counter with states 0..63 and close after processing cycle 63. Capture/report errors only during the active window. Assert duration, trigger behavior, and reset cancellation. Test the first/last eligible cycle and one cycle outside each boundary.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-087",
+  "title": "C++ Bit Manipulation - Set/Clear Nth Bit",
+  "prompt": "",
+  "source_notes": "Use an unsigned type and validate `0 <= n < bit_width`. Set with `x |= U(1)<<n`; clear with `x &= ~(U(1)<<n)`, where U is the operand's unsigned type. Avoid signed shifts into the sign bit and shifts by the width or more. For uint64_t, use a 64-bit constant rather than plain int 1.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-088",
+  "title": "Vending Machine FSM - Requirements and State Design",
+  "prompt": "",
+  "source_notes": "First define price, allowed coins, change behavior, cancel, stock, and payment/dispense timing. States can represent accumulated credit or operational phases with a credit register. Dispense only after enough credit and available stock, and define overpayment. Verify exact/under/overpayment, invalid coins, cancel, simultaneous events, and reset during a transaction.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-089",
+  "title": "Clock Module with Randomized Initial State",
+  "prompt": "",
+  "source_notes": "A randomized clock phase belongs in the testbench, not ordinary functional RTL. Randomize a bounded initial delay and legal period/duty cycle, then toggle with positive delays and sufficient timeprecision. Reproduce using a recorded seed. If randomizing a module's initial register state, define how reset establishes a known legal state and check startup separately.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "tongxin-090",
+  "title": "What is an Interrupt?",
+  "prompt": "",
+  "source_notes": "An interrupt requests processor attention to an event. The CPU recognizes it when permitted, saves required state, selects a handler, and resumes afterward. Distinguish level/edge triggering, masking, pending state, priority, and acknowledgement. Verify events while masked, simultaneous sources, clear/set races, and CDC. A level source may reassert until its cause is cleared.",
+  "category": "Computer Architecture",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ }
+]

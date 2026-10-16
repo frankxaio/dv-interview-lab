@@ -1,0 +1,907 @@
+{
+ "source": {
+  "id": "tw-ic",
+  "name": "Taiwan digital IC interview questions (Dcard/HackMD)",
+  "url": "https://www.dcard.tw/f/tech_job/p/238023076"
+ },
+ "questions": [
+  {
+   "title": "用 NAND 閘拼出 OR 閘",
+   "solution": "**Key idea:** NAND 是 universal gate。由 De Morgan：`A + B = ((A')·(B'))'`，先用 NAND 當反相器得到 A'、B'，再 NAND 一次即為 OR，總共 **3 個 NAND**。\n\n```mermaid\nflowchart LR\n  A[\"A\"] --> N1[\"NAND1 (A,A) = A'\"]\n  A --> N1\n  B[\"B\"] --> N2[\"NAND2 (B,B) = B'\"]\n  B --> N2\n  N1 --> N3[\"NAND3 (A',B')\"]\n  N2 --> N3\n  N3 --> Y[\"Y = A + B\"]\n```\n\n| A | B | A' | B' | NAND(A',B') |\n| --- | --- | --- | --- | --- |\n| 0 | 0 | 1 | 1 | 0 |\n| 0 | 1 | 1 | 0 | 1 |\n| 1 | 0 | 0 | 1 | 1 |\n| 1 | 1 | 0 | 0 | 1 |\n\n### Explanation\n- `NAND(X,X) = X'`：兩個輸入接在一起就是 inverter。\n- `NAND(A',B') = (A'·B')' = A + B`（De Morgan）。\n- 其他常用組法：NOT = 1 個、AND = 2 個（NAND + 反相）、OR = 3 個、XOR = 4 個 NAND。\n\n### Corner cases & pitfalls\n- 面試時直接畫出 De Morgan 轉換，比背答案更有說服力。\n- 若題目允許輸入有反相（A'、B' 已存在），OR 只需 1 個 NAND。\n\n### Follow-ups\n- **用 NAND 做 XOR？** `M = NAND(A,B)`，`Y = NAND(NAND(A,M), NAND(B,M))`，共 4 個。\n- **CMOS 為什麼偏好 NAND 而非 NOR？** NAND 的 PMOS 為並聯、NMOS 串聯；NMOS mobility 較高，串聯代價較小，所以 NAND 比 NOR 快、面積小。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "NTK"
+   ]
+  },
+  {
+   "title": "用 NOR 閘拼出 AND 閘",
+   "solution": "**Key idea:** 與 NAND 對偶：`A·B = ((A') + (B'))'`。先用 NOR 當 inverter 得到 A'、B'，再 NOR 一次即為 AND，總共 **3 個 NOR**。\n\n```mermaid\nflowchart LR\n  A[\"A\"] --> R1[\"NOR1 (A,A) = A'\"]\n  B[\"B\"] --> R2[\"NOR2 (B,B) = B'\"]\n  R1 --> R3[\"NOR3 (A',B')\"]\n  R2 --> R3\n  R3 --> Y[\"Y = A · B\"]\n```\n\n| A | B | A' | B' | NOR(A',B') |\n| --- | --- | --- | --- | --- |\n| 0 | 0 | 1 | 1 | 0 |\n| 0 | 1 | 1 | 0 | 0 |\n| 1 | 0 | 0 | 1 | 0 |\n| 1 | 1 | 0 | 0 | 1 |\n\n### Explanation\n- `NOR(X,X) = X'`。\n- `NOR(A',B') = (A' + B')' = A·B`。\n- 只用 NOR 也能組出所有邏輯：NOT 1 個、OR 2 個、AND 3 個、XNOR 4 個、XOR 5 個。\n\n### Corner cases & pitfalls\n- 別把 NOR 的 AND 組法跟 NAND 的 OR 組法搞混：兩者結構相同、gate 對偶。\n\n### Follow-ups\n- **任意組合電路如何只用 NAND/NOR 實作？** 先寫成 SOP（NAND-NAND）或 POS（NOR-NOR）兩級形式，直接映射。\n- **NOR 在 CMOS 的缺點？** PMOS 串聯，上拉慢；需要放大 PMOS 尺寸，面積與輸入電容較大。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI",
+    "NTK"
+   ]
+  },
+  {
+   "title": "用 2:1 MUX（加 inverter）實現 NOT / AND / OR / NAND / XOR",
+   "solution": "**Key idea:** 2:1 MUX `Y = S ? I1 : I0` 是 universal 的：把一個變數接到 select，另一個變數或常數接到 data input，就能實現任何二輸入函數（Shannon expansion：`f = A'·f(0,B) + A·f(1,B)`）。\n\n| 函數 | S | I0 (S=0) | I1 (S=1) |\n| --- | --- | --- | --- |\n| NOT A | A | 1 | 0 |\n| A AND B | A | 0 | B |\n| A OR B | A | B | 1 |\n| A NAND B | A | 1 | B' |\n| A XOR B | A | B | B' |\n| A XNOR B | A | B' | B |\n\nXOR 真值表（也是 PHISON 常問）：\n\n| A | B | A XOR B |\n| --- | --- | --- |\n| 0 | 0 | 0 |\n| 0 | 1 | 1 |\n| 1 | 0 | 1 |\n| 1 | 1 | 0 |\n\n```mermaid\nflowchart LR\n  B[\"B\"] --> INV[\"INV\"] --> I1[\"I1 = B'\"]\n  B --> I0[\"I0 = B\"]\n  I0 --> M[\"2:1 MUX\"]\n  I1 --> M\n  A[\"A (select)\"] --> M\n  M --> Y[\"Y = A XOR B\"]\n```\n\n### Explanation\n- 依 Shannon expansion 對 A 展開：`f(0,B)` 接 I0、`f(1,B)` 接 I1。\n- NAND 需要 B'：若不能用 inverter，可再用一顆 MUX 做 NOT（S=B, I0=1, I1=0），所以「純 MUX」實現 NAND/XOR 需要 2 顆 MUX。\n\n### Corner cases & pitfalls\n- 題目若限制「只能用 MUX，不能用常數 0/1」，可把 A 本身當資料：AND = `A ? B : A`、OR = `A ? A : B`。\n- 不要忘了說明 select 接的是哪個變數。\n\n### Follow-ups\n- **4:1 MUX 實現三變數函數？** 兩個變數接 select，第三個變數（或其補數、0、1）接 4 個 data input。\n- **用 MUX 組出 DFF？** 兩個 MUX-latch（回授型）串接成 master–slave。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "PHISON",
+    "SMI",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "用 AND / OR（加 NOT）畫出 2:1 MUX",
+   "solution": "**Key idea:** `Y = S'·I0 + S·I1`，兩個 AND 選出資料、一個 OR 合併、一個 inverter 產生 S'。\n\n```mermaid\nflowchart LR\n  S[\"S\"] --> INV[\"NOT\"] --> AND0[\"AND0 (S', I0)\"]\n  I0[\"I0\"] --> AND0\n  S --> AND1[\"AND1 (S, I1)\"]\n  I1[\"I1\"] --> AND1\n  AND0 --> OR[\"OR\"]\n  AND1 --> OR\n  OR --> Y[\"Y\"]\n```\n\n| S | Y |\n| --- | --- |\n| 0 | I0 |\n| 1 | I1 |\n\n### Explanation\n- Sum-of-products 直接展開即可；4:1 MUX 為 `Y = S1'S0'I0 + S1'S0 I1 + S1 S0' I2 + S1 S0 I3`。\n- 也可轉成 NAND-NAND：`Y = NAND(NAND(S',I0), NAND(S,I1))`，CMOS 實作更快。\n\n### Corner cases & pitfalls\n- **Static hazard（glitch）：** 當 I0 = I1 = 1 而 S 切換時，S 與 S' 的延遲差可能讓兩個 AND 同時為 0，輸出出現短暫 0。解法：加 consensus term `I0·I1`（Y = S'I0 + S I1 + I0 I1）。\n- 實際 cell library 常用 transmission-gate MUX，面積比 AND-OR 小。\n\n### Follow-ups\n- **clock MUX 為什麼不能用這種 MUX 直接切換？** 會產生 glitch/短脈衝，需要 glitch-free clock mux（兩邊各一組 negedge DFF 互鎖）。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "Full adder：寫出真值表與布林式，並用 half adder 組出",
+   "solution": "**Key idea:** `Sum = A ⊕ B ⊕ Cin`，`Cout = AB + Cin(A ⊕ B)`（= majority(A,B,Cin)）。兩個 half adder + 一個 OR 即可組成。\n\n| A | B | Cin | Sum | Cout |\n| --- | --- | --- | --- | --- |\n| 0 | 0 | 0 | 0 | 0 |\n| 0 | 0 | 1 | 1 | 0 |\n| 0 | 1 | 0 | 1 | 0 |\n| 0 | 1 | 1 | 0 | 1 |\n| 1 | 0 | 0 | 1 | 0 |\n| 1 | 0 | 1 | 0 | 1 |\n| 1 | 1 | 0 | 0 | 1 |\n| 1 | 1 | 1 | 1 | 1 |\n\n```mermaid\nflowchart LR\n  A[\"A\"] --> HA1[\"HA1\"]\n  B[\"B\"] --> HA1\n  HA1 -->|\"P = A xor B\"| HA2[\"HA2\"]\n  CIN[\"Cin\"] --> HA2\n  HA2 -->|\"Sum\"| S[\"Sum\"]\n  HA1 -->|\"G = AB\"| OR[\"OR\"]\n  HA2 -->|\"P·Cin\"| OR\n  OR --> CO[\"Cout\"]\n```\n\n### Code\n```verilog\nmodule full_adder (input a, b, cin, output sum, cout);\n  wire p = a ^ b;          // propagate\n  wire g = a & b;          // generate\n  assign sum  = p ^ cin;\n  assign cout = g | (p & cin);\nendmodule\n```\n\n### Corner cases & pitfalls\n- Cout 也可寫成 `AB + BCin + ACin`，三種寫法等價。\n- N-bit ripple-carry adder 的 critical path 是 carry chain，延遲 O(N)。\n\n### Follow-ups\n- **如何加速？** Carry-lookahead（用 G、P 平行算 carry）、carry-select、carry-skip、prefix adder（Kogge-Stone）。\n- **減法器？** `A − B = A + ~B + 1`，Cin 接 1。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "用 MUX 組出 adder 與乘法器",
+   "solution": "**Key idea:** 先把 full adder 拆成 MUX 形式：`Sum = Cin ? (A XNOR B) : (A XOR B)`、`Cout = (A XOR B) ? Cin : A`；乘法器則是「部分積 = B[i] ? (A << i) : 0」，每一列就是一組 MUX（等同 AND），再用 adder 累加。\n\n| 元件 | MUX 形式 |\n| --- | --- |\n| P = A XOR B | `A ? ~B : B` |\n| Sum | `P ? ~Cin : Cin` |\n| Cout | `P ? Cin : A` |\n| 部分積 PP_i | `B[i] ? A : 0` |\n\n4×4 乘法 worked example：A = 1011 (11)，B = 0101 (5)\n\n| i | B[i] | PP_i = B[i] ? A<<i : 0 |\n| --- | --- | --- |\n| 0 | 1 | 0000_1011 |\n| 1 | 0 | 0000_0000 |\n| 2 | 1 | 0010_1100 |\n| 3 | 0 | 0000_0000 |\n| sum | | 0011_0111 = 55 |\n\n### Code\n```verilog\nmodule fa_mux (input a, b, cin, output sum, cout);\n  wire p = a ? ~b : b;          // XOR by mux\n  assign sum  = p ? ~cin : cin;\n  assign cout = p ? cin  : a;   // if A!=B carry = Cin, else carry = A (=B)\nendmodule\n\nmodule mul4 (input [3:0] a, b, output [7:0] p);\n  wire [7:0] pp [0:3];\n  genvar i;\n  generate for (i = 0; i < 4; i++) begin : g_pp\n    assign pp[i] = b[i] ? ({4'b0, a} << i) : 8'd0;   // one mux row per bit\n  end endgenerate\n  assign p = pp[0] + pp[1] + pp[2] + pp[3];          // adder tree\nendmodule\n```\n\n### Corner cases & pitfalls\n- Cout 的 MUX 式成立原因：A = B 時 carry 等於 A（兩者同為 1 才進位）；A ≠ B 時 carry 由 Cin 決定。\n- Signed 乘法需要 sign-extension 或 Baugh-Wooley / Booth encoding。\n\n### Follow-ups\n- **乘法器怎麼加速？** Booth radix-4 減半部分積數量，再用 Wallace/Dadda tree（CSA）壓縮，最後一級 CPA。\n- **時序性（sequential）乘法器？** 每 cycle shift-and-add，N cycles 完成，面積最小。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "MTK"
+   ]
+  },
+  {
+   "title": "MUX 怎麼擺才能省面積？（resource sharing）",
+   "solution": "**Key idea:** 把 MUX 放在「昂貴運算元」**之前**而非之後：兩個互斥的運算只需要一份運算硬體，用 MUX 選擇運算元即可（resource sharing / operator sharing）。\n\n```verilog\n// 寫法 A：兩個加法器 + 一個 MUX（面積大）\nassign y = sel ? (a + b) : (c + d);\n\n// 寫法 B：兩個 MUX + 一個加法器（面積小）\nassign y = (sel ? a : c) + (sel ? b : d);\n```\n\n| 寫法 | Adder 數 | MUX 數 | Critical path |\n| --- | --- | --- | --- |\n| A：先算再選 | 2 | 1 (N-bit) | adder → mux |\n| B：先選再算 | 1 | 2 (N-bit) | mux → adder |\n\n```mermaid\nflowchart LR\n  A[\"a\"] --> M1[\"MUX\"]\n  C[\"c\"] --> M1\n  B[\"b\"] --> M2[\"MUX\"]\n  D[\"d\"] --> M2\n  SEL[\"sel\"] --> M1\n  SEL --> M2\n  M1 --> ADD[\"一個 adder\"]\n  M2 --> ADD\n  ADD --> Y[\"y\"]\n```\n\n### Explanation\n- 乘法器、除法器、大 adder 面積遠大於 MUX，共享運算單元可大幅省面積。\n- 反過來，若 `sel` 是 **late-arriving** 訊號，應把 MUX 擺在最後（寫法 A），讓 sel 只經過一級 MUX，以時間換面積。\n- 大型 MUX：用 one-hot AND-OR 結構或 balanced tree，比串成 priority chain（if-else-if）更省面積且更快。\n\n### Corner cases & pitfalls\n- 合成工具（DC 的 resource sharing）常自動做，但跨 always block 或寫成不同 expression 時可能認不出來。\n- if-else-if 會推出 priority MUX chain；互斥條件用 `case`/`unique case` 可得平行 MUX。\n\n### Follow-ups\n- **timing 跟 area 衝突怎麼取捨？** 看 slack：critical path 上先選後算會多一級 MUX 延遲。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "用 PMOS 與 NMOS 畫出 INV 與 NAND",
+   "solution": "**Key idea:** CMOS 互補結構：pull-up network（PMOS）接 VDD、pull-down network（NMOS）接 GND，兩者邏輯互為對偶。NAND = **PMOS 並聯、NMOS 串聯**。\n\n```text\n        INV                         2-input NAND\n        VDD                      VDD        VDD\n         |                        |          |\n   A --| PMOS                A --| P1   B --| P2      (PMOS 並聯)\n         |                        |__________|\n         +---- Y                       |\n         |                             +---- Y\n   A --| NMOS                    A --| N1\n         |                             |\n        GND                      B --| N2           (NMOS 串聯)\n                                       |\n                                      GND\n```\n\n| A | B | P1 | P2 | N1 | N2 | Y |\n| --- | --- | --- | --- | --- | --- | --- |\n| 0 | 0 | on | on | off | off | 1 |\n| 0 | 1 | on | off | off | on | 1 |\n| 1 | 0 | off | on | on | off | 1 |\n| 1 | 1 | off | off | on | on | 0 |\n\n### Explanation\n- 只有 A、B 同時為 1，串聯 NMOS 才導通把 Y 拉到 GND；任何一個為 0，並聯 PMOS 有一條路徑把 Y 拉到 VDD。\n- NOR 則相反：PMOS 串聯、NMOS 並聯。\n- Sizing：電子 mobility 約為電洞 2~3 倍，INV 常取 Wp ≈ 2Wn；NAND 的串聯 NMOS 需加寬（約 2Wn）以維持下拉強度。\n\n### Corner cases & pitfalls\n- 不要把 PMOS 接 GND 或 NMOS 接 VDD：PMOS 傳 1 強、傳 0 弱；NMOS 傳 0 強、傳 1 弱（threshold drop）。\n- 靜態 CMOS 在穩態時沒有 VDD 到 GND 直流路徑，只有切換時有 short-circuit current。\n\n### Follow-ups\n- **AND gate 怎麼做？** NAND + INV（共 6 顆電晶體），CMOS 天生為 inverting logic。\n- **transistor stacking 太多會怎樣？** 串聯數越多越慢，通常限制 ≤ 4 個 stack。",
+   "category": "Circuits & Analog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "PHISON"
+   ]
+  },
+  {
+   "title": "Latch 和 DFF 的差異？什麼是 level trigger 與 edge trigger",
+   "solution": "**Key idea:** Latch 是 **level-sensitive**：enable（clk）為 high 時透明（Q 跟著 D 變）；DFF 是 **edge-triggered**：只在 clock 上升（或下降）沿取樣 D，其餘時間保持。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",        \"wave\": \"0.1..0..1..0..\" },\n  { \"name\": \"D\",          \"wave\": \"0..1.0.1..0...\" },\n  { \"name\": \"Q (latch)\",  \"wave\": \"0..1......0...\" },\n  { \"name\": \"Q (DFF)\",    \"wave\": \"0.......1.....\" }\n],\n  \"head\": { \"text\": \"latch：clk=1 期間 Q 跟隨 D；DFF：只在上升沿取樣\" } }\n```\n\n| 項目 | Latch | DFF |\n| --- | --- | --- |\n| 觸發 | Level（enable 期間透明） | Edge（上升/下降沿） |\n| 電晶體數 | 少（約 DFF 一半） | 多（master + slave 兩個 latch） |\n| STA | 有 time borrowing，分析複雜 | 單純，setup/hold 明確 |\n| 毛刺 | enable 期間 D 的 glitch 會傳到 Q | 只在邊緣取樣，對 glitch 免疫 |\n| 用途 | ICG、time borrowing、lockup latch | 一般同步設計 |\n\n### Explanation\n- DFF 本質上是兩個極性相反的 latch 串接（master-slave）。\n- Latch-based design 可利用 time borrowing 提高頻率，但驗證與 STA 困難，一般 ASIC 避免不預期的 latch。\n\n### Corner cases & pitfalls\n- RTL 中 combinational always block 沒有完整 assign 會意外推出 latch。\n- Latch 的 setup/hold 是相對於 **closing edge**（enable 由透明轉成保持的那個邊）。\n\n### Follow-ups\n- **什麼時候刻意用 latch？** clock gating cell、lockup latch（scan chain 跨 domain）、高速 time-borrowing pipeline。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "用兩個 latch 組出一個 DFF",
+   "solution": "**Key idea:** Master latch 在 **clk = 0** 透明、slave latch 在 **clk = 1** 透明。上升沿瞬間 master 關閉（鎖住 D）、slave 打開把值送到 Q → 正緣觸發 DFF。\n\n```mermaid\nflowchart LR\n  D[\"D\"] --> M[\"Master latch (transparent when clk=0)\"]\n  M -->|\"Qm\"| S[\"Slave latch (transparent when clk=1)\"]\n  S --> Q[\"Q\"]\n  CLK[\"clk\"] -->|\"clk_n\"| M\n  CLK --> S\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"0.1.0.1.0.1.\" },\n  { \"name\": \"D\",   \"wave\": \"01..0...1...\" },\n  { \"name\": \"Qm\",  \"wave\": \"01..0...1...\" },\n  { \"name\": \"Q\",   \"wave\": \"0.1...0...1.\" }\n],\n  \"head\": { \"text\": \"Qm 在 clk=0 跟隨 D；Q 只在上升沿更新\" } }\n```\n\n### Code\n```verilog\nmodule dff_from_latch (input clk, d, output reg q);\n  reg qm;\n  always @(*) if (!clk) qm = d;   // master: transparent low\n  always @(*) if ( clk) q  = qm;  // slave:  transparent high\nendmodule\n```\n\n### Explanation\n- clk = 0：master 跟著 D，slave 保持舊 Q。\n- clk 上升：master 鎖住上升沿前一刻的 D，slave 打開 → Q = 該值。\n- clk = 1：master 關閉，D 再怎麼變都不影響 Q。\n- 交換兩個 latch 的極性就得到負緣觸發 DFF。\n\n### Corner cases & pitfalls\n- 兩個 latch 的 clock 若有 skew（clk 與 clk_n 重疊），會出現兩者同時透明 → race-through；實作會用非重疊時脈或 cell 內部嚴格匹配。\n- DFF 的 setup time 即為 master latch 的 setup（相對其 closing edge = clk 上升沿）。\n\n### Follow-ups\n- **為什麼 DFF 會有 hold time？** master latch 關閉需要時間，D 在邊緣後太快改變會被 master 吃進去。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "RTK"
+   ]
+  },
+  {
+   "title": "什麼樣的 RTL 寫法會產生 latch？如何避免",
+   "solution": "**Key idea:** 在 **combinational** always block 中，若某條路徑沒有對輸出賦值（if 沒有 else、case 沒有 default、或部分 bit 沒 assign），合成器必須「記住舊值」→ 推出 latch。\n\n```verilog\n// 會產生 latch：en=0 時 y 沒被賦值\nalways @(*) begin\n  if (en) y = a;\nend\n\n// 會產生 latch：sel=2'b11 沒有被涵蓋\nalways @(*) begin\n  case (sel)\n    2'b00: y = a;\n    2'b01: y = b;\n    2'b10: y = c;\n  endcase\nend\n\n// 正確：給 default 值（最推薦）\nalways_comb begin\n  y = '0;              // default assignment at top\n  if (en) y = a;\nend\n```\n\n| 產生 latch 的原因 | 修正方法 |\n| --- | --- |\n| if 沒有 else | 補 else 或在 block 開頭給 default |\n| case 沒有 default / 未涵蓋全部值 | 加 `default:` |\n| 多輸出只在部分分支賦值 | 每個輸出在每條路徑都賦值 |\n| sensitivity list 不完整 | 用 `always @(*)` / `always_comb` |\n| 組合邏輯回授 `y = y + 1` | 改成 sequential 或打斷 loop |\n\n### Explanation\n- 合成報告會出現 `Inferred latch`（DC: `Latch inferred`），lint（Spyglass）也會報。\n- SystemVerilog 的 `always_comb` 若推出 latch，工具會給 warning；`always_latch` 用來表示「刻意」的 latch。\n\n### Corner cases & pitfalls\n- 在 **sequential** always block（`always @(posedge clk)`）缺 else 不會產生 latch，只是保持值（用 DFF + enable MUX）。\n- `full_case`/`parallel_case` pragma 可能造成 simulation 與 synthesis mismatch，避免使用。\n\n### Follow-ups\n- **latch 為什麼不好？** STA 難分析（time borrowing）、對 glitch 敏感、DFT scan 不友善。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "RTK",
+    "PHISON"
+   ]
+  },
+  {
+   "title": "Blocking (=) 與 Non-blocking (<=) 的差異",
+   "solution": "**Key idea:** Blocking `=` 立即更新、依序執行；Non-blocking `<=` 在當下 time step 先計算右側，**所有** NBA 在 NBA region 一起更新。Sequential logic 用 `<=`，combinational logic 用 `=`。\n\n```verilog\n// Blocking：b 與 c 都等於 a → 合成成一個 DFF（中間被吃掉）\nalways @(posedge clk) begin\n  b = a;\n  c = b;\nend\n\n// Non-blocking：c 拿到的是 b 的舊值 → 兩級 shift register\nalways @(posedge clk) begin\n  b <= a;\n  c <= b;\nend\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",          \"wave\": \"p.....\" },\n  { \"name\": \"a\",            \"wave\": \"01....\" },\n  { \"name\": \"b (<=)\",       \"wave\": \"0.1...\" },\n  { \"name\": \"c (<=)\",       \"wave\": \"0..1..\" },\n  { \"name\": \"c (= 版本)\",   \"wave\": \"0.1...\" }\n],\n  \"head\": { \"text\": \"NBA 形成兩級 pipeline；blocking 版本 c 與 b 同時更新\" } }\n```\n\n| 項目 | Blocking `=` | Non-blocking `<=` |\n| --- | --- | --- |\n| 更新時間 | 立即（Active region） | NBA region |\n| 執行順序影響結果 | 是 | 否 |\n| 適用 | combinational、testbench 計算 | flip-flop / sequential |\n\n### Corner cases & pitfalls\n- 同一 always block 混用 `=` 與 `<=` 容易造成 sim/synth mismatch。\n- 多個 `always @(posedge clk)` 互相讀寫時若用 `=` 會產生 **race condition**（結果取決於模擬器排程順序）。\n- 不要在 combinational block 用 `<=`：模擬時會多跑 delta cycle，且可能看到舊值。\n\n### Follow-ups\n- **swap 兩個暫存器？** `a <= b; b <= a;` 用 NBA 不需暫存變數。\n- **Cliff Cummings 的 8 條 coding guideline**：seq 用 `<=`、comb 用 `=`、不要混用、不要在多個 block 驅動同一變數等。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "NTK",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "給一段 RTL，畫出合成後的電路",
+   "solution": "**Key idea:** 逐行對應：`always @(posedge clk)` 中被賦值的變數 → DFF；if/else → DFF 前面的 MUX（或 enable）；運算子 → adder/comparator；case → MUX；不完整的 combinational 賦值 → latch。\n\n```verilog\nalways @(posedge clk or negedge rst_n) begin\n  if (!rst_n)      q <= 8'd0;\n  else if (load)   q <= din;\n  else if (en)     q <= q + 8'd1;\nend\nassign hit = (q == 8'd255);\n```\n\n```mermaid\nflowchart LR\n  Q[\"q (8-bit DFF, async reset)\"] --> ADD[\"+1 adder\"]\n  ADD --> M1[\"MUX (en)\"]\n  Q --> M1\n  M1 --> M2[\"MUX (load)\"]\n  DIN[\"din\"] --> M2\n  M2 --> Q\n  Q --> CMP[\"== 255 comparator\"]\n  CMP --> HIT[\"hit\"]\n  RST[\"rst_n\"] -->|\"async clear\"| Q\n```\n\n### Explanation\n- 優先順序：`load` 比 `en` 優先 → `load` 的 MUX 靠近 DFF 的 D 端。\n- `else` 都不成立時保持 → MUX 選回 q 自己（或合成成 enable flop / clock gating）。\n- `rst_n` 在 sensitivity list → 非同步 reset pin，不是 MUX。\n- `assign hit` 是純組合邏輯比較器。\n\n### Corner cases & pitfalls\n- 同步 reset（不在 sensitivity list）會變成 D 端最前面的 AND/MUX。\n- Blocking 寫法在 sequential block 中可能讓中間變數消失（不產生 DFF）。\n\n### Follow-ups\n- **如何確認？** 看 DC 的 `report_cell` / schematic，或 Yosys `show`。\n- **enable flop 與 clock gating 的關係？** 合成可把「保持」用 ICG 取代 MUX，節省功耗。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "給 waveform 寫出 RTL：輸入上升後兩個 cycle 輸出一個 cycle 的 pulse",
+   "solution": "**Key idea:** 看波形先找「誰在哪個 clock edge 變化、依賴哪些過去值」：輸出是輸入延遲後的 rising-edge pulse → 用 shift register 延遲 + edge detect。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",    \"wave\": \"p........\" },\n  { \"name\": \"in\",     \"wave\": \"0.1....0.\" },\n  { \"name\": \"in_d1\",  \"wave\": \"0..1....0\" },\n  { \"name\": \"in_d2\",  \"wave\": \"0...1....\" },\n  { \"name\": \"out\",    \"wave\": \"0...10...\" }\n],\n  \"head\": { \"text\": \"out <= in_d1 & ~in_d2（in 上升後兩個 cycle 輸出 1-cycle pulse）\" } }\n```\n\n### Code\n```verilog\nmodule delayed_rise_pulse (input clk, rst_n, in, output reg out);\n  reg in_d1, in_d2;\n  always @(posedge clk or negedge rst_n)\n    if (!rst_n) {out, in_d2, in_d1} <= 3'b000;\n    else begin\n      {in_d2, in_d1} <= {in_d1, in};\n      out            <= in_d1 & ~in_d2;   // registered rising-edge pulse\n    end\nendmodule\n```\n\n### Solution（看波形的步驟）\n1. 標出每個 clock edge，確認輸出變化是否對齊 edge（→ registered）或跟著輸入立刻變（→ combinational）。\n2. 數 latency：in 在第 2 個 cycle 變 1，out 在第 4 個 cycle 變 1 → 兩級 register。\n3. 看 pulse 寬度：只有 1 cycle → 需要 edge detect（目前值 AND 前一個值的反相）。\n4. 寫完後自己跑一次表格驗證每個 cycle 的值。\n\n### Corner cases & pitfalls\n- 若 latency 要求只有 1 cycle，可改成組合輸出 `assign out = in_d1 & ~in_d2;`（但可能有 glitch）。\n- 確認 reset 值；面試官常故意在 reset 期間給 in = 1。\n\n### Follow-ups\n- **falling-edge / both-edge？** `~in_d1 & in_d2`、`in_d1 ^ in_d2`。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "MTK",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "設計一個反向計數器（down counter）",
+   "solution": "**Key idea:** 每個 clock 減 1，到 0 時 reload（或停止）。注意 underflow、load 與 enable 的優先順序。\n\n### Code\n```verilog\nmodule down_counter #(parameter W = 4) (\n  input              clk, rst_n,\n  input              load, en,\n  input      [W-1:0] load_val,\n  output reg [W-1:0] cnt,\n  output             zero\n);\n  always @(posedge clk or negedge rst_n) begin\n    if (!rst_n)         cnt <= '0;\n    else if (load)      cnt <= load_val;          // load has priority\n    else if (en) begin\n      if (cnt == '0)    cnt <= load_val;          // wrap / reload on underflow\n      else              cnt <= cnt - 1'b1;\n    end\n  end\n  assign zero = (cnt == '0);\nendmodule\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",  \"wave\": \"p........\" },\n  { \"name\": \"load\", \"wave\": \"010......\" },\n  { \"name\": \"en\",   \"wave\": \"0.1......\" },\n  { \"name\": \"cnt\",  \"wave\": \"x.=======\", \"data\": [\"3\",\"2\",\"1\",\"0\",\"3\",\"2\",\"1\"] },\n  { \"name\": \"zero\", \"wave\": \"0....10..\" }\n],\n  \"head\": { \"text\": \"load_val = 3：3 → 2 → 1 → 0 → reload\" } }\n```\n\n### Explanation\n- 寫法與 up counter 相同，只是 `cnt - 1`；也可用 ripple 方式：每級 T flip-flop 由前一級的 **Q（非 Q̄）** 觸發（up counter 用 Q̄）。\n- `zero` 為組合輸出，可作 terminal count 或除頻輸出。\n\n### Corner cases & pitfalls\n- 0 減 1 會 wrap 成全 1，若規格是「停在 0」要加判斷。\n- load 與 en 同時為 1 的優先權要在 spec 中說清楚。\n\n### Follow-ups\n- **up/down counter？** 加 `dir` 輸入：`cnt <= dir ? cnt + 1 : cnt - 1`。\n- **ripple counter 缺點？** 各 bit 非同時變化，輸出有中間錯誤值，不適合同步系統。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "RTK"
+   ]
+  },
+  {
+   "title": "計數器從 input 到 output 需要多少個 cycle？（latency 計算）",
+   "solution": "**Key idea:** 數「訊號從輸入到輸出經過幾個 register」。每經過一級 DFF 多 1 cycle；純組合路徑是 0 cycle。\n\n```verilog\nmodule cnt_lat (input clk, rst_n, en_in, output reg [3:0] cnt_out);\n  reg       en_q;     // stage 1: input register\n  reg [3:0] cnt;      // stage 2: counter register\n  always @(posedge clk or negedge rst_n)\n    if (!rst_n) begin en_q <= 0; cnt <= 0; cnt_out <= 0; end\n    else begin\n      en_q    <= en_in;\n      if (en_q) cnt <= cnt + 1;\n      cnt_out <= cnt; // stage 3: output register\n    end\nendmodule\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",     \"wave\": \"p......\" },\n  { \"name\": \"en_in\",   \"wave\": \"01.....\" },\n  { \"name\": \"en_q\",    \"wave\": \"0.1....\" },\n  { \"name\": \"cnt\",     \"wave\": \"=..====\", \"data\": [\"0\",\"1\",\"2\",\"3\",\"4\"] },\n  { \"name\": \"cnt_out\", \"wave\": \"=...===\", \"data\": [\"0\",\"1\",\"2\",\"3\"] }\n],\n  \"head\": { \"text\": \"en_in 拉高後第 3 個 edge，cnt_out 才第一次變化 → latency = 3 cycles\" } }\n```\n\n### Explanation\n- edge 1：en_q 取到 1。\n- edge 2：cnt 因 en_q=1 → 1。\n- edge 3：cnt_out 取到 1。\n- 因此 input→output latency = 3（input reg + counter reg + output reg）。\n\n### Corner cases & pitfalls\n- 先確認 input 是否在同一個 cycle 被 sample（setup 前是否穩定）；題目畫波形時注意 edge 對齊。\n- 若 output 是 `assign` 組合輸出，latency 會少 1。\n\n### Follow-ups\n- **throughput 與 latency 差別？** pipeline 每 cycle 可進一筆（throughput = 1），但每筆要 N cycle 才出來（latency = N）。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "PHISON"
+   ]
+  },
+  {
+   "title": "Moore 與 Mealy FSM 的差異？寫出標準 FSM 架構",
+   "solution": "**Key idea:** Moore 輸出只由**目前狀態**決定；Mealy 輸出由**目前狀態 + 輸入**決定。Mealy 反應快一個 cycle、狀態數較少，但輸出可能跟著輸入產生 glitch。\n\n```mermaid\nstateDiagram-v2\n  IDLE --> RUN: start\n  RUN --> DONE: cnt == N\n  DONE --> IDLE: ack\n  RUN --> RUN: else\n```\n\n| 項目 | Moore | Mealy |\n| --- | --- | --- |\n| 輸出依賴 | state | state + input |\n| 反應速度 | 慢 1 cycle | 同 cycle |\n| 狀態數 | 較多 | 較少 |\n| Glitch | 輸出可直接 registered，乾淨 | 輸入 glitch 會傳到輸出 |\n\n### Code（三段式寫法）\n```systemverilog\ntypedef enum logic [1:0] {IDLE, RUN, DONE} state_t;\nstate_t cs, ns;\n\n// 1) state register\nalways_ff @(posedge clk or negedge rst_n)\n  if (!rst_n) cs <= IDLE;\n  else        cs <= ns;\n\n// 2) next-state logic\nalways_comb begin\n  ns = cs;\n  case (cs)\n    IDLE: if (start)    ns = RUN;\n    RUN : if (cnt == N) ns = DONE;\n    DONE: if (ack)      ns = IDLE;\n    default:            ns = IDLE;\n  endcase\nend\n\n// 3) output logic (Moore)\nassign busy = (cs == RUN);\n```\n\n### Corner cases & pitfalls\n- 一定要有 `default` 與 reset state，避免 latch 與 illegal state 卡死。\n- 編碼選擇：binary（省 FF）、one-hot（快、decode 簡單）、gray（低功耗/少 toggle）。\n\n### Follow-ups\n- **如何把 Mealy 輸出變乾淨？** 把輸出 register 起來（變成 Moore-like，但延遲 1 cycle）。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "systemverilog",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "Glitch 是怎麼產生的？如何避免",
+   "answer": "輸入改變經過不同延遲路徑，輸出短暫錯誤；clock gating 可加入 latch 避免；gray code 可減少 glitch。",
+   "solution": "**Key idea:** 組合邏輯中，同一個輸入變化經由**不同延遲的路徑**到達某個 gate，造成輸出出現短暫錯誤脈衝（hazard）。在 clock、reset、async 路徑上的 glitch 最危險。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"A\",            \"wave\": \"01......\" },\n  { \"name\": \"A_n (delayed)\", \"wave\": \"1..0....\" },\n  { \"name\": \"Y = A & A_n\",  \"wave\": \"01.0....\" }\n],\n  \"head\": { \"text\": \"A 與 A_n 因 inverter 延遲短暫同時為 1 → Y 出現 glitch\" } }\n```\n\n| 情境 | 為什麼危險 | 解法 |\n| --- | --- | --- |\n| 同步資料路徑 | 下一個 edge 前會穩定 | 不需處理（STA 保證） |\n| Clock gating 用 AND | glitch 變成多餘的 clock edge | latch-based ICG |\n| Clock MUX | 切換產生短 pulse | glitch-free clock switch |\n| Async reset / CDC 控制訊號 | 被當成有效事件 | 由 register 直接輸出、不要經過組合邏輯 |\n| 多 bit counter 跨 domain | 多 bit 同時變化 | gray code |\n\n### Explanation\n- Static-1 hazard：輸出應保持 1 卻掉成 0；可在 K-map 加 consensus term 消除。\n- Dynamic hazard：輸出應變化一次卻跳多次。\n- 同步設計中只要在 setup 前穩定，glitch 不影響功能，但會增加 **dynamic power**。\n\n### Corner cases & pitfalls\n- 跨 clock domain 的訊號一定要 **register output**（flop-to-flop），不能在 source 端經過組合邏輯再同步。\n\n### Follow-ups\n- **gray code 如何減少 glitch？** 相鄰值只變 1 bit，不會有多條路徑同時翻轉。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "進制轉換：binary / decimal / hex / 2's complement",
+   "solution": "**Key idea:** 二進位每 4 bit 對應 1 個 hex digit；十進位轉二進位用「除 2 取餘數」；有號數用 2's complement：取反加 1。\n\nWorked example：十進位 −45 用 8-bit 表示\n\n| 步驟 | 結果 |\n| --- | --- |\n| 45 ÷ 2 取餘（由下往上讀） | 0010_1101 |\n| 取反（1's complement） | 1101_0010 |\n| 加 1（2's complement） | 1101_0011 |\n| Hex | 0xD3 |\n| 驗證：−128 + 64 + 16 + 2 + 1 | −45 ✔ |\n\n| Decimal | Binary | Hex | Gray |\n| --- | --- | --- | --- |\n| 5 | 0101 | 5 | 0111 |\n| 10 | 1010 | A | 1111 |\n| 15 | 1111 | F | 1000 |\n\n### Explanation\n- N-bit 2's complement 範圍：−2^(N−1) ~ 2^(N−1) − 1。\n- Sign extension：高位補 sign bit（`{{4{a[3]}}, a}`）。\n- Binary → Gray：`g = b ^ (b >> 1)`；Gray → Binary：`b[i] = ^g[N-1:i]`（由 MSB 往下 XOR 累積）。\n- 小數：乘 2 取整數部分，例如 0.625 = 0.101b。\n\n### Code\n```verilog\n// signed vs unsigned 比較陷阱\nlogic signed [7:0] a = -8'sd45;   // 8'hD3\nlogic        [7:0] b = 8'd200;\n// a < b ? 混合 signed/unsigned 時整個運算視為 unsigned → 211 < 200 為 false\n```\n\n### Corner cases & pitfalls\n- Verilog 中只要運算元有一個 unsigned，整個 expression 都當 unsigned。\n- Overflow 判斷：兩個同號數相加結果變號 → overflow。\n\n### Follow-ups\n- **BCD？** 每個十進位數字用 4 bit 表示，轉換可用 double-dabble（shift-add-3）演算法。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "除 2 電路（不要用 counter）",
+   "solution": "**Key idea:** 一顆 DFF，把 **Q̄ 接回 D**（T flip-flop 恆為 1）。每個上升沿 Q 翻轉一次 → 頻率減半、duty cycle 50%。\n\n```mermaid\nflowchart LR\n  CLK[\"clk\"] --> FF[\"DFF\"]\n  FF -->|\"Q = clk_div2\"| OUT[\"clk_div2\"]\n  FF -->|\"Q_bar\"| INV[\"feedback\"] --> FF\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",      \"wave\": \"p.......\" },\n  { \"name\": \"clk_div2\", \"wave\": \"lhlhlhlh\" }\n],\n  \"head\": { \"text\": \"每個 clk 上升沿翻轉一次 → 週期 2T，50% duty\" } }\n```\n\n### Code\n```verilog\nmodule div2 (input clk, input rst_n, output reg clk_div2);\n  always @(posedge clk or negedge rst_n)\n    if (!rst_n) clk_div2 <= 1'b0;\n    else        clk_div2 <= ~clk_div2;   // D = Q_bar\nendmodule\n```\n\n### Explanation\n- 不需要 counter，只要一個 T-FF；串接 N 級得到除 2^N（ripple divider）。\n- 50% duty 是自然結果，不依賴 clk 的 duty cycle。\n\n### Corner cases & pitfalls\n- 一定要有 reset，否則模擬中 `~x = x`，輸出永遠是 X。\n- 產生的 clock 在 SDC 要宣告 `create_generated_clock -divide_by 2 -source [get_ports clk]`，否則 STA 會把它當 data。\n- ASIC 中避免用 DFF 輸出直接當 clock 驅動大量 logic；常改用 clock enable（每 2 cycle 一個 enable pulse）。\n\n### Follow-ups\n- **除 4？** 再串一級，或用 2-bit counter 取 MSB。\n- **為什麼 ripple divider 不適合做多 bit 同步 counter？** 各級輸出有累積延遲，不同時變化。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "除 N 電路：偶數與奇數除頻的通用寫法",
+   "solution": "**Key idea:** 偶數 N：counter 數到 N/2−1 就 toggle 輸出 → 50% duty。奇數 N：用 counter 產生 posedge 版與 negedge 版兩個 (N−1)/2 寬的訊號再 OR，拼出 N/2 個週期的 high → 50% duty。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",      \"wave\": \"p...........\" },\n  { \"name\": \"cnt (N=4)\", \"wave\": \"============\", \"data\": [\"0\",\"1\",\"2\",\"3\",\"0\",\"1\",\"2\",\"3\",\"0\",\"1\",\"2\",\"3\"] },\n  { \"name\": \"clk_div4\", \"wave\": \"1.0.1.0.1.0.\" }\n],\n  \"head\": { \"text\": \"偶數除頻：cnt == N/2-1 時 toggle\" } }\n```\n\n### Code\n```verilog\nmodule clk_div #(parameter int N = 5) (input clk, rst_n, output clk_out);\n  localparam int W = $clog2(N);\n  logic [W-1:0] cnt;\n  always_ff @(posedge clk or negedge rst_n)\n    if (!rst_n) cnt <= '0;\n    else        cnt <= (cnt == N-1) ? '0 : cnt + 1'b1;\n\n  generate if (N % 2 == 0) begin : g_even\n    logic q;\n    always_ff @(posedge clk or negedge rst_n)\n      if (!rst_n)                       q <= 1'b0;\n      else if (cnt == N/2-1 || cnt == N-1) q <= ~q;   // toggle twice per period\n    assign clk_out = q;\n  end else begin : g_odd\n    logic p, n;\n    always_ff @(posedge clk or negedge rst_n)        // high for (N-1)/2 cycles\n      if (!rst_n) p <= 1'b0;\n      else        p <= (cnt < (N-1)/2);\n    always_ff @(negedge clk or negedge rst_n)        // same, shifted by T/2\n      if (!rst_n) n <= 1'b0;\n      else        n <= p;\n    assign clk_out = p | n;                          // (N-1)/2 + 1/2 = N/2 high\n  end endgenerate\nendmodule\n```\n\n| N | 偶/奇 | high 寬度 | 方法 |\n| --- | --- | --- | --- |\n| 2 | 偶 | 1T | T-FF |\n| 4 | 偶 | 2T | cnt==1、cnt==3 toggle |\n| 3 | 奇 | 1.5T | p(1T) OR n(延遲 0.5T) |\n| 5 | 奇 | 2.5T | p(2T) OR n(延遲 0.5T) |\n\n### Corner cases & pitfalls\n- 奇數除頻的 50% duty 依賴輸入 clk 本身為 50% duty（用到 negedge）。\n- OR 兩個 register 輸出會形成組合 clock，STA 需設 generated clock，DFT 需處理 negedge flop。\n- 若不要求 50% duty，奇數除頻只需 counter + 比較即可。\n\n### Follow-ups\n- **除 1.5 / 2.5（小數）？** 利用雙沿：輸出邊緣可落在半週期上，見「除 1.5 倍電路」。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "systemverilog",
+   "tags": [
+    "RTK",
+    "PHISON",
+    "數位IC前段考題",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "除 3 電路（50% duty cycle）",
+   "solution": "**Key idea:** 除 3 的輸出週期 = 3T，50% duty 需要 high 1.5T。用 mod-3 counter 在 posedge 產生 high 1T 的訊號 `p`，再用 negedge 把 `p` 延遲半個週期得到 `n`，`clk_div3 = p | n` → high 1.5T。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",      \"wave\": \"hlhlhlhlhlhl\" },\n  { \"name\": \"cnt\",      \"wave\": \"=.=.=.=.=.=.\", \"data\": [\"0\",\"1\",\"2\",\"0\",\"1\",\"2\"] },\n  { \"name\": \"p (posedge)\", \"wave\": \"0.1.0...1.0.\" },\n  { \"name\": \"n (negedge)\", \"wave\": \"0..1.0...1.0\" },\n  { \"name\": \"clk_div3 = p|n\", \"wave\": \"0.1..0..1..0\" }\n],\n  \"head\": { \"text\": \"每格 = 半個 clk 週期；clk_div3 high 3 格、low 3 格 → 50%\" } }\n```\n\n### Code\n```verilog\nmodule div3_50 (input clk, input rst_n, output clk_div3);\n  reg [1:0] cnt;\n  reg p, n;\n  always @(posedge clk or negedge rst_n)\n    if (!rst_n) cnt <= 2'd0;\n    else        cnt <= (cnt == 2'd2) ? 2'd0 : cnt + 2'd1;\n\n  always @(posedge clk or negedge rst_n)     // high for 1 clk period every 3\n    if (!rst_n) p <= 1'b0;\n    else        p <= (cnt == 2'd0);\n\n  always @(negedge clk or negedge rst_n)     // p delayed by half a period\n    if (!rst_n) n <= 1'b0;\n    else        n <= p;\n\n  assign clk_div3 = p | n;                   // 1.5T high + 1.5T low\nendmodule\n```\n\n### Explanation\n- 只用 posedge 最多得到 1T/3T 或 2T/3T（33% / 67%），無法 50%。\n- negedge flop 讓我們取得半週期解析度；OR 讓 high 延長半週期。\n- 也可用 AND：`p` 為 2T high，`n` 為其 negedge 延遲版，`p & n` = 1.5T。\n\n### Corner cases & pitfalls\n- 需要輸入 clk 為 50% duty；否則 negedge 位置偏移，duty 也偏。\n- `p | n` 是組合輸出，作為 clock 時要確保 p 與 n 的切換不重疊產生 glitch（此設計中 p 落下時 n 仍為 1，無 glitch）。\n\n### Follow-ups\n- **除 5？** p 為 2T high（cnt < 2），再 OR negedge 延遲版 → 2.5T high。\n- **不要求 duty？** 只用 `cnt == 0` 當輸出（33%）或 `cnt != 2`（67%）。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "MTK",
+    "SMI",
+    "數位IC前段考題",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "除 1.5 倍電路（小數除頻）",
+   "solution": "**Key idea:** 輸出週期 1.5T，代表上升沿交替落在 clk 的 **posedge 與 negedge**。用 mod-3 counter 產生一個 posedge 對齊的 1T pulse `a` 與一個 negedge 對齊的 1T pulse `b`（相差 1.5T），`clk_div1p5 = a | b`。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",        \"wave\": \"hlhlhlhlhlhl\" },\n  { \"name\": \"cnt\",        \"wave\": \"=.=.=.=.=.=.\", \"data\": [\"0\",\"1\",\"2\",\"0\",\"1\",\"2\"] },\n  { \"name\": \"a (posedge, cnt==0)\", \"wave\": \"1.0...1.0...\" },\n  { \"name\": \"b (negedge, cnt==1)\", \"wave\": \"0..1.0...1.0\" },\n  { \"name\": \"out = a|b\",  \"wave\": \"1.01.01.01.0\" }\n],\n  \"head\": { \"text\": \"每格 = 半個 clk 週期；out 週期 3 格 = 1.5T，duty 2/3\" } }\n```\n\n### Code\n```verilog\nmodule div1p5 (input clk, input rst_n, output clk_out);\n  reg [1:0] cnt;\n  reg a, b;\n  always @(posedge clk or negedge rst_n)\n    if (!rst_n) cnt <= 2'd0;\n    else        cnt <= (cnt == 2'd2) ? 2'd0 : cnt + 2'd1;\n\n  always @(posedge clk or negedge rst_n)    // high while cnt == 0\n    if (!rst_n) a <= 1'b0;\n    else        a <= (cnt == 2'd2);\n\n  always @(negedge clk or negedge rst_n)    // high from 1.5T to 2.5T\n    if (!rst_n) b <= 1'b0;\n    else        b <= (cnt == 2'd1);\n\n  assign clk_out = a | b;\nendmodule\n```\n\n### Explanation\n- 在 3T 的時間內需要兩個輸出週期 → 一個由 posedge 觸發、一個由 negedge 觸發。\n- 輸出邊緣只能落在 clk 的半週期格點上，因此 1.5T 週期的 duty 只能是 1/3 或 2/3，**無法做到 50%**（除非用 PLL/DLL 或 delay line）。\n\n### Corner cases & pitfalls\n- 用到雙沿，輸入 clock duty 不準會造成輸出 jitter（相鄰週期長短不一）。\n- 面試時說清楚「除 1.5 = 先除 3 再倍頻」的概念：兩個相位差 180°（以輸出計）的除 3 波形合成。\n\n### Follow-ups\n- **除 2.5？** mod-5 counter，posedge pulse 與 negedge pulse 相隔 2.5T，再 OR。\n- **為什麼實務上少用？** 依賴 clock duty、STA 與 DFT 處理複雜，通常交給 PLL 產生。",
+   "category": "Digital Design",
+   "difficulty": "Hard",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "MTK"
+   ]
+  },
+  {
+   "title": "同步電路與非同步電路的差異",
+   "solution": "**Key idea:** 同步電路所有 register 由**同一個（或有固定相位關係的）clock** 驅動，時序可由 STA 保證；非同步電路的事件不對齊 clock（或跨不相關 clock），需要 synchronizer / handshake 處理 metastability。\n\n| 項目 | 同步 (Synchronous) | 非同步 (Asynchronous) |\n| --- | --- | --- |\n| 時序控制 | 共同 clock edge | 事件 / handshake / 不同 clock |\n| 驗證 | STA 可完整覆蓋 | STA 無法直接分析，需 CDC 驗證 |\n| Metastability | 只要滿足 setup/hold 即無 | 必須用 synchronizer |\n| 功耗 | clock tree 持續耗電 | 無全域 clock，可能較省 |\n| 設計難度 | 低、工具成熟 | 高 |\n| 例子 | pipeline、FSM | async FIFO、async reset、UART RX |\n\n```mermaid\nflowchart LR\n  subgraph SYNC [\"同步：同一 clk\"]\n    A1[\"FF A\"] --> L1[\"comb\"] --> B1[\"FF B\"]\n  end\n  subgraph ASYNC [\"非同步：clk1 → clk2\"]\n    A2[\"FF (clk1)\"] --> S1[\"sync FF1 (clk2)\"] --> S2[\"sync FF2 (clk2)\"]\n  end\n```\n\n### Explanation\n- 同步設計的優點是可預測、可用 STA 簽核；這是現代 ASIC 的主流。\n- 非同步介面無法避免（多 clock domain、外部輸入、reset），關鍵是**隔離**在少數經過驗證的 synchronizer cell 中。\n\n### Corner cases & pitfalls\n- 「同一個 clock 源分出的整數倍 clock」雖然頻率不同，但相位固定 → 仍可視為同步（STA 能分析）。\n- 同頻但來自不同 PLL → 非同步（相位無關）。\n\n### Follow-ups\n- **同步 reset vs 非同步 reset？** 見 reset 題：非同步 assert、同步 deassert。",
+   "category": "Digital Design",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "PHISON"
+   ]
+  },
+  {
+   "title": "同步 reset 與非同步 reset 的差異？非同步 reset 有什麼問題",
+   "solution": "**Key idea:** 非同步 reset 不需要 clock 就能生效，但 **deassert（release）** 若落在 clock edge 附近會違反 recovery/removal → metastability。標準解法是 **reset synchronizer：非同步 assert、同步 deassert**。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",        \"wave\": \"p........\" },\n  { \"name\": \"rst_n_async\", \"wave\": \"1.0..1...\" },\n  { \"name\": \"ff1\",        \"wave\": \"1.0...1..\" },\n  { \"name\": \"rst_n_sync\", \"wave\": \"1.0....1.\" }\n],\n  \"head\": { \"text\": \"assert 立即生效；release 經過兩級 FF 對齊 clk\" } }\n```\n\n### Code\n```verilog\nmodule rst_sync (input clk, input rst_n_async, output rst_n_sync);\n  reg ff1, ff2;\n  always @(posedge clk or negedge rst_n_async)\n    if (!rst_n_async) {ff2, ff1} <= 2'b00;      // asynchronous assert\n    else              {ff2, ff1} <= {ff1, 1'b1}; // synchronous de-assert\n  assign rst_n_sync = ff2;\nendmodule\n```\n\n| 項目 | 同步 reset | 非同步 reset |\n| --- | --- | --- |\n| 需要 clock | 是 | 否 |\n| 硬體 | D 端前的 AND/MUX | flop 的 CLR/PRE pin |\n| 對 glitch | 免疫（只在 edge 取樣） | 敏感，glitch 會誤 reset |\n| STA | 一般 data path | recovery / removal check |\n| 問題 | reset pulse 需 ≥ 1 cycle；clock gating 時無法 reset | release 時 metastability、不同 FF 在不同 cycle 離開 reset |\n\n### Corner cases & pitfalls\n- 每個 clock domain 都要有自己的 reset synchronizer。\n- Reset 路徑上不要有組合邏輯（glitch）。\n- Reset tree 也需要 CTS-like 平衡，否則 removal 檢查會失敗。\n\n### Follow-ups\n- **recovery / removal 是什麼？** async reset 版的 setup / hold：release 必須在 clock edge 前 recovery time、之後 removal time 外。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "verilog",
+   "tags": [
+    "NTK",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "Pipeline 是什麼？如何用 pipeline 改善 timing",
+   "solution": "**Key idea:** 在長組合路徑中插入 register，把一個 cycle 的工作拆成多個 stage：**clock period 由最慢 stage 決定**，throughput 提升，代價是 latency 增加、面積（FF）增加。\n\nWorked example：組合邏輯 12 ns，Tcq = 0.5 ns，Tsetup = 0.5 ns\n\n| 設計 | 最長 stage | Tclk | fmax | latency |\n| --- | --- | --- | --- | --- |\n| 無 pipeline | 12 | 12 + 1 = 13 ns | 76.9 MHz | 1 cycle (13 ns) |\n| 2 stage (6+6) | 6 | 7 ns | 142.9 MHz | 2 cycles (14 ns) |\n| 3 stage (4+4+4) | 4 | 5 ns | 200 MHz | 3 cycles (15 ns) |\n| 3 stage 不平均 (6+3+3) | 6 | 7 ns | 142.9 MHz | 3 cycles (21 ns) |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",     \"wave\": \"p......\" },\n  { \"name\": \"stage1\",  \"wave\": \"x====x.\", \"data\": [\"D0\",\"D1\",\"D2\",\"D3\"] },\n  { \"name\": \"stage2\",  \"wave\": \"x.====x\", \"data\": [\"D0\",\"D1\",\"D2\",\"D3\"] },\n  { \"name\": \"stage3\",  \"wave\": \"x..====\", \"data\": [\"D0\",\"D1\",\"D2\",\"D3\"] }\n],\n  \"head\": { \"text\": \"每 cycle 進一筆資料，第 3 cycle 起每 cycle 出一筆\" } }\n```\n\n### Explanation\n- Stage 要切得平均，否則最慢的 stage 拖住頻率。\n- Register overhead（Tcq + Tsu + skew）不會被切小，所以 stage 越多報酬遞減。\n\n### Corner cases & pitfalls\n- 有 feedback 的電路（如 accumulator）不能任意插 pipeline，會改變功能。\n- Pipeline 中的 control（valid、stall/backpressure）也要跟著 data 一起延遲。\n\n### Follow-ups\n- **Retiming？** 由合成工具移動 register 位置平衡 stage，不改變 I/O 行為。\n- **CPU pipeline hazard？** 見 computer architecture：data/control/structural hazard。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "NTK"
+   ]
+  },
+  {
+   "title": "Critical path 計算：找出最長路徑與最高工作頻率",
+   "solution": "**Key idea:** Critical path = reg-to-reg 間延遲最大的路徑。`Tclk_min = Tcq + Tcomb_max + Tsetup − Tskew`，`fmax = 1 / Tclk_min`。\n\n例題：Tcq = 1 ns、Tsetup = 1 ns、skew = 0。gate delay：INV 1、AND 2、OR 3、XOR 4 ns。\n\n```mermaid\nflowchart LR\n  R1[\"FF1 (Q)\"] -->|\"0\"| AND[\"AND 2ns\"]\n  R2[\"FF2 (Q)\"] -->|\"0\"| INV[\"INV 1ns\"]\n  INV --> AND\n  AND --> OR[\"OR 3ns\"]\n  R2 --> OR\n  OR --> XOR[\"XOR 4ns\"]\n  R1 --> XOR\n  XOR --> R3[\"FF3 (D)\"]\n```\n\n| Path | Delay |\n| --- | --- |\n| FF2 → INV → AND → OR → XOR | 1 + 2 + 3 + 4 = **10 ns** |\n| FF1 → AND → OR → XOR | 2 + 3 + 4 = 9 ns |\n| FF2 → OR → XOR | 3 + 4 = 7 ns |\n| FF1 → XOR | 4 ns |\n\n- Critical path：FF2 → INV → AND → OR → XOR → FF3。\n- Tclk_min = 1 + 10 + 1 = 12 ns → **fmax ≈ 83.3 MHz**。\n- Hold 檢查要看**最短** path：Tcq + 4 = 5 ns ≥ Thold。\n\n### Explanation\n- STA 是對每個 endpoint 找 max arrival（setup）與 min arrival（hold）。\n- 實際 gate delay 取決於 input transition 與 output load（NLDM table）。\n\n### Corner cases & pitfalls\n- False path（邏輯上不可能發生的路徑）不應算進 critical path。\n- 若 clock skew 為正（capture 較晚），可放寬 setup。\n\n### Follow-ups\n- **如何縮短 critical path？** pipeline、logic restructuring（把 late-arriving signal 放靠近輸出）、upsizing、換低 Vt cell、retiming。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "PHISON"
+   ]
+  },
+  {
+   "title": "寫出 setup / hold 不等式，並說明 clock skew 的影響（畫出 clock path 與 data path）",
+   "solution": "**Key idea:** 定義 skew = T_capture_clk − T_launch_clk。\n- **Setup**：`Tcq + Tcomb_max + Tsetup ≤ Tclk + skew`\n- **Hold**：`Tcq + Tcomb_min ≥ Thold + skew`\n\n**正 skew 幫 setup、害 hold；負 skew 相反。**\n\n```mermaid\nflowchart LR\n  CLK[\"clock source\"] -->|\"T_launch\"| FF1[\"Launch FF\"]\n  CLK -->|\"T_capture\"| FF2[\"Capture FF\"]\n  FF1 -->|\"Tcq\"| COMB[\"comb logic (Tmin ~ Tmax)\"]\n  COMB --> FF2\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk @ launch\",  \"wave\": \"p....\" },\n  { \"name\": \"clk @ capture\", \"wave\": \"lp...\", \"period\": 1, \"phase\": -0.3 },\n  { \"name\": \"FF1.Q\",         \"wave\": \"x=.=.\", \"data\": [\"D1\",\"D2\"] },\n  { \"name\": \"FF2.D\",         \"wave\": \"x.=.=\", \"data\": [\"D1\",\"D2\"], \"phase\": -0.6 }\n],\n  \"head\": { \"text\": \"capture clock 晚到（正 skew）：setup 多了 skew 的餘裕，hold 需要資料多撐 skew 時間\" } }\n```\n\n| 情況 | Setup | Hold |\n| --- | --- | --- |\n| skew > 0（capture 晚） | 放寬 | 變嚴 |\n| skew < 0（capture 早） | 變嚴 | 放寬 |\n| Jitter / uncertainty | 扣掉 margin | 通常只扣 skew 部分 |\n\n### Explanation\n- Setup：資料必須在**下一個** capture edge 之前 Tsetup 到達。\n- Hold：資料不能在**同一個** capture edge 之後 Thold 內被新資料覆蓋；式中**沒有 Tclk**。\n- 所以 setup violation 可降頻解決；hold violation 降頻無效，必須加 delay（buffer）。\n\n### Corner cases & pitfalls\n- 正負號別背錯：若以 skew = launch − capture 定義，符號相反，面試時先講定義。\n- Setup 看 slow corner（SS/低 V/高 T），hold 看 fast corner（FF/高 V/低 T）。\n\n### Follow-ups\n- **Useful skew？** CTS 刻意讓 capture 晚到，借時間給 critical path。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "PHISON",
+    "SMI",
+    "RTK"
+   ]
+  },
+  {
+   "title": "Setup / hold slack 計算（給數字算 slack 與最高頻率）",
+   "solution": "**Key idea:** Slack = Required − Arrival。Setup slack = (Tclk + T_capture_clk − Tsu − Tunc) − (T_launch_clk + Tcq + Tmax)；Hold slack = (T_launch_clk + Tcq + Tmin) − (T_capture_clk + Th)。Slack < 0 即 violation。\n\n例題：Tclk = 10 ns、Tcq = 1 ns、Tcomb max/min = 6 / 0.3 ns、Tsu = 1 ns、Th = 0.5 ns、launch clock latency = 2 ns、capture clock latency = 2.5 ns（skew = +0.5）、uncertainty = 0.2 ns（setup 與 hold 都扣）。\n\n| 項目 | Setup | Hold |\n| --- | --- | --- |\n| Arrival | 2 + 1 + 6 = 9.0 | 2 + 1 + 0.3 = 3.3 |\n| Required | 10 + 2.5 − 1 − 0.2 = 11.3 | 2.5 + 0.5 + 0.2 = 3.2 |\n| Slack | 11.3 − 9.0 = **+2.3** ✔ | 3.3 − 3.2 = **+0.1** ✔ |\n\n- 最小週期：Tclk_min = 9.0 − 2.5 + 1 + 0.2 = 7.7 ns → fmax ≈ **129.9 MHz**。\n- 若 capture latency 改成 1.5 ns（skew = −0.5）：setup slack = 1.3、hold slack = 1.1 → 負 skew 讓 setup 變差、hold 變好。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"launch clk\",  \"wave\": \"p.........\", \"period\": 1 },\n  { \"name\": \"data arrival\", \"wave\": \"x.......=.\", \"data\": [\"9.0ns\"] },\n  { \"name\": \"required\",     \"wave\": \"0........1\" }\n],\n  \"head\": { \"text\": \"setup：資料在 required time 之前到達 → 正 slack\" } }\n```\n\n### Corner cases & pitfalls\n- Setup 用 Tmax（slow corner）、hold 用 Tmin（fast corner），不要混用同一組數字。\n- Hold 檢查是**同一個 edge**，不加 Tclk。\n\n### Follow-ups\n- **setup violation 怎麼修？** 降頻、縮短 data path、upsizing、useful skew。\n- **hold violation 怎麼修？** 在 data path 插 delay buffer。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK"
+   ]
+  },
+  {
+   "title": "Setup / hold violation 有哪些解決方法",
+   "solution": "**Key idea:** Setup 是「資料太慢」→ 縮短 data path 或給更多時間；Hold 是「資料太快」→ 在 data path 加延遲。Hold 與 clock period 無關，**降頻修不了 hold**。\n\n| 方法 | Setup | Hold |\n| --- | --- | --- |\n| 降低頻率 | ✔ | ✘ |\n| Pipeline / retiming | ✔ | — |\n| Logic restructuring（late signal 靠近 output） | ✔ | — |\n| Cell upsizing / 低 Vt cell | ✔ | 可能惡化 |\n| 插 buffer / delay cell | ✘ | ✔ |\n| Useful skew（capture clock 晚到） | ✔ | 惡化 |\n| capture clock 早到 / 調整 skew | 惡化 | ✔ |\n| 縮短 wire、placement 拉近 | ✔ | — |\n| 修 SDC（漏掉的 MCP / false path） | ✔ | ✔ |\n\n```mermaid\nflowchart TD\n  V[\"timing violation\"] --> T{\"setup or hold?\"}\n  T -->|setup| S1[\"檢查 SDC 是否正確 (MCP / false path)\"]\n  S1 --> S2[\"APR: upsizing, Vt swap, buffering\"]\n  S2 --> S3[\"RTL: pipeline / restructure\"]\n  S3 --> S4[\"最後手段: 降頻\"]\n  T -->|hold| H1[\"在 data path 插 delay buffer\"]\n  H1 --> H2[\"調整 clock skew\"]\n```\n\n### Explanation\n- 修 setup 時注意不要造成 hold violation（例如 useful skew），反之亦然。\n- Hold 一般在 post-CTS 才修，因為 pre-CTS clock 為 ideal，skew 不準確。\n- 先修 hold 還是 setup？通常先確保 setup 接近收斂，最後在 fast corner 修 hold；但 hold 是**必須修**的（晶片在任何頻率都會壞）。\n\n### Corner cases & pitfalls\n- Hold buffer 加在 capture FF 的 D 端附近，避免影響其他 fanout 的 setup。\n\n### Follow-ups\n- **為什麼 hold violation 比 setup 更嚴重？** setup 可降頻救回；hold 失敗晶片直接不能用。\n- **你覺得哪個比較好解決？** 一般 hold 比較好修（加 buffer 即可），但若 setup 已很緊，加 buffer 會互相拉扯。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "SMI",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "Hold time 可以為 0 嗎？setup / hold 可以是負值嗎",
+   "solution": "**Key idea:** 可以。Library 的 setup/hold 是從 flop **pin 端**看的特徵值：若 cell 內部 data 路徑延遲比 clock 路徑延遲大，資料可在 clock edge **之前**就改變而不影響取樣 → hold 為負；反之 clock 內部延遲大，setup 可為負。但 **setup + hold（取樣窗口）必須 > 0**。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",               \"wave\": \"0...1....\" },\n  { \"name\": \"D (正 hold)\",       \"wave\": \"x.=....x.\", \"data\": [\"stable\"] },\n  { \"name\": \"D (負 hold)\",       \"wave\": \"x=...x...\", \"data\": [\"stable\"] }\n],\n  \"head\": { \"text\": \"負 hold：資料在 clock edge 之前就可以改變\" } }\n```\n\n| 情況 | 物理原因 | 意義 |\n| --- | --- | --- |\n| Thold > 0 | clock 內部到達 latch 的時間 > data 內部延遲 | 資料需在 edge 後多撐一下 |\n| Thold = 0 | 內部延遲剛好平衡 | 資料在 edge 時可以馬上變 |\n| Thold < 0 | data 內部延遲（input buffer）較大 | 資料在 edge 前就可以變 |\n| Tsetup < 0 | clock 內部延遲大 | 資料可在 edge 後才到 |\n\n### Explanation\n- Hold 檢查：`Tcq + Tcomb_min ≥ Thold + skew`。Thold ≤ 0 時，flop-to-flop 直接相連也很難違反 hold（Tcq 本身就 > 0），因此 cell library 常設計成 hold 很小或為負，方便 shift register / scan chain。\n- 有些 flop 刻意在 D 端加延遲做出負 hold（例如 scan flop），代價是 setup 變大。\n\n### Corner cases & pitfalls\n- 「hold time 為負」≠「不需要檢查 hold」：skew 大時仍會 violation（例如 scan chain 跨長 clock tree → 需要 lockup latch）。\n- Setup/hold 會隨 input transition、clock transition、PVT 改變，NLDM table 中同一 cell 不同條件可能正負不同。\n\n### Follow-ups\n- **為什麼 setup + hold 不能 ≤ 0？** 那代表取樣窗口寬度 ≤ 0，物理上 latch 需要一段時間完成取樣。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "NTK"
+   ]
+  },
+  {
+   "title": "為什麼 hold time 檢查跟 clock period 沒有關係",
+   "solution": "**Key idea:** Hold 檢查的是 **同一個 clock edge**：launch FF 在 edge k 送出的新資料，不能太快到達 capture FF，以免覆蓋 capture FF 在 **同一個 edge k** 要取樣的舊資料。兩邊用的是同一個 edge，所以不等式中**沒有 Tclk**。\n\n- Setup：`Tcq + Tmax + Tsu ≤ **Tclk** + skew`（launch edge k → capture edge k+1）\n- Hold：`Tcq + Tmin ≥ Th + skew`（launch edge k → capture edge k）\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",              \"wave\": \"p...\" },\n  { \"name\": \"FF1.Q (launch k)\", \"wave\": \"=.=.\", \"data\": [\"old\",\"new\"], \"phase\": -0.2 },\n  { \"name\": \"FF2 samples\",      \"wave\": \"x.=.\", \"data\": [\"must be old at edge k\"] }\n],\n  \"head\": { \"text\": \"Hold race：同一 edge 的新資料不能跑得比 capture FF 的 hold window 快\" } }\n```\n\n| 調整 | 對 setup | 對 hold |\n| --- | --- | --- |\n| 降低頻率 (Tclk ↑) | 改善 | **無影響** |\n| data path 加 delay | 惡化 | 改善 |\n| capture clock 晚到 | 改善 | 惡化 |\n\n### Explanation\n- 這就是為什麼 hold violation 不能靠降頻修，晶片在任何頻率都會失敗。\n- 例外：半週期路徑（posedge → negedge）或 multicycle path 的 hold 檢查邊緣會跟週期有關，例如 `set_multicycle_path -hold` 會把 hold 檢查邊緣往前移整數個 period。\n\n### Corner cases & pitfalls\n- Hold 最嚴的是 fast corner（delay 最小）；clock skew 是 hold 的主要殺手。\n\n### Follow-ups\n- **posedge→negedge 路徑的 hold？** 檢查邊緣相差半週期，hold 通常很鬆，setup 只有半週期。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "Cell library 中 flip-flop 的 hold time 有什麼特色",
+   "solution": "**Key idea:** Library（.lib/.db）中的 setup/hold 不是單一數字，而是依 **data transition × clock transition** 的 2D lookup table（NLDM/CCS），在不同 PVT corner 各有一份；hold 值通常很小、甚至為 0 或負值，且在 **fast corner** 最需注意。\n\n```text\npin(D) {\n  timing() {\n    related_pin : \"CK\";\n    timing_type : hold_rising;\n    rise_constraint (constraint_template_3x3) {\n      index_1 (\"0.01, 0.10, 0.40\");   /* D transition  (ns) */\n      index_2 (\"0.01, 0.10, 0.40\");   /* CK transition (ns) */\n      values (\"-0.020, -0.005, 0.030\", \\\n              \"-0.035, -0.015, 0.020\", \\\n              \"-0.070, -0.050, -0.010\");\n    }\n  }\n}\n```\n\n| 特色 | 說明 |\n| --- | --- |\n| 2D table | 隨 data slew 與 clock slew 改變，STA 時查表內插 |\n| 可為負 | 內部 data 延遲 > clock 延遲時為負，方便 shift register |\n| Rise / fall 分開 | `rise_constraint`、`fall_constraint` |\n| Corner 相依 | 每個 PVT corner 一個 library；hold 以 FF corner 簽核 |\n| 與 setup 互相影響 | setup 給越多，可接受的 hold 越小（interdependent，進階 library 會描述） |\n\n### Explanation\n- Clock slew 越大，內部 clock 到達越晚 → hold 需求越大；data slew 越大，data 越慢 → hold 越容易滿足。\n- Library 特性化時以「clk-to-q 增加 10%」等準則找出 setup/hold 的邊界值。\n\n### Corner cases & pitfalls\n- Hold 小並不代表 design 不會 hold violation，clock skew 往往遠大於 cell 的 hold 值。\n\n### Follow-ups\n- **為什麼 hold 在 fast corner 最差？** data path delay 最小，最容易太早到達。",
+   "category": "Physical Design & STA",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "PHISON"
+   ]
+  },
+  {
+   "title": "什麼是 metastability？為什麼無法完全避免",
+   "answer": "違反 setup/hold 造成輸出停在不穩定電位；物理現象，無法完全避免，只能用 synchronizer 降低機率。",
+   "solution": "**Key idea:** 當 flip-flop 的輸入在 setup/hold window 內變化，內部的 bistable latch 可能停在中間電壓（亞穩態），輸出在不確定的時間後才隨機落到 0 或 1。只能用 synchronizer **降低機率**（提高 MTBF），不能完全消除。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk_dst\",  \"wave\": \"p....\" },\n  { \"name\": \"async_in\", \"wave\": \"0.1..\", \"phase\": 0.1 },\n  { \"name\": \"ff1.Q\",    \"wave\": \"0.x=.\", \"data\": [\"0/1\"] },\n  { \"name\": \"ff2.Q\",    \"wave\": \"0...=\", \"data\": [\"stable\"] }\n],\n  \"head\": { \"text\": \"async_in 在 setup/hold window 內變化 → ff1 亞穩態，ff2 給它一整個 cycle 去 resolve\" } }\n```\n\nMTBF 公式：\n\n| 符號 | 意義 |\n| --- | --- |\n| MTBF = e^(t_r/τ) / (T_w · f_clk · f_data) | 平均失效間隔 |\n| t_r | 可用的 resolve 時間（約 Tclk − Tcq − Tsu） |\n| τ | 製程相關時間常數 |\n| T_w | metastability window |\n| f_clk, f_data | 取樣 clock 與資料變化頻率 |\n\n### Explanation\n- t_r 在指數上，所以多一級 FF（多一個 cycle resolve 時間）會讓 MTBF 呈指數增加。\n- 無法消除的原因：輸入與 clock 無相位關係，總有機率落在 window 內；而 latch resolve 時間理論上無上限。\n\n### Corner cases & pitfalls\n- 第一級 FF 與第二級之間不能有組合邏輯（會吃掉 resolve 時間）。\n- 亞穩態的另一個危害是「不同 fanout 看到不同值」，所以同步器輸出只能有單一源頭。\n\n### Follow-ups\n- **2FF 還是 3FF？** 高頻或先進製程（τ 大、T 小）時 MTBF 不足，就用 3 級。",
+   "category": "CDC & Timing",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK",
+    "PHISON",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "多 bit 訊號跨 clock domain 怎麼處理？為什麼不能每個 bit 各自用 2FF 同步",
+   "answer": "各 bit latency 不同造成 data convergence 問題；方法：gray code、MUX sync、handshake、async FIFO。",
+   "solution": "**Key idea:** 每個 bit 的 synchronizer 可能在**不同 cycle** resolve（有的 1 cycle、有的 2 cycle），目的端會看到從未存在過的中間值（data incoherency / convergence 問題）。多 bit 要用 gray code、MUX/enable 同步、handshake 或 async FIFO。\n\nWorked example：counter 從 `0111 (7)` 變 `1000 (8)`，4 個 bit 同時翻轉\n\n| bit | 同步後在第 1 cycle 看到 | 結果 |\n| --- | --- | --- |\n| b3 | 新值 1 | |\n| b2 | 舊值 1 | |\n| b1 | 新值 0 | |\n| b0 | 舊值 1 | 目的端讀到 `1101 (13)`：錯誤值 |\n\n| 方法 | 適用 | 原理 | 代價 |\n| --- | --- | --- | --- |\n| Gray code + 2FF | counter / pointer（遞增或遞減） | 每次只變 1 bit | 只能連續 ±1 |\n| MUX recirculation（enable 同步） | 資料保持穩定一段時間的 bus | 只同步 1-bit valid，data 在 valid 期間穩定 | 需保證 data hold |\n| Handshake (req/ack) | 低頻寬控制資料 | 4-phase / 2-phase 握手 | latency 大（數個 cycle） |\n| Async FIFO | 高頻寬 stream | gray pointer + dual-port RAM | 面積大 |\n\n```mermaid\nflowchart LR\n  SRC[\"src domain: data reg + req\"] -->|\"data (held stable)\"| DST[\"dst data reg\"]\n  SRC -->|\"req (1-bit)\"| SYNC[\"2FF sync\"] -->|\"pulse / enable\"| DST\n  DST -->|\"ack\"| SYNC2[\"2FF sync (back)\"] --> SRC\n```\n\n### Corner cases & pitfalls\n- Gray code 只在**相鄰值**變化時安全：若 source 一次跳多步（例如 pointer 被 reset 或 slow→fast 取樣）仍需另外處理。\n- 用 enable 同步時 data bus 要宣告 false path / max delay，並確保 data 比 enable 先穩定。\n\n### Follow-ups\n- **reconvergence？** 兩個獨立同步的 1-bit 訊號在目的端再組合，也會有同樣問題，CDC 工具（Spyglass CDC）會報。",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "PHISON",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "敲兩級 DFF 就可以解決所有 CDC 問題嗎",
+   "solution": "**Key idea:** 不行。2FF synchronizer 只適用於 **單 bit、level（或夠寬的）訊號**，且 source 端必須由 register 直接輸出。多 bit、短 pulse、fast→slow、reconvergence 都需要其他方法。\n\n| 情境 | 2FF 是否足夠 | 問題 | 正確做法 |\n| --- | --- | --- | --- |\n| 單 bit level，slow → fast | ✔ | — | 2FF |\n| 單 bit pulse，fast → slow | ✘ | pulse 可能沒被取樣到 | toggle (pulse) synchronizer / handshake |\n| 多 bit bus | ✘ | 各 bit resolve 時間不同 | gray code / handshake / async FIFO |\n| source 有組合邏輯 | ✘ | glitch 被取樣 | source 端先 register |\n| 兩個訊號分別同步再組合 | ✘ | reconvergence | 合併後再同步，或一起用 handshake |\n| 高頻 / 先進製程 | 可能不夠 | MTBF 不足 | 3FF |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk_fast\",  \"wave\": \"p..........\" },\n  { \"name\": \"pulse_src\", \"wave\": \"0.10.......\" },\n  { \"name\": \"clk_slow\",  \"wave\": \"h..l..h..l.\", \"period\": 1 },\n  { \"name\": \"sync_out\",  \"wave\": \"0..........\" }\n],\n  \"head\": { \"text\": \"fast domain 的 1-cycle pulse 落在 slow clock 兩個 edge 之間 → 被漏掉\" } }\n```\n\n### Explanation\n- 2FF 的作用只有「讓亞穩態有時間 resolve」，不保證取樣到每一個事件，也不保證多個 bit 同時到達。\n- 「3-edge rule」：source 訊號需維持至少 1.5 個 destination 週期（約 3 個 dst edge）才能保證被取樣。\n\n### Corner cases & pitfalls\n- Synchronizer FF 之間不要有邏輯，並標記 `dont_touch`，APR 時放得很近。\n\n### Follow-ups\n- **CDC 如何驗證？** 結構性 CDC 工具（Spyglass CDC、Questa CDC）+ metastability injection simulation + SVA 檢查 pulse 寬度與 bus stability。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "畫出 asynchronous FIFO 架構，並解釋各元件的作用",
+   "solution": "**Key idea:** Dual-port RAM 存資料；write pointer 在 wclk、read pointer 在 rclk；pointer 轉 **gray code** 後用 2FF 同步到對方 domain；full 在寫端判斷、empty 在讀端判斷（皆為「保守」判斷）。\n\n```mermaid\nflowchart LR\n  subgraph W [\"write clock domain\"]\n    WP[\"wptr (bin+gray, N+1 bit)\"] --> FULL[\"full logic\"]\n  end\n  subgraph R [\"read clock domain\"]\n    RP[\"rptr (bin+gray, N+1 bit)\"] --> EMPTY[\"empty logic\"]\n  end\n  WP -->|\"waddr\"| RAM[\"dual-port RAM (2^N)\"]\n  RP -->|\"raddr\"| RAM\n  WP -->|\"wptr_gray\"| S1[\"2FF sync (rclk)\"] --> EMPTY\n  RP -->|\"rptr_gray\"| S2[\"2FF sync (wclk)\"] --> FULL\n```\n\n### Code\n```systemverilog\n// write side (wclk)\nassign wbin_next  = wbin + (winc & ~wfull);\nassign wgray_next = (wbin_next >> 1) ^ wbin_next;\n// full: next write gray == synced read gray with top 2 bits inverted\nassign wfull_val  = (wgray_next == {~rq2_wptr_rgray[N:N-1], rq2_wptr_rgray[N-2:0]});\n\n// read side (rclk)\nassign rbin_next  = rbin + (rinc & ~rempty);\nassign rgray_next = (rbin_next >> 1) ^ rbin_next;\n// empty: next read gray == synced write gray\nassign rempty_val = (rgray_next == rq2_wgray);\n```\n\n| 元件 | 作用 |\n| --- | --- |\n| Dual-port RAM | 兩個 clock 各自讀寫 |\n| N+1 bit pointer | 多一個 bit 區分「繞一圈」→ 判斷 full |\n| Gray code | 相鄰值只變 1 bit，同步時最多差一步 |\n| 2FF synchronizer | 解決 pointer 的 metastability |\n| Full / empty | 用同步過來（較舊）的對方 pointer → 悲觀但安全 |\n\n### Explanation\n- 因為同步有延遲，寫端看到的 rptr 是舊的 → 可能以為還滿（其實已讀走），只會「晚一點解除 full」，不會 overflow；empty 同理。\n- Depth 必須是 2 的冪次，gray code 才會在 wrap 時也只變 1 bit。\n\n### Corner cases & pitfalls\n- 非 2^N depth：可用 gray code 對稱的中段（從 2^N 中間取對稱區段）讓 wrap 時仍只變 1 bit。\n- Pointer 要 register 後再送去同步，不能是組合邏輯輸出。\n\n### Follow-ups\n- **深度怎麼算？** 依 burst 長度與兩端速率：depth ≥ burst × (1 − f_rd/f_wr)（加同步延遲 margin）。\n- **參考：** Cliff Cummings, *Simulation and Synthesis Techniques for Asynchronous FIFO Design* (SNUG 2002)。",
+   "category": "CDC & Timing",
+   "difficulty": "Hard",
+   "type": "coding",
+   "language": "systemverilog",
+   "tags": [
+    "MTK",
+    "數位IC前段考題",
+    "2025 DV 面經"
+   ]
+  },
+  {
+   "title": "Gray code 的特性？binary 與 gray 如何互轉？為什麼 async FIFO 要用 gray code",
+   "solution": "**Key idea:** Gray code 相鄰兩個值只差 **1 bit**。跨 clock domain 同步 pointer 時，即使取樣到正在變化的那個 bit，結果也只會是「舊值或新值」，不會是錯誤的中間值。\n\n| Dec | Binary | Gray |\n| --- | --- | --- |\n| 0 | 000 | 000 |\n| 1 | 001 | 001 |\n| 2 | 010 | 011 |\n| 3 | 011 | 010 |\n| 4 | 100 | 110 |\n| 5 | 101 | 111 |\n| 6 | 110 | 101 |\n| 7 | 111 | 100 |\n\n（鏡射特性：後半段 4~7 是前半段 0~3 的鏡像，最高位改為 1。）\n\n### Code\n```systemverilog\nfunction automatic logic [N-1:0] bin2gray (input logic [N-1:0] b);\n  return b ^ (b >> 1);\nendfunction\n\nfunction automatic logic [N-1:0] gray2bin (input logic [N-1:0] g);\n  for (int i = 0; i < N; i++) gray2bin[i] = ^(g >> i);   // XOR of bits N-1..i\nendfunction\n```\n\n### Explanation\n- Binary 從 011→100 三個 bit 同時變，同步後可能看到 000~111 任意值；gray 010→110 只變 MSB。\n- 優點：同步穩定、full/empty 比較容易、toggle 少（低功耗）、避免 data convergence。\n- 只對「每次 ±1」的計數有效，因此適合 FIFO pointer。\n\n### Corner cases & pitfalls\n- Gray 不能直接做加法，要先轉 binary 加 1 再轉回 gray（或用 binary+gray 雙暫存器）。\n- Depth 非 2^N 時 wrap 會變多 bit，需要特殊序列。\n\n### Follow-ups\n- **slow → fast 時 gray pointer 不會一次跳多步嗎？** 寫在 slow domain 的 pointer 每個 slow cycle 只 +1，fast 端看到的是逐步變化；若 fast → slow，slow 端可能一次跳多步，但每次取樣到的仍是 source 曾經存在過的合法值（因為 source 每次只變 1 bit），所以安全。",
+   "category": "CDC & Timing",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "False path 與 multicycle path 的差異？各自的使用時機與設定方式",
+   "answer": "Multicycle：資料需要多個 cycle 才能完成傳輸，放寬時序；false path：不影響功能的路徑忽略不檢查，常用於 CDC，可用 clock group。",
+   "solution": "**Key idea:** **False path**：這條路徑在功能上不需要（或不可能）被 timing 檢查 → STA 完全忽略。**Multicycle path**：路徑真的需要時序，但資料允許 **N 個 cycle** 才到 → 放寬檢查，而不是忽略。\n\n| 項目 | False path | Multicycle path |\n| --- | --- | --- |\n| STA 行為 | 不檢查 setup/hold | setup 放寬為 N 個週期，hold 需另外調回 |\n| 典型例子 | CDC（已有 synchronizer）、靜態 config/test mode、reset、邏輯上不可能的路徑 | 大乘法器每 2 cycle 才取一次結果、slow enable 的資料 |\n| 電路需求 | CDC 要有 synchronizer | 要有 enable/控制保證 N cycle 才取樣 |\n| 風險 | 設錯 → 真正的 timing bug 被藏起來 | hold 沒調 → 大量假 hold violation |\n\n```text\n# False path\nset_false_path -from [get_clocks clkA] -to [get_clocks clkB]\nset_clock_groups -asynchronous -group {clkA} -group {clkB}   ;# 兩方向都不檢查\nset_false_path -from [get_ports test_mode]\n\n# Multicycle (setup 2 cycles, hold 移回原本 edge)\nset_multicycle_path 2 -setup -from [get_pins mul_reg*/CK] -to [get_pins res_reg*/D]\nset_multicycle_path 1 -hold  -from [get_pins mul_reg*/CK] -to [get_pins res_reg*/D]\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",     \"wave\": \"p.....\" },\n  { \"name\": \"src_en\",  \"wave\": \"010.10\" },\n  { \"name\": \"src_q\",   \"wave\": \"x.=.=.\", \"data\": [\"A\",\"B\"] },\n  { \"name\": \"dst_en\",  \"wave\": \"0..10.\" },\n  { \"name\": \"dst_q\",   \"wave\": \"x...=.\", \"data\": [\"A\"] }\n],\n  \"head\": { \"text\": \"資料每 2 cycle 更新、目的端每 2 cycle 取樣 → multicycle 2\" } }\n```\n\n### Corner cases & pitfalls\n- 用 `set_clock_groups -asynchronous` 比一條條 false path 乾淨，但要確定兩個 clock 真的無關。\n- Multicycle 一定要有對應的 RTL 機制（enable），否則就是 bug。\n\n### Follow-ups\n- **為何 MCP 要設 hold N−1？** 見 multicycle 值設定題。\n- **CDC 的 false path 是否完全安全？** 不，對 gray-code bus 常改用 `set_max_delay -datapath_only` 限制 skew。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "PHISON",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "Multicycle path 的 setup / hold 值要怎麼設定",
+   "solution": "**Key idea:** `set_multicycle_path N -setup` 把 setup 的 capture edge 往後移 N−1 個週期；但 hold 預設是「setup edge 的前一個 edge」，也跟著被往後移 → 會產生不合理的 hold 要求。所以要再下 `set_multicycle_path N-1 -hold` 把 hold edge 移回 launch edge。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",               \"wave\": \"p....\" },\n  { \"name\": \"launch\",            \"wave\": \"1....\" , \"node\": \"a....\" },\n  { \"name\": \"default setup chk\", \"wave\": \"0.1..\" },\n  { \"name\": \"MCP 3 setup chk\",   \"wave\": \"0...1\" },\n  { \"name\": \"hold (no -hold)\",   \"wave\": \"0..1.\" },\n  { \"name\": \"hold (-hold 2)\",    \"wave\": \"1....\" }\n],\n  \"head\": { \"text\": \"MCP setup 3：setup 檢查在第 3 個 edge；hold 設 2 才會回到 edge 0\" } }\n```\n\n| 設定 | Setup 檢查 edge | Hold 檢查 edge |\n| --- | --- | --- |\n| 預設 | 1 | 0 |\n| `-setup 3` | 3 | 2（太嚴格） |\n| `-setup 3` + `-hold 2` | 3 | 0 ✔ |\n\n```text\nset_multicycle_path 3 -setup -from [get_cells a_reg*] -to [get_cells b_reg*]\nset_multicycle_path 2 -hold  -from [get_cells a_reg*] -to [get_cells b_reg*]\n```\n\n### Explanation\n- 規則：同 clock 的 MCP，**hold 值 = setup 值 − 1**。\n- Hold 若不調：要求資料在 launch 後要撐到第 2 個 edge 之後，必須插大量 delay buffer，浪費面積甚至無法收斂。\n\n### Corner cases & pitfalls\n- 不同頻率 clock（例如 slow → fast）時，`-start`/`-end` 決定以哪個 clock 的週期計數：setup 預設以 capture（-end）、hold 預設以 launch（-start）。\n- MCP 必須搭配 RTL 的 enable 保證資料穩定 N 個 cycle。\n\n### Follow-ups\n- **fast→slow clock 的 MCP？** 通常 `-setup -start N`、`-hold -start N-1`，以 launch（fast）clock 計數。",
+   "category": "Physical Design & STA",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK"
+   ]
+  },
+  {
+   "title": "Input delay / output delay 的作用是什麼？數值大小怎麼設定",
+   "solution": "**Key idea:** STA 只看得到晶片（或 block）內部；`set_input_delay` 描述**外部**電路在輸入資料到達 port 前已用掉的時間，`set_output_delay` 描述輸出 port 之後外部電路還需要的時間（含外部 setup）。兩者把 I/O path 變成完整的 reg-to-reg 檢查。\n\n```mermaid\nflowchart LR\n  subgraph EXT1 [\"外部晶片 A\"]\n    FA[\"FF\"] --> CA[\"logic\"]\n  end\n  CA -->|\"input_delay\"| IN[\"input port\"]\n  IN --> INT[\"內部 logic (block 可用時間)\"]\n  INT --> FF[\"內部 FF\"]\n  FF --> INT2[\"內部 logic\"] --> OUT[\"output port\"]\n  OUT -->|\"output_delay\"| EXT2[\"外部晶片 B logic + setup\"]\n```\n\n| 參數 | 意義 | 內部可用時間 |\n| --- | --- | --- |\n| `set_input_delay -max 4 -clock clk [in]` | 外部最晚 4ns 才給資料 | Tclk − 4 − Tsu |\n| `set_input_delay -min 1` | 外部最早 1ns 就改變（hold 用） | — |\n| `set_output_delay -max 3 -clock clk [out]` | 外部需要 3ns（logic + setup） | Tclk − Tcq − 3 |\n| `set_output_delay -min -0.5` | 外部 hold 需求 | — |\n\n例：Tclk = 10 ns，常見 budget 是 I/O 各給外部 **40%~60%**：input delay 6 ns → 內部只剩 4 ns 做 input logic。\n\n```text\ncreate_clock -period 10 [get_ports clk]\nset_input_delay  -max 6 -clock clk [remove_from_collection [all_inputs] [get_ports clk]]\nset_output_delay -max 6 -clock clk [all_outputs]\n```\n\n### Corner cases & pitfalls\n- 設太小 → 內部看似有很多時間，整合時外部介面 timing fail；設太大 → 內部過度優化（面積、功耗增加）。\n- 一定要指定 `-clock`，否則該 port 沒有被約束（unconstrained path）。\n- 不要對 clock port 設 input delay。\n\n### Follow-ups\n- **block-level budget 怎麼來？** 由 top-level timing budget 或前一級的 output 時間推得，常先用 60/40 的經驗值。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "NTK",
+    "SMI"
+   ]
+  },
+  {
+   "title": "set_max_delay / set_min_delay 是什麼？什麼時候用來處理 violation",
+   "solution": "**Key idea:** `set_max_delay` / `set_min_delay` 直接指定一條路徑的最大 / 最小延遲，**覆蓋**由 clock 推導出來的 setup / hold 要求。常用於沒有 clock 關係的路徑（純組合 in→out、CDC gray bus、async 訊號）。\n\n```text\n# 純組合 feed-through：in → out 不得超過 3 ns\nset_max_delay 3 -from [get_ports a_in] -to [get_ports a_out]\nset_min_delay 0.5 -from [get_ports a_in] -to [get_ports a_out]\n\n# CDC gray pointer：不檢查 clock 關係，但 bit 間 skew 要小於一個 dst 週期\nset_max_delay 2.0 -datapath_only -from [get_cells wptr_gray_reg*] -to [get_cells sync1_reg*]\n```\n\n| 用途 | 指令 | 說明 |\n| --- | --- | --- |\n| in → out 組合路徑 | max / min delay | 沒有 FF，無法用 clock 推導 |\n| CDC 多 bit（gray） | `set_max_delay -datapath_only` | 比 false path 安全，限制 bit 間延遲差 |\n| 修 hold | `set_min_delay` | 要求工具在 data path 補 delay |\n| async reset / 控制訊號 | max delay | 限制分佈延遲 |\n\n```mermaid\nflowchart LR\n  A[\"a_in\"] --> L[\"comb logic\"] --> B[\"a_out\"]\n  L -.->|\"max 3ns / min 0.5ns\"| B\n```\n\n### Explanation\n- 這是 timing exception 的一種，會覆蓋 setup/hold 的 default path 要求。\n- `-datapath_only` 會忽略 clock latency，只算 data path 延遲。\n\n### Corner cases & pitfalls\n- 濫用 max delay 會讓真正的 clock-based 檢查消失，例如對同步路徑下 max delay 而忘了 clock skew。\n- set_max_delay 設在 pin 上會切斷 timing path（產生新的 startpoint/endpoint），要小心。\n\n### Follow-ups\n- **max delay vs false path 用在 CDC 的差別？** false path 完全不檢查；max delay 仍確保 gray bus 各 bit 在一個 dst 週期內到達。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "NTK"
+   ]
+  },
+  {
+   "title": "合成時 clock 的 timing 如何決定？（create_clock、uncertainty、latency、transition）",
+   "solution": "**Key idea:** 從 spec 的目標頻率開始，加上 **margin**：clock period、uncertainty（jitter + 預估 skew + margin）、latency（source + 預估 network）、transition，使 pre-layout 的估計比實際更悲觀，APR 後才能收斂。\n\n```text\ncreate_clock -name clk -period 5.0 [get_ports clk]          ;# 200 MHz\nset_clock_uncertainty -setup 0.30 [get_clocks clk]           ;# jitter + skew + margin\nset_clock_uncertainty -hold  0.10 [get_clocks clk]\nset_clock_latency -source 0.5 [get_clocks clk]               ;# off-chip / PLL\nset_clock_latency 1.0 [get_clocks clk]                       ;# 預估 network latency (pre-CTS)\nset_clock_transition 0.15 [get_clocks clk]\nset_ideal_network [get_ports clk]                            ;# 合成時不 buffer clock\n```\n\n| 參數 | 來源 | Pre-CTS | Post-CTS |\n| --- | --- | --- | --- |\n| Period | spec 目標頻率（常再 over-constrain 5~10%） | 同 | 同 |\n| Uncertainty (setup) | PLL jitter + 預估 skew + margin | 大 | 只剩 jitter + margin |\n| Uncertainty (hold) | 預估 skew | 小 | 通常 0 或很小 |\n| Network latency | 估計值 | 手設 | `set_propagated_clock`，實際值 |\n| Transition | 估計值 | 手設 | 實際值 |\n\n```mermaid\nflowchart LR\n  SPEC[\"spec 頻率\"] --> PER[\"period (+ over-constrain)\"]\n  PLL[\"PLL jitter\"] --> UNC[\"uncertainty\"]\n  SKEW[\"預估 skew\"] --> UNC\n  PER --> SYN[\"synthesis\"]\n  UNC --> SYN\n  LAT[\"latency / transition\"] --> SYN\n  SYN --> APR[\"APR 後 propagated clock\"]\n```\n\n### Corner cases & pitfalls\n- Generated clock（除頻、MUX 選擇）要用 `create_generated_clock` 宣告，否則 STA 把它當 data。\n- Over-constrain 太多會讓合成面積、功耗暴增。\n\n### Follow-ups\n- **為什麼合成時 clock 設 ideal？** clock tree 在 CTS 才長，合成時 buffer clock 沒有意義。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK"
+   ]
+  },
+  {
+   "title": "邏輯合成需要哪些檔案？會產生哪些輸出",
+   "solution": "**Key idea:** 合成 = RTL + **constraint（SDC）** + **cell library（.db）** → gate-level netlist。另外需要設定 wire load / 物理資訊與 DesignWare library。\n\n```mermaid\nflowchart LR\n  RTL[\"RTL (.v / .sv)\"] --> DC[\"Design Compiler / Genus\"]\n  SDC[\"constraints (.sdc)\"] --> DC\n  LIB[\"target / link library (.db / .lib)\"] --> DC\n  DW[\"DesignWare (.sldb)\"] --> DC\n  WLM[\"wire load model 或 physical (LEF, TLU+)\"] --> DC\n  DC --> NET[\"gate-level netlist (.v)\"]\n  DC --> SDCO[\"output .sdc\"]\n  DC --> SDF[\"SDF (pre-layout delay)\"]\n  DC --> RPT[\"timing / area / power reports\"]\n  DC --> DDC[\".ddc database\"]\n```\n\n| 輸入 | 用途 |\n| --- | --- |\n| RTL | 設計本體 |\n| SDC | clock、I/O delay、exceptions、DRV 限制 |\n| target_library (.db) | 要 map 的標準元件（slow/typical/fast corner） |\n| link_library | 解析 instance 參考（含 RAM/IP 的 .db） |\n| symbol / DesignWare | 運算元（adder、multiplier）IP |\n| WLM 或 LEF + TLU+ | 估算 wire RC（DC topographical 用實體資訊） |\n\n| 輸出 | 用途 |\n| --- | --- |\n| Netlist | 給 GLS、APR |\n| SDF | gate-level sim 的 delay 標註 |\n| SDC | 傳給 APR / PrimeTime |\n| Reports | timing、area、power、QoR |\n\n```tcl\nread_verilog top.v\ncurrent_design top\nlink\nsource top.sdc\ncompile_ultra\nwrite -format verilog -hierarchy -output top_syn.v\nwrite_sdf top_syn.sdf\nwrite_sdc top_syn.sdc\nreport_timing > timing.rpt\n```\n\n### Corner cases & pitfalls\n- 忘記 link IP 的 .db → unresolved reference，IP 被當 black box。\n- 用 slow corner library 做 setup，hold 留給 APR 處理。\n\n### Follow-ups\n- **合成後要檢查什麼？** latch、unresolved、timing、area、`check_design`、LEC（RTL vs netlist）。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK"
+   ]
+  },
+  {
+   "title": "請說明完整的 IC design flow（含各階段 EDA tool 與檔案）",
+   "solution": "**Key idea:** Spec → RTL → 功能驗證 → 合成 → DFT → STA / LEC → APR（floorplan、placement、CTS、routing）→ 寄生萃取 → post-layout STA / sim → DRC / LVS → tape-out。\n\n```mermaid\nflowchart TD\n  SPEC[\"Spec / architecture\"] --> RTL[\"RTL design (Verilog/SV)\"]\n  RTL --> SIM[\"Functional sim (VCS / Xcelium)\"]\n  SIM --> SYN[\"Synthesis (DC / Genus)\"]\n  SYN --> DFT[\"DFT insertion (scan, MBIST)\"]\n  DFT --> STA1[\"Pre-layout STA (PrimeTime) + LEC (Formality)\"]\n  STA1 --> GLS[\"Gate-level sim (+SDF)\"]\n  GLS --> APR[\"APR (Innovus / ICC2)\"]\n  APR --> EXT[\"RC extraction (StarRC / Quantus)\"]\n  EXT --> STA2[\"Post-layout STA + power/IR (PrimeTime, Voltus)\"]\n  STA2 --> PSIM[\"Post-sim\"]\n  PSIM --> PV[\"DRC / LVS (Calibre)\"]\n  PV --> TO[\"Tape-out (GDSII)\"]\n```\n\n| 階段 | Tool | Input | Output |\n| --- | --- | --- | --- |\n| RTL sim | VCS, Xcelium | RTL, TB | waveform (FSDB), log |\n| Synthesis | Design Compiler | RTL, SDC, .db | netlist, SDF, reports |\n| STA | PrimeTime | netlist, SDC, .db, (SPEF) | timing report, SDF |\n| APR | Innovus, ICC2 | netlist, LEF, SDC, tech | DEF, GDS, netlist |\n| Extraction | StarRC | DEF/GDS | SPEF |\n| Physical verification | Calibre | GDS, netlist | DRC/LVS report |\n| Power | PrimePower, Voltus | netlist, SPEF, VCD/SAIF | power / IR report |\n\n### Explanation\n- 前段（front-end）：spec 到 netlist；後段（back-end）：netlist 到 GDS。\n- 每一步都有對應的檢查：功能 → simulation/formal；結構等價 → LEC；時序 → STA；物理 → DRC/LVS。\n\n### Corner cases & pitfalls\n- 面試時務必背熟並能講出各步驟的 input/output 檔案；EDA tool 講自己用過的即可。\n\n### Follow-ups\n- **哪一步發現 timing 問題最便宜？** 越前面越便宜：架構與 RTL 階段解決成本最低。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "RTK",
+    "PHISON",
+    "SMI",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "RTL simulation、gate-level simulation（pre-sim）與 post-layout simulation 的差異",
+   "solution": "**Key idea:** RTL sim 驗**功能**（零延遲）；pre-sim（gate-level + 合成 SDF）驗證 netlist 功能與預估時序；post-sim（APR netlist + 含寄生 RC 的 SDF）驗證真實佈局後的時序與功能。\n\n| 項目 | RTL sim | Pre-sim (GLS) | Post-sim |\n| --- | --- | --- | --- |\n| 輸入 | RTL + TB | 合成 netlist + SDF（WLM 估計） | APR netlist + SDF（SPEF 萃取） |\n| Delay | 無（或 unit delay） | cell delay + 估計 wire delay | 真實 cell + wire + clock tree |\n| Clock tree | 理想 | 理想 | 真實 |\n| 目的 | 功能正確 | netlist = RTL、reset/X 問題、初步時序 | 最終時序、setup/hold、glitch |\n| 速度 | 最快 | 慢 | 最慢 |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",          \"wave\": \"p....\" },\n  { \"name\": \"q (RTL)\",      \"wave\": \"0.1..\" },\n  { \"name\": \"q (post-sim)\", \"wave\": \"0.x1.\", \"phase\": -0.3 }\n],\n  \"head\": { \"text\": \"post-sim 會看到 clk-to-q + wire delay，violation 時出現 X\" } }\n```\n\n### Explanation\n- GLS 能抓到 RTL sim 看不到的問題：X-propagation 差異、未 reset 的 FF、synthesis/simulation mismatch（`full_case`、不完整 sensitivity list）、scan/DFT 插入問題。\n- STA 已能保證 timing，post-sim 主要是補強（async 介面、特殊電路、SDF 標註正確性）。\n\n### Corner cases & pitfalls\n- GLS 中 synchronizer 第一級 FF 會因 timing violation 輸出 X，要對它關掉 timing check（`$setuphold` notifier / `+nospecify` 或 SDF 標註移除）。\n\n### Follow-ups\n- **既然有 STA 為何還要 GLS？** STA 不檢查功能；GLS 檢查功能 + 時序整合、reset sequence、DFT pattern。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "SDF 檔案包含什麼？與 SPEF、.lib 有什麼差異",
+   "solution": "**Key idea:** **.lib** 描述 cell 的特性（timing/power table）；**SPEF** 描述 layout 的寄生 RC；**SDF** 是由 STA 根據前兩者算出來、**每個 instance 實際的延遲值**，給 gate-level simulation 標註（back-annotate）。\n\n```text\n(DELAYFILE\n (SDFVERSION \"3.0\")\n (TIMESCALE 1ns)\n (CELL (CELLTYPE \"DFFRX1\") (INSTANCE u_core/cnt_reg_0_)\n  (DELAY (ABSOLUTE\n   (IOPATH CK Q (0.210:0.250:0.310) (0.190:0.230:0.290))))     ; min:typ:max rise / fall\n  (TIMINGCHECK\n   (SETUP D (posedge CK) (0.080:0.100:0.130))\n   (HOLD  D (posedge CK) (0.020:0.030:0.040))))\n (CELL (CELLTYPE \"BUFX2\") (INSTANCE u_core/U12)\n  (DELAY (ABSOLUTE (IOPATH A Y (0.050:0.060:0.070) (0.050:0.060:0.070)))))\n (CELL (CELLTYPE \"top\") (INSTANCE)\n  (DELAY (ABSOLUTE (INTERCONNECT u_core/U12/Y u_core/cnt_reg_1_/D (0.012:0.015:0.020)))))\n)\n```\n\n| 檔案 | 內容 | 產生者 | 使用者 |\n| --- | --- | --- | --- |\n| .lib / .db | cell delay/transition/power table、setup/hold、pin cap | foundry / library vendor | DC、PT、Innovus |\n| SPEF | net 的寄生 R、C（coupling C） | StarRC / Quantus | PrimeTime |\n| SDF | 每個 instance 的 IOPATH delay、INTERCONNECT delay、timing check | DC / PT | VCS / Xcelium（GLS） |\n| SDC | constraint | 設計者 | DC、PT、APR |\n\n### Explanation\n- SDF 的 `(min:typ:max)` 三組值對應不同 corner 或 min/max 分析；模擬時用 `+mindelays`/`+maxdelays` 選擇。\n- Simulator 以 `$sdf_annotate(\"top.sdf\", top)` 標註，cell model 中的 `specify` block 被取代。\n\n### Corner cases & pitfalls\n- SDF 與 netlist 必須一致（同一版 APR），否則會有 annotation warning。\n- SDF 不含 clock 定義或 exceptions，那是 SDC 的事。\n\n### Follow-ups\n- **SDF 有哪些 delay 類型？** IOPATH（cell 內部 pin-to-pin）、INTERCONNECT（net）、PORT、DEVICE；timing check 有 SETUP、HOLD、RECOVERY、REMOVAL、WIDTH、PERIOD。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "說明一份 timing report 怎麼看",
+   "solution": "**Key idea:** Timing report 分三段：**data arrival**（launch clock → startpoint → 每個 cell/net 的累積延遲）、**data required**（capture clock + latency − setup − uncertainty）、**slack** = required − arrival。\n\n```text\nStartpoint: u_a/q_reg (rising edge-triggered flip-flop clocked by clk)\nEndpoint:   u_b/d_reg (rising edge-triggered flip-flop clocked by clk)\nPath Group: clk     Path Type: max\n\nPoint                                   Incr       Path\n-------------------------------------------------------------\nclock clk (rise edge)                   0.00       0.00\nclock network delay (propagated)        0.85       0.85\nu_a/q_reg/CK (DFFRX1)                   0.00       0.85 r\nu_a/q_reg/Q (DFFRX1)                    0.28       1.13 f\nu_a/U15/Y (NAND2X1)                     0.12       1.25 r\nu_a/U22/Y (XOR2X2)                      0.31       1.56 f\nu_b/U8/Y (AOI21X1)                      0.20       1.76 r\nu_b/d_reg/D (DFFRX1)                    0.02       1.78 r\ndata arrival time                                  1.78\n\nclock clk (rise edge)                   2.00       2.00\nclock network delay (propagated)        0.90       2.90\nclock uncertainty                      -0.10       2.80\nu_b/d_reg/CK (DFFRX1)                              2.80 r\nlibrary setup time                     -0.09       2.71\ndata required time                                 2.71\n-------------------------------------------------------------\nslack (MET)                                        0.93\n```\n\n| 區塊 | 看什麼 |\n| --- | --- |\n| Start/End point | 哪兩個 FF、哪個 clock、path group |\n| Path Type max/min | setup（max）或 hold（min） |\n| Incr 欄 | 哪個 cell 或 net 延遲異常大（fanout、weak driver、長線） |\n| clock network delay | launch 0.85 vs capture 0.90 → skew = +0.05 |\n| uncertainty / setup | 扣掉的 margin |\n| slack | 正 = MET、負 = VIOLATED |\n\n### Explanation\n- 找問題：先看 slack，再看 Incr 欄最大的幾個點，判斷是 cell 太慢（upsize）、transition 太大（buffer）還是 net 太長（placement）。\n- `report_timing -path full_clock -nets -transition_time -capacitance` 可以看到更多細節。\n\n### Corner cases & pitfalls\n- Pre-CTS 報告中 clock 是 ideal，skew 不準；post-CTS 要 `set_propagated_clock`。\n- 注意 report 的 corner 與 analysis mode（OCV/AOCV/POCV 會額外加 derate）。\n\n### Follow-ups\n- **hold report 有何不同？** Path Type min，required = capture clock + hold + uncertainty，arrival 要大於 required。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "SMI"
+   ]
+  },
+  {
+   "title": "什麼是 PVT？PVT corner 與 PVT violation 怎麼處理",
+   "solution": "**Key idea:** PVT = **Process、Voltage、Temperature**。三者變動會改變電晶體速度，晶片必須在所有 corner 下都滿足 timing：**setup 看最慢 corner、hold 看最快 corner**。\n\n| 因素 | 變慢 | 變快 |\n| --- | --- | --- |\n| Process | SS（slow NMOS / slow PMOS） | FF |\n| Voltage | 低電壓（例如 0.9×VDD） | 高電壓（1.1×VDD） |\n| Temperature | 高溫（傳統製程） | 低溫 |\n| 先進製程（temperature inversion） | 低溫 + 低電壓可能更慢 | — |\n\n| Corner | 用途 |\n| --- | --- |\n| SS / low V / high T（或 low T） | setup 簽核 |\n| FF / high V / low T | hold 簽核、leakage（高溫 FF 時最大） |\n| TT / nominal | power 評估 |\n\n```mermaid\nflowchart LR\n  LIB[\"每個 corner 一份 .lib\"] --> MCMM[\"MCMM STA (多 corner、多 mode)\"]\n  RC[\"RC corner: Cworst / Cbest / RCworst\"] --> MCMM\n  MCMM --> S[\"setup @ slow corners\"]\n  MCMM --> H[\"hold @ fast corners\"]\n```\n\n### Explanation\n- 「PVT violation」通常指某個 corner 的 timing fail：例如 typical 過、SS 失敗 → setup violation；FF 失敗 → hold violation。\n- 修法：在 MCMM 環境下同時優化所有 corner（Innovus/ICC2 支援），避免修了一邊壞另一邊；再加 OCV derate 處理晶片內部的變異。\n\n### Corner cases & pitfalls\n- 先進製程有 temperature inversion，低溫反而更慢，因此 setup 也要看低溫 corner。\n- RC corner（wire）與 device corner 要交叉組合。\n\n### Follow-ups\n- **OCV 是什麼？** On-chip variation：同一顆晶片內不同位置的變異，用 derate（例如 late +5%、early −5%）處理。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK"
+   ]
+  },
+  {
+   "title": "Clock gating 的原理？為什麼要用 latch-based ICG 而不是 AND gate",
+   "solution": "**Key idea:** Clock gating 在 register 不需要更新時關掉 clock，減少 clock tree 與 flip-flop 的 **dynamic power**。直接用 AND 會因 enable 在 clk high 期間變化而產生 glitch / 截斷的 clock；ICG 用 **negative-level latch** 鎖住 enable，只在 clk low 時更新，保證輸出 clock 完整。\n\n```mermaid\nflowchart LR\n  EN[\"enable\"] --> LAT[\"latch (transparent when clk=0)\"]\n  CLK[\"clk\"] -->|\"clk_n\"| LAT\n  LAT -->|\"en_latched\"| AND[\"AND\"]\n  CLK --> AND\n  AND --> GCLK[\"gclk\"]\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",             \"wave\": \"hhllhhllhhllhhll\" },\n  { \"name\": \"enable\",          \"wave\": \"0....1.......0..\" },\n  { \"name\": \"en_latched\",      \"wave\": \"0.....1.......0.\" },\n  { \"name\": \"gclk (ICG)\",      \"wave\": \"0.......h.l.h.l.\" },\n  { \"name\": \"gclk (AND only)\", \"wave\": \"0....10.1.0.10..\" }\n],\n  \"head\": { \"text\": \"每格 = 1/4 clk 週期；enable 在 clk high 期間改變，AND-only 產生截斷的 clock pulse\" } }\n```\n\n### Code\n```verilog\nmodule icg (input clk, en, se, output gclk);\n  reg en_lat;\n  always @(*) if (!clk) en_lat = en | se;   // latch transparent when clk low\n  assign gclk = clk & en_lat;\nendmodule\n```\n\n### Explanation\n- 合成工具可自動把 `if (en) q <= d;` 的 enable MUX 換成 ICG（`set_clock_gating_style`）。\n- `se`（scan enable）讓 scan shift 時 clock 一定打開。\n- 一個 ICG 通常帶多個 FF（≥ 3~4 bit 才划算）。\n\n### Corner cases & pitfalls\n- ICG 的 enable 有 clock gating setup/hold check（相對 clk 下降沿 / 上升沿），STA 會檢查。\n- Gated clock 會增加 skew，CTS 要把 ICG 視為 clock tree 的一部分。\n\n### Follow-ups\n- **posedge-triggered 下用 OR 型 ICG？** 負緣觸發的設計用 OR + positive latch。\n- **其他 low power 手段？** 見 low power design 題。",
+   "category": "Low Power",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog",
+   "tags": [
+    "MTK",
+    "PHISON",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "Low power design 有哪些方法",
+   "solution": "**Key idea:** 功耗 = **dynamic**（`α·C·V²·f` + short-circuit）+ **static**（leakage）。從架構到電路分層下手：降 V 效果最大（平方），降 α 靠 clock gating / operand isolation，降 leakage 靠 power gating 與 multi-Vt。\n\n| 層級 | 技術 | 降低 |\n| --- | --- | --- |\n| 系統 | DVFS（動態調壓調頻） | V、f |\n| 架構 | 並行化後降壓、減少 memory access | V、α |\n| RTL | Clock gating、operand isolation、避免無用 toggle、gray code | α |\n| 電路 | Multi-Vt（HVT 用於非 critical path） | leakage |\n| 電源 | Power gating（header/footer switch）+ retention FF + isolation cell | leakage |\n| 電源 | Multi-voltage domain + level shifter | V |\n| 物理 | 降低 net capacitance、clock tree 優化 | C |\n\n```mermaid\nflowchart LR\n  subgraph AON [\"Always-on domain (0.9V)\"]\n    PMU[\"power controller\"]\n  end\n  subgraph PD [\"Switchable domain (0.9V, gated)\"]\n    CORE[\"core + retention FF\"]\n  end\n  subgraph LV [\"Low-V domain (0.7V)\"]\n    DSP[\"DSP\"]\n  end\n  PMU -->|\"pwr_en / iso_en / save / restore\"| PD\n  PD -->|\"isolation cell\"| AON\n  LV -->|\"level shifter\"| AON\n```\n\n### Explanation\n- Power intent 以 **UPF**（或 CPF）描述：power domain、supply、isolation、level shifter、retention 策略，給模擬、合成、APR 共同使用。\n- Power gating 需注意：isolation（關電 domain 輸出鉗位）、retention（保存狀態）、rush current（switch 逐步打開）。\n\n### Corner cases & pitfalls\n- 降 V 會變慢，需搭配頻率調整；多 domain 介面一定要 level shifter。\n- Clock gating 的 enable 自身也耗電，bit 數太少不划算。\n\n### Follow-ups\n- **DV 怎麼驗證 low power？** UPF-aware simulation：檢查 power down 時輸出被 isolate、retention 恢復正確、power sequence。",
+   "category": "Low Power",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "RTK",
+    "SMI"
+   ]
+  },
+  {
+   "title": "SystemVerilog 的作用是什麼？和 Verilog 相比多了什麼",
+   "solution": "**Key idea:** SystemVerilog（IEEE 1800）是 Verilog 的超集，同時是 **設計語言**（更嚴謹的 RTL 語法）與 **驗證語言**（OOP、constrained random、coverage、assertion），也是 UVM 的基礎。\n\n| 面向 | Verilog | SystemVerilog 新增 |\n| --- | --- | --- |\n| 資料型態 | reg / wire | `logic`、`bit`、`int`、`enum`、`struct`、`typedef` |\n| RTL 意圖 | `always` | `always_ff`、`always_comb`、`always_latch`、`unique/priority case` |\n| 介面 | port list | `interface`、`modport`、`clocking block` |\n| 資料結構 | 固定陣列 | dynamic array、queue、associative array |\n| OOP | 無 | `class`、繼承、polymorphism、`virtual` |\n| 隨機 | `$random` | `rand`/`randc`、constraint、`randomize()` |\n| Coverage | 無 | `covergroup`、`coverpoint`、`cross` |\n| Assertion | 無 | SVA（immediate / concurrent） |\n| 平行控制 | fork-join | `join_any`、`join_none`、mailbox、semaphore、event |\n\n```mermaid\nflowchart LR\n  SV[\"SystemVerilog\"] --> DES[\"Design: always_ff / always_comb / interface\"]\n  SV --> VER[\"Verification: class / rand / covergroup\"]\n  SV --> SVA[\"Assertions (SVA)\"]\n  VER --> UVM[\"UVM library\"]\n```\n\n### Explanation\n- 在設計端，`always_comb`/`always_ff` 讓工具檢查意圖（例如推出 latch 會 warning）；`interface` 減少大量 port 連線錯誤。\n- 在驗證端，constrained random + functional coverage 實現 coverage-driven verification，取代手寫 directed test。\n\n### Corner cases & pitfalls\n- 合成工具只支援可合成子集（class、rand、dynamic array 不可合成）。\n\n### Follow-ups\n- **logic 可以完全取代 wire 嗎？** 不行，多重驅動（multi-driven / tri-state）仍需 wire。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK",
+    "PHISON"
+   ]
+  },
+  {
+   "title": "Cache 如何加速 CPU？",
+   "solution": "**Key idea:** 利用 **locality**（時間區域性、空間區域性），把常用資料放在靠近 CPU 的小而快的 SRAM，平均存取時間 **AMAT = hit time + miss rate × miss penalty** 大幅下降。\n\nWorked example：\n\n| 設定 | AMAT |\n| --- | --- |\n| 無 cache，DRAM 100 cycles | 100 cycles |\n| L1：hit 1 cycle、miss rate 5%、penalty 100 | 1 + 0.05 × 100 = **6 cycles** |\n| 加 L2：L2 hit 10 cycles、L2 local miss 20% | 1 + 0.05 × (10 + 0.2 × 100) = **2.5 cycles** |\n\n```mermaid\nflowchart LR\n  CPU[\"CPU core\"] --> L1[\"L1 I$ / D$ (~1-4 cycles)\"]\n  L1 -->|miss| L2[\"L2 (~10 cycles)\"]\n  L2 -->|miss| L3[\"L3 shared (~30-40 cycles)\"]\n  L3 -->|miss| DRAM[\"DRAM (~100+ cycles)\"]\n```\n\n### Explanation\n- 時間區域性：剛用過的資料很快會再用（loop 變數）→ 保留在 cache。\n- 空間區域性：用到某位址，附近位址也會用到（陣列）→ 一次抓一整條 cache line（例如 64 B）。\n- 結構：address = tag | index | offset；set-associative 降低 conflict miss；replacement（LRU）、write-back/write-through 策略。\n- Miss 類型 3C：compulsory、capacity、conflict（多核再加 coherence miss）。\n\n### Corner cases & pitfalls\n- Cache 越大 hit time 越長，所以採多層階層，而非一個超大 cache。\n- 多核需 coherence protocol（MESI/MOESI）。\n\n### Follow-ups\n- **如何降低 miss penalty？** 多層 cache、critical word first、non-blocking cache、prefetch。",
+   "category": "Computer Architecture",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "MTK"
+   ]
+  },
+  {
+   "title": "什麼是 wire load model？為什麼合成時需要它",
+   "solution": "**Key idea:** 合成時還沒有 placement/routing，不知道每條 net 實際長度（undefined interconnect）。Wire load model 用 **fanout 數 → 估計 wire 長度 / R / C** 的統計表，讓合成能估算 net delay。\n\n```text\nwire_load (\"10K\") {\n  resistance  : 0.0002 ;\n  capacitance : 0.0003 ;\n  area        : 0.5 ;\n  slope       : 15.0 ;\n  fanout_length (1, 20.0) ;\n  fanout_length (2, 35.0) ;\n  fanout_length (3, 50.0) ;\n  fanout_length (4, 65.0) ;\n}\n```\n\n| 方法 | 精準度 | 說明 |\n| --- | --- | --- |\n| Wire load model | 低 | 依 design 面積選表（10K、50K…），先進製程誤差很大 |\n| Zero wire load | 最低 | 只看 cell delay |\n| Topographical / physical-aware 合成（DC-T / DC-NXT、Genus iSpatial） | 高 | 用 LEF + TLU+ 做粗略 placement 估算 RC |\n| Post-layout SPEF | 最準 | 實際萃取 |\n\n```mermaid\nflowchart LR\n  FO[\"net fanout\"] --> WLM[\"wire load table\"]\n  WLM --> LEN[\"估計長度\"]\n  LEN --> RC[\"R, C\"]\n  RC --> DLY[\"net delay\"]\n```\n\n### Explanation\n- WLM mode：`top`（整個設計用 top 的表）、`enclosed`（用包住該 net 的 block 的表）、`segmented`。\n- 先進製程 wire delay 佔比高，WLM 嚴重失準，業界多改用 physical-aware 合成。\n\n### Corner cases & pitfalls\n- 選太小的表 → 合成時 timing 看似很好，APR 後大量 violation；太大 → 過度 buffer。\n\n### Follow-ups\n- **TLU+ 是什麼？** 由 ITF 產生的 RC 查表，描述每層金屬的電阻與電容，給 physical-aware 工具使用。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "APR（Place & Route）flow 是什麼",
+   "answer": "data prepare -> floorplan -> powerplan -> placement -> cts & opt -> routing & opt -> DRC & LVS -> sign off",
+   "solution": "**Key idea:** Netlist → **data prepare → floorplan → power plan → placement → CTS → routing → post-route optimization → sign-off（STA、DRC/LVS、IR/EM）→ GDS**。每一步後都要做 timing 優化與檢查。\n\n```mermaid\nflowchart TD\n  D[\"Data prepare: netlist, SDC, LEF, lib, tech\"] --> F[\"Floorplan: die/core size, IO, macro placement\"]\n  F --> P[\"Power plan: ring, stripes, follow pins\"]\n  P --> PL[\"Placement + pre-CTS opt (setup)\"]\n  PL --> C[\"CTS + post-CTS opt (setup + hold)\"]\n  C --> R[\"Routing + post-route opt (SI)\"]\n  R --> FILL[\"Filler / metal fill\"]\n  FILL --> SO[\"Sign-off: STA (PT), DRC/LVS (Calibre), IR/EM\"]\n  SO --> GDS[\"Stream out GDSII\"]\n```\n\n| 階段 | 重點 | 常見問題 |\n| --- | --- | --- |\n| Floorplan | core utilization（約 60~75%）、macro 擺放、IO | congestion、macro channel |\n| Power plan | ring / stripe 寬度與密度 | IR drop、EM |\n| Placement | 標準元件擺放、timing-driven | congestion、setup |\n| CTS | clock tree 平衡 skew / latency | skew、transition |\n| Routing | global → track → detail route | DRC、crosstalk |\n| Sign-off | 多 corner STA、物理驗證 | ECO 迭代 |\n\n### Explanation\n- Pre-CTS 只修 setup（clock ideal）；post-CTS 用 propagated clock，開始修 hold。\n- Routing 後加入 SI（crosstalk）分析，再做 post-route opt。\n- 不收斂時用 ECO（engineering change order）局部修改。\n\n### Corner cases & pitfalls\n- Floorplan 是最關鍵的一步，macro 擺錯後面怎麼優化都救不回來。\n\n### Follow-ups\n- **APR 後如何確認功能沒變？** LEC（netlist vs APR netlist）+ post-sim。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "Power ring / power plan 的作用是什麼",
+   "answer": "讓 VDD/GND 均勻分佈、減少 IR drop、支援大電流；IR drop 過大可加寬 power ring、改善 power mesh 密度。",
+   "solution": "**Key idea:** Power ring 圍繞 core（或 macro）提供低阻抗的 VDD/VSS 主幹；stripes（power mesh）把電源均勻分佈到晶片內部；follow pins（standard cell rails）把電送到每個 cell。目的是**降低 IR drop、避免 EM、支援大電流**。\n\n```mermaid\nflowchart LR\n  PAD[\"Power pads (VDD/VSS)\"] --> RING[\"Core ring (寬金屬，高層)\"]\n  RING --> STRIPE[\"Stripes / mesh (垂直 + 水平)\"]\n  STRIPE --> RAIL[\"Follow pins (M1 rails)\"]\n  RAIL --> CELL[\"Standard cells\"]\n  RING --> MRING[\"Macro ring\"]\n  MRING --> MACRO[\"SRAM / IP\"]\n```\n\n| 元素 | 作用 | 設計考量 |\n| --- | --- | --- |\n| Core ring | 電源主幹，連 pad | 寬度依總電流與 EM 限制 |\n| Stripes | 縮短電源到 cell 的距離 | 間距、寬度、層別；太密吃 routing 資源 |\n| Follow pins | cell row 的 VDD/VSS rail | 低層金屬 |\n| Via array | 層間連接 | 足夠數量降低電阻與 EM |\n\n### Explanation\n- 簡化估算：IR drop = I × R，ring 越寬、stripe 越密，R 越小。\n- 常見問題：IR drop 過大 → 原因可能是 ring 寬度不足、stripe 太稀疏、pad 太少；解法是加寬 ring、提高 mesh 密度、增加 power pad、加 decap。\n\n### Corner cases & pitfalls\n- Power mesh 佔用 routing track，太密造成 signal congestion，需在 IR 與 routability 之間取捨。\n\n### Follow-ups\n- **flip-chip 與 wire-bond 的差異？** flip-chip 的 bump 分佈在整個晶片面上，IR drop 比周邊 pad 小很多。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "CTS（Clock Tree Synthesis）的作用與流程？如何降低 clock skew",
+   "solution": "**Key idea:** CTS 在 placement 之後、routing 之前，用 clock buffer/inverter 建立 clock 分佈網路，目標是 **最小化 skew、控制 insertion delay（latency）、滿足 transition / cap 限制**，並兼顧功耗與面積。\n\n```mermaid\nflowchart TD\n  ROOT[\"clock source / PLL\"] --> B1[\"CTS buffer\"]\n  B1 --> B2[\"buffer L\"]\n  B1 --> B3[\"buffer R\"]\n  B2 --> F1[\"FF group 1\"]\n  B2 --> F2[\"FF group 2\"]\n  B3 --> F3[\"FF group 3\"]\n  B3 --> ICG[\"ICG\"] --> F4[\"gated FFs\"]\n```\n\n| 指標 | 意義 | 目標 |\n| --- | --- | --- |\n| Skew | 不同 sink 的 clock 到達時間差 | 越小越好（或 useful skew） |\n| Insertion delay (latency) | source → sink 延遲 | 小，降低 OCV 影響 |\n| Transition | clock 邊緣斜率 | 滿足 max transition |\n| Power | clock tree 佔動態功耗 30%+ | 減少 buffer 數量 |\n\n### Explanation\n- 流程：設定 CTS spec（target skew、max transition、buffer/inverter list、NDR）→ 建 tree（clustering、buffering、balancing）→ post-CTS opt（修 hold、setup）。\n- 降低 skew 的方法：H-tree / clock mesh 結構、平衡 buffer 層數、clock net 用 NDR（double width/spacing）並 shielding、clock cells 放在一起避免 OCV、balance 不同 ICG 分支。\n- CTS 會增加 buffer/inverter，可能造成 congestion、crosstalk。\n\n### Corner cases & pitfalls\n- 同步介面跨 block 時要 balance 多個 clock tree（clock group balancing）。\n- Pre-CTS timing 用 ideal clock，post-CTS 必須切換到 propagated clock，hold 才有意義。\n\n### Follow-ups\n- **Useful skew？** 刻意讓 critical path 的 capture clock 晚到以借時間。\n- **CCOpt？** Cadence 的 concurrent clock & data optimization，CTS 與 datapath 優化同時進行。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "PHISON",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "什麼是 IR drop？如何改善",
+   "solution": "**Key idea:** 電流流經電源網路的電阻造成電壓下降：cell 實際拿到的電壓 = VDD − I·R（加上 VSS 端的 ground bounce）。電壓變低 → cell 變慢 → timing fail，嚴重時功能錯誤。\n\nWorked example：一條 stripe 電阻 0.05 Ω，流過 1 A → 壓降 50 mV；VDD 0.8 V 時約 6%，cell delay 可能增加 10% 以上。\n\n| 類型 | 原因 | 分析方式 |\n| --- | --- | --- |\n| Static IR drop | 平均電流 × 電阻 | 用平均功耗（vectorless） |\n| Dynamic IR drop | 瞬間大量 cell 同時切換（clock edge） | 用 VCD/波形或 vectorless 動態分析 |\n\n```mermaid\nflowchart LR\n  PAD[\"VDD pad 0.80V\"] --> R1[\"ring R\"] --> R2[\"stripe R\"] --> R3[\"rail R\"] --> CELL[\"cell 0.74V\"]\n  CELL --> G[\"VSS 也有 bounce\"]\n```\n\n| 改善方法 | 原理 |\n| --- | --- |\n| 加寬 ring / stripe、增加 mesh 密度 | 降低 R |\n| 增加 power pad / bump | 縮短電流路徑 |\n| 加 decap cell | 提供局部瞬間電流（dynamic） |\n| 分散高功耗 cell、降低同時切換 | 降低局部 I |\n| 增加 via | 降低層間電阻 |\n\n### Corner cases & pitfalls\n- IR drop 會讓 setup 變差；若 launch 與 capture 的壓降不同，也可能影響 hold。\n- Sign-off 時 STA 應考慮 IR-aware timing（Voltus / RedHawk 結果回灌）。\n\n### Follow-ups\n- **IR drop 與 EM 的關係？** 都與電流密度有關，加寬金屬通常可同時改善。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "什麼是 crosstalk？對 timing 有什麼影響、怎麼解決",
+   "solution": "**Key idea:** 相鄰導線間的 **coupling capacitance** 讓 aggressor 的切換影響 victim：(1) **crosstalk delay**：反向切換使 victim 變慢（害 setup）、同向切換使 victim 變快（害 hold）；(2) **crosstalk glitch / noise**：victim 靜止時被耦合出 glitch，可能被 FF 錯誤取樣。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"aggressor\",            \"wave\": \"0.1...0...\" },\n  { \"name\": \"victim (quiet)\",       \"wave\": \"0.10......\" },\n  { \"name\": \"victim (同向, 變快)\",  \"wave\": \"0.1.......\" },\n  { \"name\": \"victim (反向, 變慢)\",  \"wave\": \"1..0......\" }\n],\n  \"head\": { \"text\": \"aggressor 上升 → 靜止 victim 出現 glitch；反向切換的 victim 被拖慢\" } }\n```\n\n| 解法 | 說明 |\n| --- | --- |\n| 增加 spacing / NDR | 降低 coupling C |\n| Shielding（兩側 VDD/VSS） | clock net 常用 |\n| Upsize victim driver | victim 更有力抵抗 |\n| Downsize aggressor / 降低 slew | 減少耦合注入 |\n| 換層、縮短平行走線長度 | 減少耦合長度 |\n| 插 buffer 切斷長線 | |\n\n### Explanation\n- STA 用 PrimeTime SI 計算 delta delay 與 noise bump，需 SPEF 中有 coupling cap。\n- 先進製程導線更高更窄、間距小，coupling 比例提高。\n\n### Corner cases & pitfalls\n- Timing window 分析：aggressor 與 victim 若不可能同時切換（不同時間窗），不需悲觀計算。\n\n### Follow-ups\n- **clock net 為什麼特別要防 crosstalk？** clock 上的延遲變化直接變成 skew/jitter，影響所有 path。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "什麼是 electromigration（EM）？如何避免",
+   "solution": "**Key idea:** 高電流密度下，電子持續撞擊金屬原子使其遷移，長時間形成 **void（斷路）** 或 **hillock（與鄰線短路）**，是長期可靠度問題。電流密度 J = I / (W·t)，超過 foundry 規定上限即違規。\n\n| 類型 | 發生位置 | 特性 |\n| --- | --- | --- |\n| DC EM（power EM） | power/ground 網路 | 單向電流，最嚴重 |\n| AC / RMS EM（signal EM） | 高頻、高 fanout signal、clock net | 雙向電流，自修復部分，但有 Joule heating |\n\n```mermaid\nflowchart LR\n  I[\"大電流 + 細金屬\"] --> J[\"電流密度 J 過高\"]\n  J --> MIG[\"金屬原子遷移\"]\n  MIG --> VOID[\"void → open\"]\n  MIG --> HILL[\"hillock → short\"]\n  T[\"高溫\"] --> MIG\n```\n\n| 解法 | |\n| --- | --- |\n| 加寬 wire / NDR | 降低 J |\n| 增加 via 數量（via array） | via 是 EM 弱點 |\n| 降低 driver strength、減少 fanout | 降低電流 |\n| 分散 power、增加 stripe | 分流 |\n| 換高層（較厚）金屬 | 截面積大 |\n\n### Explanation\n- Black's equation：MTTF ∝ J^(−n) · e^(Ea/kT)，電流密度與溫度越高壽命越短。\n- 分析工具：Voltus / RedHawk（power EM）、Innovus/PT 的 signal EM 檢查。\n\n### Corner cases & pitfalls\n- EM 在晶片剛出廠時不會失效，而是在使用多年後才發生，所以必須在 sign-off 阻止。\n\n### Follow-ups\n- **EM 與 IR drop 的差別？** IR drop 是即時的電壓問題（timing），EM 是長期可靠度問題（open/short）。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "什麼是 antenna effect？如何修正",
+   "solution": "**Key idea:** 製程中 plasma etching 會在金屬上累積電荷；若一段長金屬只連到 transistor **gate**（還沒連到能放電的 diffusion），電荷會經由薄 gate oxide 放電而損傷甚至擊穿。以 **antenna ratio = 金屬面積 / gate 面積** 判斷。\n\n```mermaid\nflowchart LR\n  DRV[\"driver (diffusion)\"] -->|\"M1\"| JUMP[\"via up to M5 (jumper)\"]\n  JUMP -->|\"M5\"| DOWN[\"via down\"]\n  DOWN -->|\"short M1\"| GATE[\"receiver gate\"]\n  DIODE[\"antenna diode\"] --> GATE\n```\n\n| 修正方法 | 原理 |\n| --- | --- |\n| Metal jumper（跳到高層） | 製造低層時長金屬被切斷，連到 gate 的金屬變短 |\n| Antenna diode | 提供電荷放電路徑到 substrate |\n| 插 buffer | 把長線切成兩段 |\n| 縮短 net / 調整 placement | 降低 ratio |\n\n### Explanation\n- 製程由下往上逐層做；做到第 k 層時，只有 ≤ k 層的金屬存在。用高層金屬跳線，可確保 gate 在低層製造時只連到短金屬。\n- Antenna 規則由 foundry 定義，DRC（Calibre）與 APR 工具會檢查並自動修正。\n\n### Corner cases & pitfalls\n- 加 diode 會增加 net 電容（略微變慢）與漏電。\n- Cell LEF 中有 antenna 資訊（`ANTENNAGATEAREA`、`ANTENNADIFFAREA`）供 APR 計算。\n\n### Follow-ups\n- **為什麼連到 diffusion 就沒事？** source/drain diffusion 可以把電荷導到基板。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "DRC 與 LVS 是什麼？如何做 LVS 驗證",
+   "answer": "LVS 確認 layout 與 netlist 是否一致：將 APR 後的 netlist.v 和 GDS 轉為 .spi，比對兩者是否相同。",
+   "solution": "**Key idea:** **DRC**（Design Rule Check）檢查 layout 幾何是否符合 foundry 製造規則；**LVS**（Layout vs Schematic）檢查 layout 萃取出的電路與 netlist **是否一致**（元件、連接、尺寸）。\n\n```mermaid\nflowchart LR\n  GDS[\"GDSII layout\"] --> EXT[\"device + connectivity extraction\"]\n  EXT --> LNET[\"layout netlist (.spi)\"]\n  NET[\"APR netlist (.v)\"] --> V2S[\"v2lvs 轉 spice\"]\n  V2S --> SNET[\"schematic netlist (.spi)\"]\n  LNET --> CMP[\"LVS compare (Calibre)\"]\n  SNET --> CMP\n  CMP --> RPT[\"LVS report: MATCH / mismatch\"]\n  GDS --> DRC[\"DRC: width, spacing, enclosure, density, antenna\"]\n```\n\n| 項目 | DRC | LVS |\n| --- | --- | --- |\n| 檢查什麼 | 幾何規則 | 電路連接一致性 |\n| 典型錯誤 | spacing 不足、min width、via enclosure、density | short、open、元件不符、pin 名稱錯 |\n| 輸入 | GDS + rule deck | GDS + netlist + rule deck |\n| 工具 | Calibre DRC、ICV | Calibre LVS、ICV |\n\n### Explanation\n- LVS 流程：把 APR 輸出的 netlist（.v）用 v2lvs 轉成 spice，並把 GDS 萃取成 spice netlist，比對兩者的元件與節點對應。\n- 常見 LVS 問題：power/ground short、標籤（label/text）錯誤、漏接 well tap、filler/decap 處理、IP 的 black-box 對應。\n- ERC（electrical rule check）通常一起做：floating gate、well 未接等。\n\n### Corner cases & pitfalls\n- 標準元件在 LVS 時通常以 cell 的 spice（CDL）展開，需提供正確的 CDL。\n\n### Follow-ups\n- **DRC clean、LVS clean 就能 tape-out 嗎？** 還需 timing、IR/EM、antenna、density、DFM 等 sign-off。",
+   "category": "Physical Design & STA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "數位IC前段考題"
+   ]
+  },
+  {
+   "title": "如何確定 APR 後的電路功能和 RTL 相同？（LEC / formal equivalence）",
+   "solution": "**Key idea:** 用 **Logic Equivalence Check（LEC）**：Formality / Conformal 以 formal 方法比對兩個設計的每個 compare point（FF、output）的邏輯函數是否相同，不需要 pattern，覆蓋 100%。\n\n```mermaid\nflowchart LR\n  RTL[\"RTL\"] -->|\"LEC 1\"| SYN[\"synthesized netlist\"]\n  SYN -->|\"LEC 2\"| DFT[\"DFT netlist (scan)\"]\n  DFT -->|\"LEC 3\"| APR[\"APR netlist (CTS buffers, sizing)\"]\n  APR -->|\"LEC 4\"| ECO[\"ECO netlist\"]\n```\n\n| 步驟 | 說明 |\n| --- | --- |\n| Read reference / implementation | RTL（或前一版 netlist）與新 netlist |\n| Setup | 告知 scan 關閉（`SE = 0`）、clock gating、常數、黑盒 |\n| Match | 對應 compare points（依名稱、結構、signature） |\n| Verify | 對每個 compare point 做等價證明 |\n| Debug | non-equivalent / aborted 點分析 |\n\n### Explanation\n- APR 會改變 netlist（buffer、upsizing、CTS、scan reorder、hold fix），LEC 確保這些改動沒有改變功能。\n- 為什麼不用 simulation？模擬只能覆蓋部分 pattern；LEC 是數學證明。\n- 時序部分由 STA（+SDF post-sim）保證，LEC 只管功能。\n\n### Corner cases & pitfalls\n- Sequential 優化（retiming、FSM re-encoding、register merging）會讓 compare point 無法對應，需要額外設定或 SVF guidance 檔案。\n- 未約束 scan mode 會導致大量 false non-equivalence。\n\n### Follow-ups\n- **LEC 會 abort 的原因？** 大型乘法器等複雜數學結構，需要 partition 或提示。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "APR 常用的指令有哪些？（以 Innovus 為例）",
+   "solution": "**Key idea:** 依照 APR flow 順序記住主要指令：init → floorplan → power → place → CTS → route → opt → verify → output。\n\n```tcl\n# data prepare\nset init_verilog   top_syn.v\nset init_lef_file  {tech.lef cells.lef sram.lef}\nset init_mmmc_file mmmc.tcl          ;# libs, RC corners, SDC per mode/corner\ninit_design\n\n# floorplan\nfloorPlan -site core -r 1.0 0.7 10 10 10 10   ;# aspect ratio, utilization, margins\nplaceInstance u_sram 100 200 R0\n\n# power plan\naddRing   -nets {VDD VSS} -layer {top M9 bottom M9 left M8 right M8} -width 5 -spacing 2\naddStripe -nets {VDD VSS} -layer M8 -direction vertical -width 2 -set_to_set_distance 50\nsroute    -connect {corePin blockPin padPin}\n\n# place + CTS + route\nplaceDesign\noptDesign -preCTS\nccopt_design\noptDesign -postCTS -hold\nrouteDesign\noptDesign -postRoute -setup -hold\n\n# verify + output\naddFiller -cell {FILL1 FILL2 FILL4}\nverify_drc\nverifyConnectivity\nextractRC\nrcOut   -spef top.spef\nwrite_sdf top_apr.sdf\nsaveNetlist top_apr.v\nstreamOut top.gds -mapFile gds.map\n```\n\n| 階段 | 主要指令 |\n| --- | --- |\n| 初始化 | `init_design` |\n| Floorplan | `floorPlan`、`placeInstance` |\n| Power | `addRing`、`addStripe`、`sroute` |\n| Placement | `placeDesign`、`optDesign -preCTS` |\n| CTS | `ccopt_design`、`optDesign -postCTS` |\n| Routing | `routeDesign`、`optDesign -postRoute` |\n| Check | `timeDesign`、`verify_drc`、`verifyConnectivity` |\n| Output | `rcOut`、`write_sdf`、`saveNetlist`、`streamOut` |\n\n### Corner cases & pitfalls\n- 指令名稱依版本略有不同（新版 Innovus 有 `place_opt_design`、`route_opt_design` 等 common UI 指令）。\n\n### Follow-ups\n- **timeDesign 用途？** 各階段快速 timing 報告：`timeDesign -preCTS`、`-postCTS -hold`、`-postRoute`。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "coding",
+   "language": "tcl",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "先進製程在 back-end 會遇到哪些問題",
+   "solution": "**Key idea:** 製程縮小後，**wire 電阻與 via 電阻快速上升**、變異增加、電壓降低、規則變複雜：timing 由 wire 主導、IR/EM 更嚴重、需要 multi-patterning 與更多 corner。\n\n| 問題 | 原因 | 影響 / 對策 |\n| --- | --- | --- |\n| Wire / via 電阻大 | 金屬截面積小、barrier 比例高 | wire delay 主導 → 用高層金屬、via pillar、buffer |\n| IR drop / EM | 電壓低、電流密度高 | 更密 power grid、backside power delivery |\n| Variation | 隨機變異（RDF、LER） | POCV / LVF 分析，取代單一 OCV derate |\n| Multi-patterning (DPT/SAQP) | 小於光刻解析度 | coloring rule、金屬方向限制 |\n| Pin access / congestion | cell 變小，pin 密集 | cell padding、placement 限制 |\n| FinFET 量化 | 寬度以 fin 數為單位 | sizing 離散 |\n| Temperature inversion | 低 Vdd 下低溫更慢 | 更多 corner |\n| Self-heating | FinFET 散熱差 | EM / 可靠度分析 |\n| Corner 爆炸 | PVT × RC × mode | MCMM，執行時間長 |\n\n```mermaid\nflowchart LR\n  SHRINK[\"製程縮小\"] --> R[\"R ↑\"]\n  SHRINK --> V[\"Vdd ↓\"]\n  SHRINK --> VAR[\"variation ↑\"]\n  R --> T[\"wire delay 主導\"]\n  R --> IR[\"IR drop / EM\"]\n  V --> IR\n  VAR --> OCV[\"POCV / LVF 簽核\"]\n```\n\n### Explanation\n- 面試時挑 3~4 個講深入（例如 wire R 上升、IR/EM、variation、DPT），比列一長串更好。\n\n### Corner cases & pitfalls\n- 前段設計者也需要知道：wire delay 主導代表合成時的 timing 估計更不準，要 physical-aware synthesis。\n\n### Follow-ups\n- **什麼是 LVF？** Liberty Variation Format，library 中描述每個 timing arc 的 sigma，用於 POCV。",
+   "category": "Physical Design & STA",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "LEF 檔和 DB（.lib）檔分別包含什麼內容",
+   "solution": "**Key idea:** **LEF** 是**物理**抽象（形狀、尺寸、pin 位置、金屬層規則），給 APR 放置與繞線；**.lib/.db** 是**電氣/時序**特性（function、delay、power、cap），給合成與 STA。\n\n| 項目 | LEF | .lib / .db |\n| --- | --- | --- |\n| 類型 | Physical abstract | Timing / power / function |\n| Technology 部分 | layers、pitch、width、spacing、via 定義、site | operating condition、units、wire load |\n| Cell 部分 | SIZE、SYMMETRY、PIN 形狀與 layer、OBS、antenna area | pin 方向與 cap、function、timing arcs（NLDM table）、setup/hold、power、area |\n| 使用者 | Innovus / ICC2 | DC、PrimeTime、Innovus（timing） |\n| 格式 | ASCII | .lib ASCII → .db 為 Synopsys 編譯後二進位 |\n\n```text\nMACRO NAND2X1\n  CLASS CORE ;\n  SIZE 0.80 BY 1.71 ;\n  SITE core ;\n  PIN A\n    DIRECTION INPUT ;\n    ANTENNAGATEAREA 0.012 ;\n    PORT LAYER M1 ; RECT 0.10 0.60 0.20 0.90 ; END\n  END A\n  PIN Y\n    DIRECTION OUTPUT ;\n    PORT LAYER M1 ; RECT 0.55 0.30 0.65 1.40 ; END\n  END Y\n  OBS LAYER M1 ; RECT 0.30 0.20 0.45 1.50 ; END\nEND NAND2X1\n```\n\n```text\ncell (NAND2X1) {\n  area : 1.368 ;\n  pin (Y) {\n    direction : output ; function : \"!(A & B)\" ;\n    timing () { related_pin : \"A\" ;\n      cell_rise (delay_template_3x3) { index_1(\"0.01,0.1,0.4\"); index_2(\"0.001,0.01,0.05\"); values(...); } }\n  }\n  pin (A) { direction : input ; capacitance : 0.0021 ; }\n}\n```\n\n### Explanation\n- APR 需要 LEF 決定擺放與繞線，也需要 .lib 做 timing-driven 優化；GDS 才有完整的電晶體層 layout（LEF 只是外框與 pin）。\n\n### Corner cases & pitfalls\n- LEF 與 .lib 的 pin 名稱必須一致，否則 APR 會報錯。\n\n### Follow-ups\n- **還有哪些檔案？** tech file / TLU+ / QRC tech（RC 萃取）、CDL（LVS）、GDS（最終 layout）。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "為什麼需要 DFT（Design for Testability）",
+   "solution": "**Key idea:** 製造過程會產生缺陷（short、open、變異），晶片出廠前必須測試。功能 pattern 很難控制與觀察內部節點；DFT 加入 **scan、BIST、boundary scan** 等結構，提高 **controllability 與 observability**，用 ATPG 自動產生高覆蓋率 pattern，降低測試成本與 DPPM。\n\n```mermaid\nflowchart LR\n  FAB[\"製造\"] --> DEF[\"defects: short / open / delay\"]\n  DEF --> ATE[\"ATE 測試 (scan / BIST)\"]\n  ATE -->|pass| SHIP[\"出貨\"]\n  ATE -->|fail| BIN[\"剔除 / 良率分析\"]\n```\n\n| 沒有 DFT | 有 DFT |\n| --- | --- |\n| 只能用 functional pattern，覆蓋率低 | ATPG 可達 >99% stuck-at coverage |\n| 內部 FF 難以設定與讀出 | scan chain 可直接 shift in/out |\n| 測試時間長、pattern 難寫 | 自動化、pattern 數少 |\n| 記憶體難測 | MBIST 內建 |\n| 板級連線難測 | boundary scan (JTAG) |\n\n### Explanation\n- 越晚發現缺陷成本越高（rule of ten：晶片 → 板 → 系統 → 客戶，每一層成本 ×10）。\n- DFT 代價：面積（scan mux、BIST）、少量 timing 影響、額外 pin；換取良率分析與品質。\n\n### Corner cases & pitfalls\n- DFT 不是驗證設計正確性（那是 DV），而是檢查**製造**出來的晶片是否與設計一致。\n\n### Follow-ups\n- **DV 與 DFT 的差別？** DV：設計是否符合 spec；DFT/test：晶片是否製造正確。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "畫出 scan flip-flop（SDFF），並說明 scan chain 如何運作",
+   "solution": "**Key idea:** SDFF = 一般 DFF 前加一個 **2:1 MUX**：`SE = 0` 選功能輸入 D（normal / capture），`SE = 1` 選 `SI`（shift）。所有 SDFF 的 Q 串接到下一顆的 SI 形成 scan chain，測試時：**shift in → capture → shift out**。\n\n```mermaid\nflowchart LR\n  D[\"D (functional)\"] --> MUX[\"2:1 MUX\"]\n  SI[\"SI (scan in)\"] --> MUX\n  SE[\"SE\"] --> MUX\n  MUX --> FF[\"DFF\"]\n  CLK[\"clk\"] --> FF\n  FF --> Q[\"Q / next SI\"]\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",      \"wave\": \"p........\" },\n  { \"name\": \"SE\",       \"wave\": \"1...0.1..\" },\n  { \"name\": \"scan_in\",  \"wave\": \"====x.===\", \"data\": [\"b3\",\"b2\",\"b1\",\"b0\",\"n3\",\"n2\",\"n1\"] },\n  { \"name\": \"phase\",    \"wave\": \"=...==...\", \"data\": [\"shift in\",\"capture\",\"shift out / next in\"] }\n],\n  \"head\": { \"text\": \"SE=1 shift N cycles；SE=0 一個 capture cycle；再 shift out 同時 shift in 下一組\" } }\n```\n\n| 模式 | SE | 動作 |\n| --- | --- | --- |\n| Shift | 1 | chain 變成 shift register，載入 pattern / 移出結果 |\n| Capture | 0 | 組合邏輯的反應被 FF 抓住 |\n| Normal | 0 | 功能模式 |\n\n### Explanation\n- Scan 把 sequential 測試問題變成 combinational：每個 FF 都可直接控制（shift in）與觀察（shift out）。\n- 測試時間 ∝ chain 長度 × pattern 數 → 用多條 chain 平行與 scan compression（EDT/DFTMAX）。\n\n### Corner cases & pitfalls\n- 跨 clock domain 串接需要 lockup latch；shift 頻率通常較低以避免 IR drop。\n- Scan mux 增加 D 端延遲（setup 稍差）。\n\n### Follow-ups\n- **Scan 的 hold 問題？** Q 直接接 SI，path 很短，skew 大時容易 hold violation。",
+   "category": "Digital Design",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "Test coverage 和 fault coverage 的差異",
+   "solution": "**Key idea:** **Fault coverage** = 偵測到的 fault / **全部** fault；**Test coverage** = 偵測到的 fault / **可測試**的 fault（扣除 untestable 的 fault，例如 tied、redundant、blocked）。所以 test coverage ≥ fault coverage，更能反映 ATPG 的品質。\n\nWorked example（stuck-at）：\n\n| 類別 | 數量 |\n| --- | --- |\n| Total faults | 100,000 |\n| Detected (DT) | 97,000 |\n| Untestable (UT: tied / redundant / unused) | 2,000 |\n| ATPG untestable / aborted (AU) | 1,000 |\n| **Fault coverage** = 97,000 / 100,000 | **97.0%** |\n| **Test coverage** = 97,000 / (100,000 − 2,000) | **98.98%** |\n\n```mermaid\nflowchart LR\n  ALL[\"all faults\"] --> UT[\"untestable (structural)\"]\n  ALL --> TST[\"testable\"]\n  TST --> DT[\"detected\"]\n  TST --> ND[\"not detected / AU\"]\n```\n\n### Explanation\n- 業界通常以 test coverage 作為 sign-off 指標（例如 stuck-at ≥ 98~99%、transition ≥ 90%）。\n- Possibly detected（PT，例如輸出 X）在某些工具中算半個。\n- 這與 DV 的 **functional coverage / code coverage** 完全不同：那是驗證 spec 情境是否被測試到。\n\n### Corner cases & pitfalls\n- 提升 coverage：加 test point（control/observe point）、處理 X-source、讓 RAM 外圍可測（RAM bypass / shadow logic）。\n\n### Follow-ups\n- **為什麼會有 untestable fault？** 恆為常數的 net（tie-off）、redundant logic、只在 test mode 外存在的路徑。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC",
+    "NTK"
+   ]
+  },
+  {
+   "title": "什麼是 scan reorder？為什麼要做",
+   "solution": "**Key idea:** 合成插入 scan 時還不知道 FF 的實體位置，chain 的串接順序通常是依名稱或任意的；placement 後依 **實際位置重新排列 chain 順序**，大幅減少 scan 繞線長度、congestion 與面積。\n\n```mermaid\nflowchart LR\n  subgraph BEFORE [\"Reorder 前 (依名稱)\"]\n    A1[\"FF1 (左上)\"] --> A2[\"FF2 (右下)\"] --> A3[\"FF3 (左下)\"] --> A4[\"FF4 (右上)\"]\n  end\n  subgraph AFTER [\"Reorder 後 (依位置)\"]\n    B1[\"FF1 (左上)\"] --> B4[\"FF4 (右上)\"] --> B2[\"FF2 (右下)\"] --> B3[\"FF3 (左下)\"]\n  end\n```\n\n| 項目 | Reorder 前 | Reorder 後 |\n| --- | --- | --- |\n| Scan wire 長度 | 長、交錯 | 短 |\n| Congestion | 高 | 低 |\n| Hold 風險 | 跨長距離 skew 大 | 鄰近 FF，但 path 短需注意 hold |\n\n### Explanation\n- APR 工具讀 **SCANDEF**（描述 chain 的起訖點、可重排的 segment、固定順序部分），在 placement 後與 CTS 後重排。\n- 限制：只能在同一 clock domain / 同一 edge 的 segment 內重排；lockup latch 與 chain 長度平衡要保持。\n- Reorder 後 chain 順序改變 → 必須重新做 ATPG（或用新的 SCANDEF 產生 pattern），並做 LEC（scan mode 關閉時功能不變）。\n\n### Corner cases & pitfalls\n- 可做 chain 之間的 swap（partition）以平衡長度，但不能讓 chain 跨越 clock domain。\n\n### Follow-ups\n- **scan chain 很短的 Q→SI 路徑有什麼問題？** hold violation，APR 需插 delay buffer。",
+   "category": "Physical Design & STA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 lockup latch？為什麼 scan chain 需要它",
+   "solution": "**Key idea:** Scan chain 跨越兩個 clock domain（或同 clock 但 skew 很大）時，Q→SI 路徑很短，若 **capture FF 的 clock 比 launch FF 晚到**，新資料會在 capture FF 取樣前就到 → **hold violation**。在兩段 chain 之間插入一個 **由 launch clock 驅動、clk low 時透明的 latch**，把資料延遲半個週期。\n\n```mermaid\nflowchart LR\n  FA[\"last SDFF of domain A (clkA)\"] --> LL[\"lockup latch (transparent when clkA low)\"]\n  LL --> FB[\"first SDFF of domain B (clkB)\"]\n  CA[\"clkA\"] --> FA\n  CA -->|\"inverted enable\"| LL\n  CB[\"clkB (late)\"] --> FB\n```\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clkA\",       \"wave\": \"hlhlhlhl\" },\n  { \"name\": \"clkB (late)\", \"wave\": \"lhlhlhlh\" },\n  { \"name\": \"FA.Q\",        \"wave\": \"=.=.=.=.\", \"data\": [\"a0\",\"a1\",\"a2\",\"a3\"] },\n  { \"name\": \"latch.Q\",     \"wave\": \"x=.=.=.=\", \"data\": [\"a0\",\"a1\",\"a2\",\"a3\"] }\n],\n  \"head\": { \"text\": \"latch 只在 clkA low 時更新 → FB 在 clkB 上升沿仍取到前一筆的資料\" } }\n```\n\n### Explanation\n- Latch 在 clkA high 時保持，資料最早在 clkA 下降沿才往前送，相當於給 hold 增加半個 clkA 週期的 margin。\n- 位置：chain 中 clock domain 切換處、或同 domain 但 clock tree 分支差異很大的地方；DFT 工具（DFT Compiler / Tessent）可自動插入。\n\n### Corner cases & pitfalls\n- 若 clkB 比 clkA **早**到，則問題是 setup 而非 hold，lockup latch 不需要（但 shift 頻率低，setup 通常足夠）。\n- 用 negative-edge FF 也能達到類似效果，但會讓 shift 少半個週期的 setup 時間。\n\n### Follow-ups\n- **為什麼不直接加 delay buffer？** skew 可能很大且隨 corner 變化，latch 提供固定半週期的 margin 更穩健。",
+   "category": "Digital Design",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 BIST？MBIST 與 LBIST 的差別",
+   "solution": "**Key idea:** BIST（Built-In Self-Test）把 pattern 產生器與結果比較器做進晶片，晶片可自己測自己，減少對昂貴 ATE 的依賴、可做 at-speed、上電與 in-field 測試。\n\n| 類型 | 測試對象 | Pattern 來源 | 結果判斷 |\n| --- | --- | --- | --- |\n| MBIST | SRAM / ROM | March algorithm 狀態機 | 讀回值與預期直接比較 |\n| LBIST | 隨機邏輯 | PRPG（LFSR）偽隨機 | MISR signature 比對 golden |\n\n```mermaid\nflowchart LR\n  CTRL[\"BIST controller\"] --> PG[\"pattern generator (March FSM / LFSR)\"]\n  PG --> DUT[\"memory / logic (CUT)\"]\n  DUT --> RA[\"response analyzer (comparator / MISR)\"]\n  RA --> RES[\"pass / fail, signature\"]\n```\n\nMarch C− 演算法（MBIST 最常見）：\n\n| 步驟 | 位址順序 | 動作 |\n| --- | --- | --- |\n| M0 | ⇕ | w0 |\n| M1 | ⇑ | r0, w1 |\n| M2 | ⇑ | r1, w0 |\n| M3 | ⇓ | r0, w1 |\n| M4 | ⇓ | r1, w0 |\n| M5 | ⇕ | r0 |\n\n### Explanation\n- March C− 為 10N 複雜度，可偵測 stuck-at、transition、address decoder、多數 coupling fault。\n- MBIST 常搭配 repair（redundant row/column + eFuse）提升良率。\n- LBIST 需要設計 X-free（X 會汙染 MISR），並加 test point 提升隨機 pattern 覆蓋率。\n\n### Corner cases & pitfalls\n- BIST 本身也要被測試，且增加面積；MBIST 需要處理 memory wrapper 的 timing。\n\n### Follow-ups\n- **為什麼 memory 不用 scan 測？** memory cell 不是 FF，無法串成 scan chain，用 MBIST 更有效。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 stuck-at fault？如何產生 pattern 偵測",
+   "solution": "**Key idea:** Stuck-at fault 模型假設某條 net 永遠卡在 0（SA0）或 1（SA1）。偵測步驟：**activate**（把該點驅動成相反值）→ **propagate**（讓差異傳到可觀察的輸出 / scan FF）。\n\n例：`Y = (A & B) | C`，偵測 AND 輸出 n1 的 **SA0**\n\n| 步驟 | 條件 |\n| --- | --- |\n| Activate | n1 正常值要是 1 → A = 1, B = 1 |\n| Propagate | OR 的另一輸入不能遮蔽 → C = 0 |\n| Pattern | A B C = 1 1 0 |\n| Good / faulty | Y = 1 / Y = 0 → 偵測到 |\n\n```mermaid\nflowchart LR\n  A[\"A=1\"] --> AND[\"AND\"]\n  B[\"B=1\"] --> AND\n  AND -->|\"n1: good 1 / faulty 0 (SA0)\"| OR[\"OR\"]\n  C[\"C=0\"] --> OR\n  OR --> Y[\"Y: 1 vs 0\"]\n```\n\n### Explanation\n- 每條 net 有 SA0 與 SA1 兩個 fault，N 條 net 共 2N 個 fault（fault collapsing 可去除等價 fault）。\n- 一個 pattern 可同時偵測多個 fault；ATPG 工具（TetraMAX、Tessent）自動產生並做 fault simulation。\n- Stuck-at 是靜態模型，偵測 short/open 類缺陷；時序缺陷要用 transition / path delay fault。\n\n### Corner cases & pitfalls\n- Redundant logic 中的 fault 無法偵測（untestable）。\n\n### Follow-ups\n- **bridging fault？** 兩條線短路，模型為 wired-AND / wired-OR / dominant。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 transition delay fault？LOC 與 LOS 的差別",
+   "solution": "**Key idea:** Transition delay fault 模型假設某節點 **slow-to-rise / slow-to-fall**：transition 太慢，無法在一個 functional clock 週期內傳到 capture FF。測試需兩個 pattern：V1 初始化、V2 產生 transition，並以 **at-speed** 的 launch → capture 間隔檢查。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\",  \"wave\": \"p.....|...\" , \"period\": 1 },\n  { \"name\": \"SE\",   \"wave\": \"1.....|0.1\" },\n  { \"name\": \"pulse\",\"wave\": \"0.....|110\" },\n  { \"name\": \"phase\",\"wave\": \"=.....|==.\", \"data\": [\"shift (slow)\",\"launch\",\"capture\"] }\n],\n  \"head\": { \"text\": \"LOC：SE 拉低後送兩個 at-speed pulse（launch、capture）\" } }\n```\n\n| 方法 | Launch 方式 | 優點 | 缺點 |\n| --- | --- | --- | --- |\n| LOC（launch-on-capture，broadside） | 第一個 functional capture 產生 transition | SE 不需 at-speed | pattern 數多、覆蓋率略低 |\n| LOS（launch-on-shift，skewed-load） | 最後一個 shift 產生 transition | 覆蓋率高、pattern 少 | SE 需在一個 at-speed 週期內切換（SE 要當 clock tree 一樣處理） |\n\n### Explanation\n- At-speed clock 通常由晶片內 PLL 透過 OCC（on-chip clock controller）產生，ATE 只送慢速 shift clock。\n- 偵測的是製程造成的延遲缺陷（resistive via、weak transistor）。\n\n### Corner cases & pitfalls\n- 不能檢查 false path / multicycle path，需要在 ATPG 中套用 SDC exceptions，否則會過殺（overkill）。\n- At-speed 測試的同時切換導致 IR drop，可能誤判 fail。\n\n### Follow-ups\n- **path delay fault？** 針對特定 critical path 的累積延遲，pattern 數多，通常只對少數關鍵 path 做。",
+   "category": "Verification Planning",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 boundary scan（JTAG）",
+   "solution": "**Key idea:** IEEE 1149.1 JTAG 在每個 I/O pin 加一個 **boundary scan cell（BSC）**，串成一條鏈，透過 TAP（TCK、TMS、TDI、TDO、TRST）控制，可以在**不需要探針**的情況下測試 PCB 上晶片之間的連線（open/short），也能讀取/設定 pin 值。\n\n```mermaid\nflowchart LR\n  TDI[\"TDI\"] --> BSC1[\"BSC (pin 1)\"] --> BSC2[\"BSC (pin 2)\"] --> BSC3[\"BSC (pin 3)\"] --> BSC4[\"BSC (pin 4)\"] --> TDO[\"TDO\"]\n  TAP[\"TAP controller (TCK, TMS)\"] --> IR[\"instruction register\"]\n  TAP --> BSC1\n  CORE[\"core logic\"] --- BSC2\n  CORE --- BSC3\n```\n\n| 指令 | 作用 |\n| --- | --- |\n| EXTEST | 由 BSC 驅動輸出 pin、擷取輸入 pin → 測板上連線 |\n| SAMPLE / PRELOAD | 在正常運作時取樣 pin 值 / 預載 BSC |\n| BYPASS | 1-bit bypass register，縮短鏈 |\n| IDCODE | 讀晶片 ID |\n| INTEST | 透過 BSC 測 core |\n\n### Explanation\n- TAP controller 是 16 狀態的 FSM，由 TMS 在 TCK 上升沿驅動（Test-Logic-Reset、Run-Test/Idle、Shift-DR、Update-DR 等）。\n- JTAG 也被廣泛用於 debug（CPU debug port）、燒錄 flash、存取內部 MBIST/IJTAG（1687）網路。\n\n### Corner cases & pitfalls\n- BSC 加在 I/O 與 core 之間，會增加少量 I/O 延遲。\n\n### Follow-ups\n- **TMS 連按 5 次 1 會怎樣？** 從任何狀態都會回到 Test-Logic-Reset。",
+   "category": "Protocols",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  },
+  {
+   "title": "什麼是 ATPG？如何產生測試 pattern",
+   "solution": "**Key idea:** ATPG（Automatic Test Pattern Generation）根據 netlist 與 fault model，自動找出能偵測每個 fault 的輸入 pattern：**fault activation → propagation → line justification**，再用 fault simulation 計算一個 pattern 能順便偵測哪些 fault，最後壓縮 pattern 數。\n\n```mermaid\nflowchart TD\n  NET[\"scan-inserted netlist + SPF / test protocol\"] --> FL[\"建立 fault list (SA / TDF)\"]\n  FL --> PICK[\"選一個未偵測 fault\"]\n  PICK --> GEN[\"D-algorithm / PODEM: activate + propagate + justify\"]\n  GEN --> FSIM[\"fault simulation：刪除被順便偵測的 fault\"]\n  FSIM --> MORE{\"還有 fault?\"}\n  MORE -->|yes| PICK\n  MORE -->|no| CMP[\"pattern compaction\"]\n  CMP --> OUT[\"STIL / WGL patterns + coverage report\"]\n```\n\n| 輸入 | 輸出 |\n| --- | --- |\n| Netlist（含 scan）、library model | Test patterns（STIL/WGL） |\n| Test protocol（scan chain、clock、SE） | Coverage report（test / fault coverage） |\n| Constraints（test mode pin、SDC exceptions） | Untestable fault 清單 |\n\n### Explanation\n- 演算法：D-algorithm（用 D / D̄ 表示 good/faulty 差異）、PODEM（只在 primary input 做決策，搜尋更快）、FAN。\n- Scan 把問題變成 combinational ATPG；compression（EDT、DFTMAX）用 decompressor/compactor 減少 ATE 資料量與測試時間。\n- 工具：Synopsys TestMAX ATPG（TetraMAX）、Siemens Tessent、Cadence Modus。\n\n### Corner cases & pitfalls\n- X-source（未初始化 RAM、analog、bus contention）會降低 coverage，需要 X-masking 或 bounding。\n- Pattern 要經過 timing-annotated simulation 驗證（serial / parallel sim）。\n\n### Follow-ups\n- **為什麼 pattern 要 simulation？** 確認 DFT 插入、clock 控制、timing 在實際 netlist 上正確，避免 ATE 上大量 fail。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text",
+   "tags": [
+    "GUC"
+   ]
+  }
+ ]
+}

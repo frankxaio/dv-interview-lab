@@ -1,0 +1,107 @@
+# DV answers 204-257: UVM
+@category: UVM
+
+- **204. Pipelined Adder Scoreboard**
+  - Predict sums only from accepted input transactions. Queue expected values with their due cycle for fixed latency, or match by ID for variable latency/out-of-order completion. Account for operand width, carry, reset flush, bubbles, and output stalls. Compare through an independent monitor. Check missing, duplicate, unexpected, and leftover results.
+- **205. UVM Advantages and Adoption Costs**
+  - UVM provides reusable agents, sequence-based stimulus, configurable factories, TLM communication, phases, reporting, and register modeling. The cost is more code, learning, compile/runtime overhead, and debugging framework interactions. A small one-off block may be served by a simpler self-checking testbench.
+- **206. Constraints in a uvm_sequence versus a uvm_sequence_item**
+  - Put constraints describing one legal transaction in the sequence item. Put scenario-level choices, relationships across transactions, and traffic mixes in a sequence. Sequence rand fields are not automatically randomized by a direct start(). Inline item constraints must remain compatible with hard item constraints.
+- **207. Multiple Sequence-Item Types Through One Sequencer**
+  - Use a common base item type on the sequencer/driver and derive concrete item types. The driver can call virtual item methods or perform checked casts. Unsupported types should fail clearly. Separate sequencers/agents can be simpler when protocols differ fundamentally.
+- **208. UVM Factory Creation and Overrides**
+  - Register with the UVM factory macros and instantiate through `type_id::create`. Install type or instance overrides before the target is created. Object create takes a name; component create requires its parent. Calling new directly bypasses replacement. Use factory.print() to verify the resolved type.
+- **209. UVM: Architecture Overview**
+  - A test configures an environment containing agents and checking components. An active agent has sequencer, driver, and monitor; a passive agent only observes. Sequences generate items, drivers convert them to pin activity, monitors publish observed transactions, and scoreboards/reference models check behavior. Coverage subscribers measure requirements. Virtual sequences coordinate multiple interfaces.
+- **210. UVM: run_phase Ordering and drop_objection Behavior**
+  - Component run_phase tasks execute concurrently. Raise an objection before starting work that must keep the phase alive. Dropping one objection does not end the phase while others remain. Once all objections are cleared (plus drain time), remaining phase processes are killed.
+- **211. UVM Phases: Task Phases vs Function Phases**
+  - Function phases such as build, connect, check, and report cannot consume time. Task phases such as run and reset/configure/main/shutdown can. Build is top-down; connect and most others are bottom-up. Runtime phases use objections.
+- **212. UVM: Inter-process Synchronization Methods**
+  - Use mailbox or TLM FIFO for queued transaction transfer, semaphore for resource exclusion/counting, and events/barriers for explicit coordination. Queued tokens preserve notifications that occur before a consumer waits; a raw event can be missed.
+- **213. UVM: Code Coverage Types**
+  - Code coverage includes statement/line, branch, condition/expression, toggle, and FSM state/transition coverage. It measures exercised RTL structure, while functional coverage measures planned behaviors. Neither establishes correctness by itself.
+- **214. UVM: DMA Scoreboard Implementation**
+  - Observe descriptor programming and accepted DMA reads/writes. Maintain a byte-addressed reference memory, reconstruct bursts and masks, and check destination data and completion status. Track outstanding transfers by ID/order, increments, length, alignment, errors, and reset/abort.
+- **215. UVM: Design a DMA Engine uvm_sequence_item**
+  - Model source/destination addresses, byte length, transfer size, burst parameters, increment/fixed modes, channel/descriptor ID, and control flags. Constrain address range, alignment, size/length consistency, and protocol boundaries. Keep completion/error observations separate from requested intent.
+- **216. UVM: Fix Scoreboard to Support Byte-Enable Writes**
+  - Update only enabled byte lanes: for each lane i with strobe[i], replace reference_memory[addr+i] with the corresponding data byte. Preserve disabled lanes. Apply beat alignment and endianness. Verify partial writes, all-zero/all-one strobes, overlapping masked writes.
+- **217. SV/C++: Data Structure for Sparse Memory in Verification**
+  - Use a byte-addressed associative array in SV or unordered_map/map in C++ when memory is sparse. Define absent-byte behavior explicitly. A page-based map can reduce overhead for clustered accesses. Choose keys wide enough for the address space.
+- **218. Verification: Handling Concurrent Writes to Sparse Memory Model**
+  - Serialize updates according to observed protocol acceptance/arbitration order, not arbitrary monitor callback order. For same-cycle writes to overlapping bytes, use the DUT's specified priority. A semaphore prevents data races but does not invent the correct ordering.
+- **219. UVM: Scoreboard Design for 10-Input to 20-Output Port Mapping**
+  - Model the specified mapping from each accepted input to legal destination ports. Track packets by unique identity plus input/epoch, and maintain per-output expected queues or associative maps. Check data, routing, duplicates, drops, and latency.
+- **220. UVM: Phase Mechanism - What It Is and How It Works**
+  - UVM phases organize creation, connection, startup, runtime activity, extraction, checking, and reporting. Components implement phase callbacks; the phase scheduler invokes them according to the phase graph. Function phases take no time; task phases run concurrently and use objections.
+- **221. UVM Objection Mechanism**
+  - An objection counts outstanding work that must keep a task phase alive. Raise before starting that work and drop after its completion. Counts propagate through the hierarchy. Do not raise objections in forever monitors. Trace objection counts to find hangs or premature termination.
+- **222. UVM: Scoreboard with Timeout and Duplicate Detection (A/B Pairing)**
+  - Maintain pending A and B entries keyed by pair ID, including arrival timestamps and seen flags. Match and compare when both arrive; detect duplicates before overwriting, and time out unmatched entries. Remove completed pairs and check leftovers at test end.
+- **223. Python: Parse comma-separated names into a list**
+  - Use `[x.strip() for x in text.split(',') if x.strip()]` if empty entries are intentionally omitted. If quoting or embedded commas are legal, use Python's csv parser instead of split.
+- **224. Interface, Monitor, and uvm_config_db Setup**
+  - Instantiate the interface in the top module and publish its virtual interface before run_test(). Retrieve it in the build phase, check get success, and connect monitor analysis ports in connect_phase. Match the virtual-interface type/modport exactly.
+- **225. uvm_config_db Four Parameters Explained**
+  - `uvm_config_db#(T)::set(cntxt,inst_name,field_name,value)` uses a context component, a relative or absolute instance path, a string key, and the typed value. get uses the same first three plus an output variable. With null context, the path is absolute.
+- **226. Where to Set Virtual Interface in uvm_config_db**
+  - Set the virtual interface in a top-level initial block before run_test(), or in a parent before children retrieve it. Scope the setting to the intended agent and report a fatal error if retrieval fails.
+- **228. virtual function - Purpose and Example**
+  - A virtual function allows runtime dispatch through a base class handle. E.g., a base transaction's virtual checksum() can be overridden by derived packet types and invoked by one generic scoreboard. A nonvirtual method call uses static type resolution.
+- **229. Verification Environment for 2-Input 10-Output Random Dispatch DUT**
+  - Create two input agents, ten output monitors, a legal-routing/conservation reference model, and coverage for input/output pairs. Verify delivery to exactly one allowed output with unchanged payload. Cover congestion, concurrent arrivals, arbitration, backpressure, reset.
+- **230. Testbench for Write-Only Register**
+  - Verify writes through their specified side effects, downstream outputs, or a permitted backdoor observation. A frontdoor read may be meaningless for a write-only register. RAL mirror values alone show the model's belief and do not prove the DUT accepted the write.
+- **231. Startup Flow and Top Module Contents**
+  - The top instantiates DUT/interface, generates clock/reset, publishes virtual interfaces, and calls run_test(). UVM creates the test, builds components, connects TLM paths, runs stimulus, checks results, and reports.
+- **232. Override Default Constraints Without Modifying the Class**
+  - Use inline constraints when compatible. To replace a default, use a soft base constraint, disable a named constraint with constraint_mode, or create a derived item with a same-name replacement and factory override.
+- **233. How to Determine if DUT Verification is Complete**
+  - Complete the requirements-based test plan, achieve reviewed functional/code/assertion coverage targets, close or waive holes with evidence, and resolve bugs/regressions to agreed criteria. Coverage percentage alone is not signoff. Document exclusions and outstanding risks.
+- **234. Sequence with Inline Constraint + Parallel Fork-Join + Event Sync**
+  - Create separate sequence objects for parallel starts, randomize each item with checked inline constraints, and coordinate through a mailbox, barrier, or event. Capture loop variables and avoid shared mutable item handles. Place objection lifetime around the complete scenario.
+- **235. Instruction Transaction with Covergroup and Forwarding Path**
+  - Include opcode, source/destination registers, operand values, and PC metadata. Sample coverage on retired instructions, with crosses for dependency distance and forwarding source. Observe actual issue/stall/forward signals rather than assuming a dependency exercised forwarding.
+- **236. Clock Period Monitor and Scoreboard (5% Tolerance Check)**
+  - A monitor timestamps clock edges, snapshots the expectation for each interval, and sends measured/expected periods to a checker. Compare against ±5%, skip startup, add a missing-edge watchdog and separate duty-cycle checks.
+- **237. What Happens When a Sequence Issues a UVM RAL Register Write**
+  - A RAL write selects a map, converts the operation through an adapter (reg2bus) into bus items, starts them on the configured sequencer, and receives status. The driver performs the physical write. Mirror prediction is automatic if configured or comes from a monitor-connected predictor.
+- **238. Test Class Not Found - Missing Factory Registration**
+  - Register the test with `uvm_component_utils`, compile/import its package, and check the exact +UVM_TESTNAME spelling. Inspect factory output and compilation logs.
+- **239. Generate Clock in Testbench with Jitter/Variation**
+  - Use a reproducible seed and choose each high/low duration within specified bounds. Implement the required jitter model (period jitter, edge jitter, wander). Verify minimum pulse widths, average frequency, and tolerated variation.
+- **240. Register Model Frontdoor vs Backdoor Access**
+  - Frontdoor accesses use the real bus and exercise protocol timing, address decode, and side effects. Backdoor accesses use an HDL path and bypass the bus (zero time). Use frontdoor for interface verification and backdoor for initialization/debug.
+- **241. DDR Memory Allocator Transaction with Spatial Constraints**
+  - Represent allocation size, alignment, region/bank constraints, and address. Keep existing allocations in a reference allocator and enforce nonoverlap with widened arithmetic. Define fragmentation, release, exhaustion, and reserved regions.
+- **243. Component vs Object, Field Automation, copy vs clone**
+  - uvm_component participates in hierarchy and phases; uvm_object represents data/configuration/sequences. Field automation implements common operations but can have overhead. copy() fills an existing destination; clone() creates a new object then copies. Implement do_copy/do_compare for precise control.
+- **244. Highest Priority Completed Sequence**
+  - Sequence priority affects arbitration only when the sequencer's arbitration mode uses it (e.g. SEQ_ARB_STRICT_FIFO, SEQ_ARB_WEIGHTED); default FIFO mode ignores it. To find the highest-priority completed sequence, record completion and priority explicitly.
+- **245. Virtual Sequencer - Two Usage Patterns**
+  - One pattern uses a virtual sequencer component holding handles to physical sequencers; a virtual sequence uses p_sequencer to reach them. Another passes physical sequencer handles directly to the coordinating sequence. Neither drives pins.
+- **246. seq.start(null) - What Happens When Sequencer Is null?**
+  - `seq.start(null)` can run a virtual sequence that does not send items itself. A sequence that calls start_item needs a valid compatible sequencer. Null is valid for some sequence bodies, not universally.
+- **247. Factory Override - Instance Override and Type Override**
+  - A type override replaces matching factory-created types globally. An instance override applies to matching full instance paths and takes precedence over a type override. Set either before creation. Direct new calls bypass overrides.
+- **248. Mailbox vs Queue vs Associative Array - When to Use Which**
+  - A mailbox provides queued interprocess communication with blocking put/get. A queue is an ordered container and needs explicit synchronization. An associative array provides sparse keyed lookup, useful for IDs or addresses.
+- **249. Component Hierarchy and Driver-Sequencer Handshake**
+  - A driver calls get_next_item(req), drives the protocol, then item_done() exactly once. Connect the driver's seq_item_port to the sequencer's seq_item_export. Sequences use start_item/finish_item. Responses preserve identity with set_id_info.
+- **250. Modify Driver for One Test Without Touching Other Tests**
+  - Create a derived driver and apply an instance override for the specific agent path in that test before driver creation. Alternatively pass a test-specific policy/configuration to the existing driver.
+- **251. APB Driver - Full Implementation**
+  - Get an item, drive setup with PSEL=1/PENABLE=0 and stable address/control/data, then access with PENABLE=1. Wait until PREADY is high, capture read data/PSLVERR, and leave access next cycle. Hold signals across wait states, implement reset behavior, and call item_done once.
+- **252. Register Abstraction Layer (RAL) - Working Principle and Usage**
+  - RAL describes registers, fields, addresses, access policies, reset values, and maps. Build/lock the model, connect an adapter/sequencer, and configure prediction via auto-predict or a predictor. Tests use register operations instead of hardcoded bus encodings.
+- **253. uvm_object vs uvm_component - Differences**
+  - uvm_object has a name and data methods but no parent tree or phases. uvm_component extends it with hierarchy, phases, config/reporting context, and ports. Items, sequences, configs are objects; agents, drivers, monitors, scoreboards are components.
+- **254. Test Entry Point - run_test() to Phase Execution**
+  - The top calls run_test, which resolves the test (from +UVM_TESTNAME or argument) and creates uvm_test_top through the factory. UVM then executes build/connect/etc., runs task phases, then extract/check/report.
+- **255. Factory Override - Why super.build_phase() Placement Matters**
+  - The override must be installed before the creation it should affect. If the base build creates the target, put the override before super.build_phase. Explain the actual creation site instead of memorizing an absolute rule.
+- **256. Register Aliasing Detection Using Frontdoor Only**
+  - Write distinct patterns to candidate addresses, then read all of them through the frontdoor to see whether one write changed another. Exclude legitimate aliases, RO/WO registers, side-effect fields. Use multiple patterns.
+- **257. Five Sequences on One Sequencer - Track Which Transaction Came from Which Sequence**
+  - The sequencer assigns sequence identity; items carry transaction IDs. Preserve both with rsp.set_id_info(req). Pin-level monitors cannot recover sequence IDs unless metadata is carried, so add protocol IDs/source tags as needed.

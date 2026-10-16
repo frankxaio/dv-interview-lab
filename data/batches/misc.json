@@ -1,0 +1,562 @@
+[
+ {
+  "id": "nv2020-001",
+  "title": "為什麼用 UVM？UVM 怎麼做到 reuse？",
+  "prompt": "",
+  "source_notes": "factory、SV 的多型 / 繼承、parameterized class",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-002",
+  "title": "什麼是 functional coverage？",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-003",
+  "title": "怎麼驗證 sync FIFO？",
+  "prompt": "",
+  "source_notes": "用哪些 UVM component、scoreboard、coverage、testcase、corner case（作者事先準備過這題）",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-004",
+  "title": "怎麼驗證 serializer？",
+  "prompt": "",
+  "source_notes": "輸入 8-bit `A, B, C`；輸出 1-bit `done`、1-bit `out`\n- 在白板上用 SV 寫 scoreboard 的比對（expected vs actual），再談 coverage 和 testcase\n- corner case 很多：連續的 sequence、bubble；scoreboard 比較 tricky",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-005",
+  "title": "OOP 繼承與多型",
+  "prompt": "",
+  "source_notes": "給一段 code，判斷 virtual function override 的行為；寫一個展示多型、向上 / 向下轉型的例子，並說明實際工作中的使用情境",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-006",
+  "title": "Protocol converter DUT：burst R/W → single R/W",
+  "prompt": "",
+  "source_notes": "建 scoreboard + reference model\n- 面試官打斷 testbench 的整體介紹，直接要求寫 scoreboard\n- 如果不熟 SoC 常用的 bus protocol 會很吃力；作者沒寫完，但還是過了",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-007",
+  "title": "Digital root DUT",
+  "prompt": "",
+  "source_notes": "輸入 unsigned integer，DUT 反覆把十進位各位數相加，直到結果 < 10（例如 12345 → 15 → 6）。要怎麼驗？scoreboard、corner case、coverpoint。",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-008",
+  "title": "找出 monitor 程式碼的 bug",
+  "prompt": "",
+  "source_notes": "- interrupt 比 write function 早到，所以 write 永遠不會被中斷（邏輯錯誤）\n- 沒用 `automatic` 變數 → 不同的 function call 會互相干擾",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-009",
+  "title": "Perl：從 regression log 中 grep error signature",
+  "prompt": "",
+  "source_notes": "，存進關聯陣列（map：signature → count）",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-010",
+  "title": "職涯中遇過最難的 bug",
+  "prompt": "",
+  "source_notes": "（behavioral，要事先準備故事）",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-011",
+  "title": "Perl：把 module→instance 的表反轉成 instance→module(s)",
+  "prompt": "",
+  "source_notes": "- 輸入：`GA1: AB, CD` / `GB1: CD, EF`\n- 輸出：`AB: GA1` / `CD: GA1, GB1` / `EF: GB1`",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-012",
+  "title": "Pulse train 的 checker",
+  "prompt": "",
+  "source_notes": "輸入一個 start pulse；輸出多個 pulse，間隔逐漸增加（3、4、5…250 個 cycle），之後再回到 3。寫 checker（計算 rising edge 之間的 cycle 數），並處理中途 reset、序列中途又來 start 等情況。",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-013",
+  "title": "移除陣列中的重複元素",
+  "prompt": "",
+  "source_notes": "SV 有 `unique()` 可以直接用；如果面試官不允許，就要自己寫",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-014",
+  "title": "Fibonacci",
+  "prompt": "",
+  "source_notes": "遞迴 + 迭代、複雜度",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-015",
+  "title": "Sequence detector FSM",
+  "prompt": "",
+  "source_notes": "Moore vs Mealy、overlapping vs non-overlapping",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2020-016",
+  "title": "Computer architecture",
+  "prompt": "",
+  "source_notes": "pipeline stages、pipeline hazards\n---",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-001",
+  "title": "Blocking vs non-blocking assignment",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-002",
+  "title": "在 log file 裡搜尋關鍵字並取代（腳本）",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-003",
+  "title": "偵測 `1101` 的 sequence detector FSM：畫出狀態機，在最後一個 `1` 時輸出拉高",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-004",
+  "title": "Fibonacci：說明遞迴寫法",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-005",
+  "title": "DUT 的 test plan：functional tests、不同頻率測試、reset tests、corner case 與 error case",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-006",
+  "title": "反轉 linked list",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-007",
+  "title": "陣列中最長的 peak",
+  "prompt": "",
+  "source_notes": "回傳是否有 peak，以及最長 peak 的長度\n- `[1, 1, 2, 3, 2, 2]` → 有 peak，長度 4（`1,2,3,2`）\n- `[2, 2, 2, 2, 2, 2]` → 沒有 peak\n- `[1, 3, 1, 2, 4, 6, 5]` → 有 peak，長度 5（`1,2,4,6,5`）",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "nv2024-008",
+  "title": "Parity flag 電路",
+  "prompt": "",
+  "source_notes": "encoder 輸出 2-bit code（X、Y、W、Z）。當 X 出現偶數次 **且** W 出現奇數次時，`Flag = 1`。用最少的 gate（AND / OR / XOR / MUX）畫出電路。",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-001",
+  "title": "In a large verification environment, how would you efficiently propagate configurations from a `uvm_test` class to various components inside a `uvm_env`?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-002",
+  "title": "Your testbench has synchronization issues where transactions sent by the `uvm_sequencer` reach the `uvm_driver` too late. How would you debug and fix this using UVM phases?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "linkedin-uvm-003",
+  "title": "You need a component to execute additional tasks after `run_phase` but before `check_phase`. Which UVM phase would you use, and how?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-004",
+  "title": "A `uvm_sequence` must generate a burst of transactions with a burst size controlled dynamically at runtime. How would you implement this?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "linkedin-uvm-005",
+  "title": "How would you handle arbitration between multiple sequences running on the same `uvm_sequencer`?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-006",
+  "title": "Explain the UVM factory mechanism. How does `set_type_override` differ from `set_inst_override`?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-007",
+  "title": "How do you integrate functional coverage with UVM? What are the differences between `uvm_subscriber` and `uvm_analysis_port`?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-008",
+  "title": "You are verifying AXI transactions that may complete out of order. How would you design the scoreboard to match transactions correctly?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "linkedin-uvm-009",
+  "title": "A `uvm_sequence` generates random stimulus, but conflicting constraints cause randomization failures. How would you debug and resolve the constraint issues?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "linkedin-uvm-010",
+  "title": "Your testbench has multiple interfaces, such as AXI and SPI. How would you use a virtual sequence to coordinate stimulus across both interfaces?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-001",
+  "title": "Write an assertion check to make sure that a signal is high for a minimum of 2 cycles and a maximum of 6 cycles",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-002",
+  "title": "Write an assertion checker to make sure that an output signal never goes X?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-003",
+  "title": "Write an assertion to make sure that a 5-bit grant signal only has one bit set at any time?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-004",
+  "title": "Write an assertion which checks that once a valid request is asserted by the master, the arbiter provides a grant within 2 to 5 clock cycles",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-005",
+  "title": "How can you disable an assertion during active reset time?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-006",
+  "title": "As long as signal_a is up, signal_b should not be asserted. Write an assertion",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-007",
+  "title": "The signal_a is a pulse; it can only be asserted for one cycle, and must be deasserted in the next cycle",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-008",
+  "title": "Signal_a and signal_b can only be asserted together for one cycle; in the next cycle, at least one of them must be deasserted",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-009",
+  "title": "When signal_a is asserted, signal_b must be asserted, and must remain up until one of the signals signal_c or signal_d is asserted",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-010",
+  "title": "After signal_a is asserted, signal_b must be deasserted, and must stay down until the next signal_a",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-011",
+  "title": "If signal_a is received while signal_b is inactive, then on the next cycle signal_c must be inactive, and signal_b must be asserted",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-012",
+  "title": "signal_a must not be asserted together with signal_b or with signal_c",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-013",
+  "title": "In a RESP operation, request must be true immediately, grant must be true 3 clock cycles later, followed by request being false, and then grant being false",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-014",
+  "title": "Request must true at the current cycle; grant must become true sometime between 1 cycle after request and the end of time",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-015",
+  "title": "Req must eventually be followed by ack, which must be followed 1 cycle later by done",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-016",
+  "title": "The active-low reset must be low for at least 6 clock cycles",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-017",
+  "title": "Enable must remain true throughout the entire ack to done sequence",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-018",
+  "title": "Write an assertion for glitch detection",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-019",
+  "title": "If signal_a is active, then signal_b was active 3 cycles ago",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-020",
+  "title": "If the state machine reaches active1 state, it will eventually reach active2 state",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "sva-scen-021",
+  "title": "Write an assertion: A high for 5 cycles and B high after 4 continuous highs of A and finally both A and B are high?",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "sva-scen-022",
+  "title": "Write an assertion: On rose of a, wait for rose of b or c. If b comes first, then d should be 1. If c comes first d should be zero",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SVA",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ }
+]

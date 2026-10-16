@@ -1,0 +1,209 @@
+# DV answers 258-297: Verification & Test Planning
+@category: Verification Planning
+
+- **258. Functional Coverage: Covergroups, Coverpoints, Crosses, Bins, and a UVM Subscriber**
+  - Define a covergroup with coverpoints for requirement-relevant values/ranges and transitions, and crosses for meaningful interactions. A UVM subscriber receives monitored transactions and samples only valid accepted behavior. Include illegal/ignore bins deliberately. Coverage complements assertions and scoreboards; it does not replace them.
+- **259. Test Plan: SoC with Encryption/Decryption Module**
+  - Verify algorithms/modes/key sizes using known-answer vectors and a trusted reference. Cover encrypt/decrypt, key loading/zeroization, invalid settings, partial blocks, padding, reset, DMA, interrupts, backpressure. Check unauthorized key access and failure behavior.
+- **260. 100 Switches Toggle Problem**
+  - Switch k is toggled once for each divisor of k. Divisors pair except for perfect squares, which have an odd count. So exactly switches 1,4,9,16,25,36,49,64,81,100 remain on: ten switches.
+- **261. Verification: SoC-Level Verification with CPU, DMA, and Peripherals**
+  - Use block-level verification for detailed functionality and SoC tests for integration, address maps, interrupts, resets, clocks/power, coherency, and concurrent CPU/DMA/peripheral traffic. Combine firmware sequences with bus monitors and end-to-end checkers.
+- **262. Verification: Test Plan for Address-Based Routing DUT (A/B Client)**
+  - Build an independent address-to-client routing model. Monitor requests and responses, preserving IDs. Test each region's first/last address, gaps, illegal addresses, overlapping decode priorities, outstanding traffic, errors, and backpressure.
+- **263. Async FIFO vs Circular FIFO vs Sync FIFO**
+  - A synchronous FIFO has one clock; an asynchronous FIFO crosses independent clocks with Gray-coded synchronized pointers. Circular FIFO describes wraparound storage organization, so it can be sync or async.
+- **264. Async FIFO Potential Problems**
+  - Metastability, bad Gray encoding/wrap, pointer skew, premature full/empty, reset-domain inconsistency, lost/duplicated data. Use CDC review, constraints, assertions, randomized clock ratios/phases, and data-order scoreboarding.
+- **265. Simulation Runs Forever - Debug Strategy**
+  - Check if simulation time progresses. A zero-delay loop freezes time; a running clock with no completion suggests objections, blocked handshakes, wait conditions, or missing responses. Inspect process stacks and objection traces (+UVM_OBJECTION_TRACE). Add bounded watchdogs with state dumps.
+- **266. Cannot Reproduce Regression Bug**
+  - Record seed, test/config, simulator version/options, RTL/TB revisions, inputs, and environment. Check race conditions, uninitialized data, thread ordering, and randomization stability. A seed alone does not reproduce a run when code or tool settings differ.
+- **267. Sources of X-Propagation in Simulation**
+  - Uninitialized storage, conflicting drivers, incomplete assignments, out-of-range indices, power-off corruption, and gate-level timing violations. Trace the first X source. Use xprop modes to expose X-optimism.
+- **268. SCB Design with Leading Drop and Garbage Bits**
+  - Define framing, leading-drop count, alignment, and which bits are garbage. Reconstruct the valid payload from monitored bits, discard only the explicitly allowed regions, and compare the meaningful bits.
+- **269. Test Plan: Async FIFO Corner Cases & Verification**
+  - Cover unrelated clock ratios/phases, near-equal clocks, burst traffic, full/empty, pointer wrap, simultaneous operations, stalls, and reset of each domain. Check no overflow/underflow, order, capacity, flag latency. Add CDC/STA checks.
+- **270. Formal Verification - How It Works**
+  - Formal tools explore state space symbolically to prove properties for all allowed traces or produce counterexamples. Assumptions restrict inputs; assertions specify guarantees; covers show reachability. Review vacuity and overconstraint; a bounded pass only proves the examined depth.
+- **271. Scoreboard for Paired A/B Transactions with Timeout**
+  - Use an associative table per pair ID with side-A/side-B data, arrival times, and duplicate flags. Match when both exist, expire unmatched entries, support either arrival order, and report leftovers at end of test.
+- **272. Is Gate-Level Simulation Still Needed After RTL Verification?**
+  - GLS checks reset/init behavior, scan configuration, library timing checks, SDF paths, and X behavior. STA/LEC/CDC cover much of the space more efficiently; choose targeted GLS cases.
+- **273. Serial-to-Parallel DUT - Driver, Monitor, Scoreboard**
+  - Driver emits serial bits on accepted sampling events. Monitor independently captures and reconstructs words using specified bit order/framing. Scoreboard predicts parallel outputs after defined latency. Cover incomplete words, gaps, framing errors.
+- **274. Functional Coverage Not 100% - Analysis and Strategy**
+  - Inspect unhit bins and map each to a requirement. Determine whether reachable, stimulus missing, sampling wrong, or overconstrained. Add directed constraints/sequences for reachable gaps and justify exclusions. Do not change bins simply to obtain 100%.
+- **275. Multi-Channel DUT with Credit-Based Flow Control**
+  - Track credits per channel: decrement on sends and increment on releases. Assert no send without credit, no over-return. Exercise simultaneous send/release, imbalance, delayed returns, reset, and starvation.
+- **276. Constrained-Random Verification - How It Works**
+  - Describe legal input space with constraints, randomize reproducibly, drive transactions, check with assertions/reference models, and use coverage to find gaps and guide constraints. Directed tests address rare boundaries.
+- **277. FP Multiplier ALU Verification Strategy**
+  - Use a bit-accurate IEEE-754 reference. Cover normals, zeros, infinities, NaNs, subnormals, boundary exponents, rounding modes and ties, overflow/underflow, and exception flags.
+- **278. FIFO Verification - What to Verify, How, Corner Cases**
+  - Verify order, data integrity, capacity, empty/full flags, and reset. Exercise fill/drain, simultaneous push/pop, wraparound, bursts, overflow/underflow attempts. Use a queue reference model.
+- **279. Systolic Array UVM Testbench - PE Level and Sub-System Level**
+  - At PE level, verify MAC arithmetic, saturation, enable/reset, latency. At array level, model data movement, wavefront scheduling, accumulation, and boundaries. Test matrix dimensions, stalls, tiling, flush.
+- **280. 512-bit Transaction Split-Reassemble Over 64-bit Link**
+  - Eight 64-bit beats. Define beat/byte order, IDs, last indication, backpressure. Reassemble only accepted beats, detect missing/duplicate/out-of-order pieces, compare the full payload.
+- **281. Out-of-Order Scoreboard - Track and Match with Associative Array**
+  - Store expected transactions keyed by unique ID. On response, reject unknown IDs, compare, delete. Check ID reuse, duplicates, timeouts, reset, and leftovers. If multiple requests per ID are legal, use a queue per ID.
+- **282. Debug Scoreboard Mismatch - Step-by-Step Approach**
+  - Start at the first mismatch; confirm checker alignment, reference inputs, reset, acceptance events. Trace one transaction through driver, input monitor, DUT, output monitor, and model. Compare widths, signedness, masks, endian, latency, IDs. Classify DUT vs monitor vs model fault.
+- **283. Router UVM Testbench - Complete Design**
+  - Ingress agents and egress monitors, an independent route/arbitration model, packet reconstruction, and a scoreboard for delivery and data integrity. Check flow control, buffer limits, multicast/drop rules, fairness, errors, and reset.
+- **284. req/ack Handshake Testbench with Latency Checking**
+  - Generate requests, monitor requests and acks, measure latency. Check min/max latency, no extra ack, request stability, reset. Cover zero/min/max delay and back-to-back traffic.
+- **285. Out-of-Order Packet Scoreboard with Reconstruction**
+  - Collect fragments by packet ID and index, track a received bitmap, reconstruct once complete, then compare. Reject duplicates, invalid indices, unknown IDs, and late fragments.
+- **286. Credit Release Handshake Checker with SVA**
+  - Maintain a checker credit count updated by sends/releases and assert legal bounds. SVA can check stable release metadata during stalls and ack latency. A boolean assertion alone cannot catch excess credits without state.
+- **287. Lane Redundancy Remapping - SV Constraint Generator**
+  - Constrain logical-to-physical lane indices in range, exclude failed lanes, require distinct mappings, and obey adjacency rules. Check enough healthy lanes exist.
+- **288. PHY Link Training - Delay Code Sweep with PRBS Error Injection**
+  - Sweep delay codes, wait for settling, apply PRBS, count errors per window. Find the passing eye and choose the center. Inject errors to verify thresholds, retraining, and reporting.
+- **289. 12-Channel 32-bit Coverage Strategy**
+  - Cover each channel for valid transfers, data patterns, boundaries, stalls, errors. Cross channel with mode/status. Avoid crossing all 32-bit values; use walking ones/zeros and toggle coverage for bit-level exercise.
+- **290. UVM Backdoor Access - HDL Path and Usage**
+  - Configure valid HDL paths, then use RAL backdoor or uvm_hdl_read/deposit/force. Consider simulator optimization/access flags (+acc). Force persists until release; deposit does not.
+- **291. Firmware Writes 1 to enable_reg but Device Does Not Start - Debug**
+  - Confirm the write reached the correct address with correct byte enables. Trace bus completion, decode, register storage, clock/reset/power state, prerequisite configuration, and start-event generation. Check self-clearing/edge semantics.
+- **292. DV Environment for Software-Programmed Threshold Transaction Limiter**
+  - Monitor programming writes and transactions. Model threshold meaning, update timing, comparison, and counter reset. Check limits 0/1/max, threshold changes while active, exact crossing, backpressure, interrupts.
+- **293. 128-bit Parallel Bus - Stuck-at Fault and Short Wire Test Patterns**
+  - All-zero/all-one patterns for stuck-at faults. Walking-one and walking-zero patterns isolate lines and expose shorts. Unique per-wire temporal signatures can distinguish wires efficiently (log2 N patterns).
+- **294. Using AI-Generated Code in Verification - Risks and Workflow**
+  - Treat generated code as an untrusted draft: review against the spec, compile/lint, run edge cases, compare with an independent model. Do not use the same generated algorithm as both implementation and oracle.
+- **295. Memory Debug - Frontdoor Write + Backdoor Peek to Find Swap Bug**
+  - Write address-distinct patterns through the frontdoor, inspect physical locations via backdoor. Compare expected mapping to actual storage. Also read frontdoor because symmetric write/read swaps can cancel and hide a fault.
+- **297. Memory Verification - Complete Strategy and UVM Environment**
+  - Verify address/data integrity, masks, latency, collisions, initialization, ECC, reset. Use a sparse reference memory and monitor-driven checking. Apply address-distinct, walking-bit, checkerboard, random patterns plus concurrent accesses.
+
+# DV answers 298-341: Algorithms & Scripting
+@category: Coding & Scripting
+
+- **298. Streaming Log Analyzer**
+  - Read line by line, parse recognized formats, maintain counts/state without loading the file. Track line numbers, distinguish malformed records. O(total input) time, memory proportional to retained state.
+- **299. Cross-Array Two-Sum Index Pairs**
+  - Hash values of the second array to lists of indices. For each a[i], look up target-a[i] and emit every (i,j). O(n+m+K) where K is the output size.
+- **300. Reverse a 32-Bit Unsigned Integer**
+  - Repeat 32 times: `out=(out<<1)|(x&1u); x>>=1;`. Reverses bit order. Use unsigned shifts. Test zero, all ones, each single bit.
+- **301. Python: Extract error lines using regex**
+  - Compile a regex for the severity format and iterate the file, emitting matching lines with line numbers. Avoid matching incidental words like 'error_count=0'.
+- **302. C: Check if the N-th bit is 1**
+  - For unsigned x and 0<=n<W: `((x>>n)&1u)!=0`. Validate n first; out-of-range shifts are undefined in C.
+- **303. Algorithm: Find the Element That Appears Once (XOR Trick)**
+  - XOR all elements when exactly one occurs once and others occur twice. Pairs cancel; O(n) time, O(1) space. Fails for arbitrary multiplicities.
+- **304. C++ Algorithm: Count Pairs with Equal Digit Sum**
+  - Compute each number's digit sum, keep counts by sum; when a number with sum s arrives, add count[s] to total then increment. O(n*d). Use a wide counter.
+- **305. C++ Design: Container with ADD, EXISTS, GET_COUNT**
+  - unordered_map value->count. ADD increments, EXISTS checks count>0, GET_COUNT uses find (avoid operator[] insertion). O(1) average.
+- **307. C++ Algorithm: Array Pair Product Query with Point Update**
+  - For sum of pairwise products in a range, store range sum S and square-sum Q in a segment tree; answer (S*S-Q)/2 with O(log n) updates/queries.
+- **308. Reverse a Linked List**
+  - prev=null, cur=head; loop: next=cur->next; cur->next=prev; prev=cur; cur=next. Return prev. O(n) time, O(1) space.
+- **309. C: memcpy Safety Issues and Best Practices**
+  - memcpy requires valid nonoverlapping ranges; use memmove for overlap. Check capacity, length overflow, pointer validity. Don't memcpy non-trivially-copyable C++ objects.
+- **311. Minimize Result by Adding Parentheses to Expression**
+  - For A+B, enumerate every opening position in A and closing position in B; evaluate left*(inner_left+inner_right)*right (absent factors = 1), keep the minimum. O(|A|*|B|).
+- **312. Robot Matrix Diagonal Traversal**
+  - Iterate diagonal sum d=0..R+C-2, visit (r,c) with r+c=d in bounds, reversing direction on alternate diagonals for zigzag. O(R*C).
+- **314. Online Interval Merge with Streaming Input**
+  - Maintain disjoint sorted intervals in an ordered map. For new [L,R], find neighbors, merge all overlapping, erase them, insert merged. O(log m + k).
+- **316. Count Digits 0, 2, 4 in Range [0, n]**
+  - Digit DP with tight/started flags, or place-value counting per digit; zero needs special handling for leading zeros. O(log n).
+- **317. Longest Contiguous Same-Character Substring**
+  - Single scan tracking current run length and best run. Reset on change. O(n) time, O(1) space.
+- **318. Place Lamp to Illuminate Maximum Objects**
+  - For points on a line and fixed-length coverage, sort positions and use two pointers for the largest window with span <= L. O(n log n).
+- **319. Cyclic Shift Validation**
+  - Equal-length strings are rotations iff s2 is a substring of s1+s1. Use KMP for O(n).
+- **320. Memory Allocator Simulation**
+  - Keep free intervals sorted by address, allocated blocks keyed by ID. Allocate with first/best fit plus alignment and split; free validates and coalesces neighbors. Handle exhaustion, double free.
+- **321. Byte Stream Chunk Merging**
+  - Represent chunks by offset+data; merge contiguous ranges, define overlap policy (must match / prefer / report conflict), preserve gaps.
+- **322. Merge Intervals and Return All Unique Numbers**
+  - Sort by start, merge overlaps, then enumerate integers in merged ranges. O(n log n + K).
+- **324. Sliding Window Maximum Sum and Starting Index**
+  - Sum the first k, then slide adding new and subtracting outgoing; track best sum and index. Initialize from a real window so all-negative arrays work. O(n).
+- **325. Index of Second Smallest Element**
+  - Track smallest and second-smallest with indices in one pass. Clarify whether duplicates count. O(n).
+- **326. Tournament Elimination Bracket**
+  - Single elimination with n players needs exactly n-1 matches. Use byes if n is not a power of two.
+- **327. Move Zeros to End (LC 283)**
+  - Write index compacts nonzeros in order, then fill the rest with zeros. Stable, O(n), O(1) space.
+- **328. Array Deduplication - O(n^2) to O(n) Optimization**
+  - Hash set of seen values, append first occurrences (order preserved). O(n) expected. For sorted input, two pointers with O(1) space.
+- **329. Fibonacci: Recursive vs Iterative, Complexity, and Sequence Output**
+  - Naive recursion is exponential O(phi^n) with O(n) depth; memoization O(n)/O(n); iterative two-variable O(n)/O(1).
+- **330. Parse Mixed UVM/Custom Simulation Log File**
+  - Stream the file and dispatch recognized UVM/custom patterns to dedicated parsers. Normalize severity, time, component, ID, message. Don't double-count the UVM report summary.
+- **331. Check if a Number Is a Power of 2 (Bit Manipulation)**
+  - `n != 0 && (n & (n-1)) == 0`. A power of two has exactly one set bit.
+- **332. Maximum Subarray Sum with Subset Tracking (Kadane's)**
+  - Track current sum/start; restart when extending is worse; update best and [start,end]. Initialize from the first element so all-negative input works. O(n).
+- **333. Count Number of 1 Bits in Binary (Popcount)**
+  - Repeat `n &= n-1; count++` until zero (Brian Kernighan). O(number of ones).
+- **334. Longest Consecutive Sequence (LC 128)**
+  - Put values in a hash set; start counting only from x where x-1 is absent; extend while successors exist. O(n).
+- **335. Longest Substring Without Duplicates (C++)**
+  - Sliding window with last-seen positions; on repeat inside window move left to last_seen+1; track max. O(n).
+- **336. Elevator Cargo - Minimum Trips with Weight Limit**
+  - If at most two items per trip: sort, two pointers pairing lightest with heaviest if they fit. Arbitrary items per trip is bin packing (NP-hard).
+- **337. Python - Remove Vowels / Remove Consonants from String**
+  - `''.join(c for c in s if c.lower() not in 'aeiou')`. When removing consonants, keep vowels plus non-letters if intended. O(n).
+- **338. Sort Python Dictionary by Value; Regex Match Two Strings**
+  - `sorted(d.items(), key=lambda kv: kv[1])`. Use re.search / re.match / re.fullmatch deliberately; plain equality uses ==.
+- **339. Sort Log File by Age and Write to Output**
+  - Parse age as a number, keep record and index, stable-sort by age, write output. Lexicographic sorting of ages gives wrong order.
+- **340. Python - Find Unpaired Numbers in a List**
+  - Use Counter and select values with odd counts (or count==1 if exactly one occurrence is required).
+- **341. Find the 3rd Smallest Value in an Integer Stream**
+  - Keep a max-heap of size three of the smallest values; replace top when a smaller value arrives. O(n log 3).
+
+# DV answers 342-357: Analog, Emulation
+@category: Circuits & Analog
+
+- **342. Stacked NMOS Current Mirror Analysis**
+  - A cascode mirror keeps the output transistor's drain voltage steadier, increasing output resistance and current accuracy, at the cost of higher output compliance voltage. Check saturation of all devices.
+- **343. CMOS Inverter Vin-Vout Transfer Curve, Cascaded Stages**
+  - Output near VDD at low Vin, near ground at high Vin, with a high-gain transition where both devices conduct. Sizing shifts the switching threshold. Cascaded stages restore levels; odd count inverts.
+- **344. NMOS Pass-Gate Chain with Threshold Compensation**
+  - An NMOS passes a strong 0 but a weak 1 (VDD - Vt, worse with body effect). Transmission gates or boosted gates improve high-level transfer.
+- **345. Ring Oscillator and Single Inverter Feedback**
+  - Ring oscillator uses an odd number N of inverters; f ≈ 1/(2*N*t_pd). A single inverter with feedback tends to settle near its switching point rather than robustly oscillate.
+- **346. Pulse Latch - Pulse Generator Circuit**
+  - Combine clk with an inverted delayed clk to make a narrow pulse on the rising edge; the latch is transparent during that pulse. Pulse width must satisfy latch timing across PVT.
+- **347. Logical Effort - FO3, Sizing, F=GH**
+  - Stage delay d=g*h+p; path effort F=G*B*H. Optimal stage effort ≈ F^(1/N). FO3 means load is 3x the input capacitance.
+- **348. Circuit Optimization Techniques**
+  - Sizing, buffering, logic restructuring, reduced fanout, clock gating, voltage scaling, pipelining — trade delay vs power vs area.
+- **349. Two-Stage Inverter VDDh->VDDl vs VDDl->VDDh**
+  - Low-to-high crossing can leave the high-voltage PMOS partly on (static current, bad VIH); high-to-low can violate input limits. Use level shifters.
+- **350. NAND2 Sizing from Corresponding Inverter**
+  - Series NMOS each ~2x the inverter NMOS width; each parallel PMOS ~ same as the inverter PMOS.
+- **351. Master-Slave DFF - Component Purpose and Removal Analysis**
+  - Opposite-phase master and slave latches give edge-triggered behavior. Feedback retains state; removing isolation permits transparency/race-through.
+- **352. tsu, tc2q Measurement in SPICE; tcq vs tdc Plot**
+  - Sweep data-to-clock separation and record clk-to-Q; define setup/hold as where tcq degrades by a criterion (e.g. 10%). Near the aperture tcq rises sharply (metastability).
+- **353. 6T SRAM Operation, SNM, and Sizing**
+  - Two cross-coupled inverters plus two access transistors. Read: precharge bitlines, assert WL, sense. Pull-down > access for read stability; access > pull-up for writeability. SNM from butterfly curves.
+- **354. ROM Types and Sense Amplifier; Timing Order**
+  - Mask ROM, fuse/antifuse, EPROM/EEPROM/Flash. Sense amp resolves small bitline differences. Read: precharge, decode, activate, develop, sense, capture.
+- **355. Electromigration - DC, AC, Iavg, Irms, Black's Equation**
+  - Current-driven metal atom transport causing voids/shorts. Black's equation: MTTF = A*J^(-n)*exp(Ea/kT). Follow foundry avg/RMS/peak current limits.
+- **356. RC Low-Pass Filter - Transfer Function and Cutoff Frequency**
+  - H(jw)=1/(1+jwRC), fc=1/(2*pi*RC), -3dB at cutoff, -20dB/decade beyond, phase to -90°.
+- **357. Emulation versus RTL Simulation and FPGA Prototyping**
+  - RTL sim: best debug, slow. Emulation: synthesizable design on dedicated hardware, much faster, transactor-based. FPGA prototype: fastest, least visibility, more partitioning/timing effort.
+
+# DV answers 358-360: Behavioral & Brain Teasers
+@category: Behavioral
+
+- **358. Behavior Question: Describe Your Most Proud Project**
+  - Template: 'I built [system] to solve [problem]. I owned [part]. The hardest issue was [challenge]; I chose [approach] because [tradeoff]. I verified it with [evidence]; the result was [measured outcome]. Next time I would improve [lesson].' Don't invent numbers or claim teammates' work.
+- **359. Behavior Question: Describe an Interesting Bug You Encountered**
+  - 'We saw [symptom] under [trigger]. I reproduced it with [test/seed], narrowed it to [component], found [root cause]. I fixed it, added [focused check], reran [regression]. Lesson: [prevention].' Show how evidence separated DUT vs monitor vs model.
+- **360. Find the Lighter Stone Among 9 (Balance Scale)**
+  - Split into three groups of three. Weigh two groups; the lighter one (or the unweighed one if balanced) has it. Then weigh one stone vs another from that group. Two weighings suffice.

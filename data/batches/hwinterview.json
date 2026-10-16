@@ -1,0 +1,1032 @@
+[
+ {
+  "id": "hwinterview-001",
+  "title": "Plan black-box verification of a memory. Include address boundaries, read/write ordering, simultaneous operations, reset, and a reference model",
+  "prompt": "",
+  "source_notes": "**Answer. **I would first define the memory contract: depth, width, request acceptance, read latency, byte enables, reset behavior, and the result of a read and write to the same address. My scoreboard keeps an independent address-to-data model and updates it only on accepted writes. It predicts each accepted read using the specified ordering and compares the response at its expected time. For uninitialized locations, I track whether the contents are defined rather than inventing an expected zero.\n\nTests cover first/last addresses, every address bit, walking ones/zeros, all-zero/all-one/checkerboard data, back-to-back accesses, write-read-write ordering, byte masks, simultaneous port accesses, stalls, and reset with requests in flight. Assertions check acceptance and response counts, latency, stable stalled responses, and illegal accesses. Coverage crosses operation, address region, masks, collisions, and reset timing. Reset clears contents only if the specification says so.",
+  "category": "Verification Planning",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-002",
+  "title": "Verify fairness and correct grants in a round-robin arbiter, including persistent requests and contention",
+  "prompt": "",
+  "source_notes": "**Answer. **I model the round-robin priority pointer and compare every actual grant against the expected eligible winner. I check that grants are one-hot-or-zero, that a grant corresponds to a request, and that the pointer advances on the specified service event. If the winner stalls, the grant must remain stable when the interface requires it. An idle cycle must preserve or reset priority exactly as specified.\n\nFor fairness, hold all requests active and check that each requester is served within N accepted service opportunities for an N-way arbiter. A cycle bound requires a separate assumption that service can complete within a bounded time. Test single requests, every contention combination, newly arriving requests, withdrawn requests, pointer wraparound, reset, and long backpressure. Fixed priority can starve a low-priority requester; round-robin fairness depends on eligible requests and service progress.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-003",
+  "title": "Build a FIFO verification plan. Test reset, empty/full, simultaneous push/pop, wraparound, overflow/underflow, and data order",
+  "prompt": "",
+  "source_notes": "**Answer. **I use a queue reference model. Each accepted push appends data and each accepted pop removes and compares the oldest item. The occupancy changes by accepted_push minus accepted_pop. The model must follow the specified full/empty and simultaneous push/pop policy, including whether a full FIFO can accept a replacement push when a pop succeeds and whether an empty FIFO supports bypass.\n\nTest reset, one element, fill to full, drain to empty, repeated pointer wraparound, push/pop together at every occupancy, overflow/underflow attempts, and distinct data patterns. Check no loss, duplication, or reordering; flag accuracy; blocked operations; output stability; and read latency. Cross occupancy boundary, operation combination, stalls, and reset. For an asynchronous FIFO, also vary independent clocks, clock phase, stopped clocks, and reset sequencing.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-004",
+  "title": "Explain the UVM factory and compare factory-based create() against direct new()",
+  "prompt": "",
+  "source_notes": "**Answer. **The UVM factory creates registered objects and components and applies overrides at creation time. type_id::create() asks the factory which implementation to instantiate; new() calls the named class constructor directly. I use create() for replaceable verification components and transactions, and new() for helper objects whose exact type is intentional.\n\n```systemverilog\n// packet uses `uvm_object_utils(packet).\npacket p = packet::type_id::create(\"p\");\n// driver uses `uvm_component_utils(driver).\ndrv = driver::type_id::create(\"drv\", this);\n// Direct construction bypasses factory overrides.\np = new(\"p\");\n```\n\nRegister the replacement and set the override before creation. create() does not modify objects that already exist. Reference: [UVM factory reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_factory.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-005",
+  "title": "Distinguish type overrides from instance overrides",
+  "prompt": "",
+  "source_notes": "**Answer. **A type override replaces requests for a registered base type wherever they match. An instance override replaces that type only at a matching creation path. A matching instance override takes precedence over a type override. The replacement should extend the requested class so callers can use the same interface.\n\n```systemverilog\nbase_driver::type_id::set_type_override(error_driver::get_type());\nbase_driver::type_id::set_inst_override(\n  error_driver::get_type(), \"uvm_test_top.env.agent0.drv\");\n```\n\nFor components, the instance path follows the parent hierarchy and creation name. For objects, a useful path requires an appropriate creation context. Set overrides before create(). Reference: [UVM factory reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_factory.svh)",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-006",
+  "title": "Identify the entry point that starts a UVM test",
+  "prompt": "",
+  "source_notes": "**Answer. **The top-level module calls run_test(). UVM selects and creates the test, then runs the phase schedule. A test name can be supplied explicitly or through +UVM_TESTNAME=my_test.\n\n```systemverilog\nmodule tb;\n  import uvm_pkg::*;\n  initial run_test();\nendmodule\n// Simulation command argument: +UVM_TESTNAME=my_test\n```",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-007",
+  "title": "Explain virtual interfaces and how class-based components gain access to DUT signals",
+  "prompt": "",
+  "source_notes": "**Answer. **An interface is a statically instantiated container for signals, clocking blocks, and modports. A virtual interface is a handle that lets dynamically created classes access that instance. The top passes the handle through configuration; the driver and monitor retrieve it. A clocking block gives explicit sampling and driving timing to avoid races with RTL. A virtual interface does not create another interface or another copy of its signals.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-008",
+  "title": "Explain a virtual sequencer and when coordinating multiple agents requires one",
+  "prompt": "",
+  "source_notes": "**Answer. **A virtual sequencer usually holds handles to the sequencers of several agents. A virtual sequence uses those handles to coordinate traffic such as programming registers before starting data transfers. The virtual sequencer normally has no driver and does not drive pins itself. It is optional. The test can pass agent sequencer handles directly to a virtual sequence and start that sequence on null.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-009",
+  "title": "Classify UVM phases as tasks or functions. Explain the purpose of check_phase",
+  "prompt": "",
+  "source_notes": "**Answer. **build_phase, connect_phase, end_of_elaboration_phase, start_of_simulation_phase, extract_phase, check_phase, report_phase, and final_phase are functions. run_phase and the runtime subphases are tasks. check_phase performs final consistency checks such as an empty scoreboard, no outstanding transactions, and no accumulated failures. It cannot wait for a late response; drain traffic during a task phase before checking.\n\nReference: [UVM phase reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_common_phases.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-010",
+  "title": "Draw a complete UVM testbench and trace the sequencer-to-driver request and completion protocol. Include test, env, agents, monitor, scoreboard, predictor and optional coverage",
+  "prompt": "",
+  "source_notes": "**Answer. **The test configures and starts stimulus. The environment contains agents, a predictor, a scoreboard, and coverage collectors. An active agent contains a sequencer, driver, and monitor; a passive agent has a monitor. The driver converts sequence items into pin activity. Monitors reconstruct accepted bus transactions and publish them through analysis ports. The predictor computes expected results from observed accepted inputs, and the scoreboard compares those results with observed outputs.\n\n```systemverilog\n// Hierarchy and data paths:\n// test -> env -> agent -> sequencer, driver, monitor\n//                    -> predictor, scoreboard, coverage\n// sequence -> sequencer <-> driver -> virtual interface -> DUT\n// input monitor -> predictor -> expected FIFO -> scoreboard\n// output monitor ----------------> actual FIFO -> scoreboard\n// monitor -----------------------> coverage\n\n// agent.connect_phase:\ndrv.seq_item_port.connect(sqr.seq_item_export);\n\n// Sequence body:\nreq = item_t::type_id::create(\"req\");\nstart_item(req);       // Wait for sequencer arbitration.\nif (!req.randomize()) `uvm_fatal(\"RAND\", \"randomize failed\")\nfinish_item(req);      // Send request and wait for completion.\n\n// Driver run_phase:\nforever begin\n  seq_item_port.get_next_item(req);\n  drive_request(req);  // Drive until the defined completion event.\n  seq_item_port.item_done();\nend\n```\n\nPair each get_next_item() with exactly one item_done(). With the alternate get() API, the item handshake completes in get(), so do not also call item_done(). A driver completion is not necessarily an end-to-end DUT response. The scoreboard tracks that separately. Reference: [UVM sequence reference](https://github.com/accellera-official/uvm-core/blob/main/src/seq/uvm_sequence_base.svh)",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-011",
+  "title": "Implement a monitor that collects data while valid is asserted and publishes a completed transaction when valid falls",
+  "prompt": "",
+  "source_notes": "**Answer. **Assume a sampled burst consists of data on every clock where valid is 1, and the first sampled valid=0 ends that burst. Allocate a fresh transaction at the start, accumulate its data, and publish it only at the end. Reset aborts a partial burst in this example. The interface clocking block supplies race-free sampling.\n\n```systemverilog\ntask run_phase(uvm_phase phase);\n  packet tr;\n  bit collecting = 0;\n  forever begin\n    @(vif.mon_cb);\n    if (vif.mon_cb.rst_n !== 1'b1) begin\n      tr = null;\n      collecting = 0;\n    end else if (vif.mon_cb.valid === 1'b1) begin\n      if (!collecting) begin\n        tr = packet::type_id::create(\"tr\");\n        collecting = 1;\n      end\n      tr.data.push_back(vif.mon_cb.data);\n    end else if (vif.mon_cb.valid === 1'b0) begin\n      if (collecting) begin\n        ap.write(tr);\n        tr = null;     // Do not mutate the published object.\n        collecting = 0;\n      end\n    end else begin\n      `uvm_error(\"VALID_X\", \"Unknown valid sampled\")\n    end\n  end\nendtask\n```\n\npacket.data is a queue and ap is a uvm_analysis_port#(packet). A valid/ready protocol needs a different collector: collect only on valid && ready and use its framing rule, such as LAST. A valid falling edge is not a general packet boundary in AXI.",
+  "category": "UVM",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-012",
+  "title": "Launch five concurrent threads; once four have finished, terminate the remaining thread",
+  "prompt": "",
+  "source_notes": "**Answer. **Use a completion mailbox so simultaneous completions are counted without a shared-counter race. Place the worker fork in its own supervisor process. After four completion tokens arrive, disable fork terminates that supervisor's remaining descendants.\n\n```systemverilog\ntask automatic run_five();\n  mailbox #(int) done = new();\n  int id;\n  fork\n    begin : supervisor\n      for (int i = 0; i < 5; i++) begin\n        automatic int k = i;\n        fork\n          begin\n            work(k);       // User-defined automatic task.\n            done.put(k);\n          end\n        join_none\n      end\n      repeat (4) done.get(id);\n      disable fork;\n    end\n  join\nendtask\n```\n\nA fifth worker may already have finished in the same time slot; then no worker remains to kill. Killing a process does not automatically release semaphores or repair shared state. Design worker cleanup if cancellation can happen during a resource operation.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-013",
+  "title": "Distinguish task-based and function-based phases",
+  "prompt": "",
+  "source_notes": "**Answer. **Function phases complete without consuming simulation time and are suited to construction, connections, and final checks. Task phases can wait for clock edges, delays, or events and perform concurrent stimulus and monitoring. UVM starts run_phase tasks for components concurrently. Keep a task phase alive with an objection until stimulus ends and required responses drain. A forever loop in a monitor does not keep the phase alive.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-014",
+  "title": "Identify top-down versus bottom-up UVM phase traversal",
+  "prompt": "",
+  "source_notes": "**Answer. **build_phase traverses top-down, so parents configure and create children before the children build. connect_phase, end_of_elaboration_phase, start_of_simulation_phase, extract_phase, check_phase, and report_phase traverse bottom-up. final_phase traverses top-down. Task phases launch concurrent component processes, so their execution should not depend on a parent-before-child runtime ordering.\n\nReference: [UVM phase reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_common_phases.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-015",
+  "title": "Compare uvm_config_db and uvm_resource_db",
+  "prompt": "",
+  "source_notes": "**Answer. **uvm_config_db is a typed, hierarchy-oriented configuration interface built on uvm_resource_db. Its context and instance path make it a natural choice for virtual interfaces and agent configuration. uvm_resource_db provides more general named or type-based resource access. Prefer config_db for component configuration; check every get() result and avoid an overly broad wildcard that assigns the wrong interface to several agents.\n\nDuring build, higher-level config settings have greater precedence; settings at the same level use last-set-wins. After build, settings use the default precedence with last-set-wins behavior. Reference: [UVM configuration reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_config_db.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-016",
+  "title": "Explain how factory overrides allow replacing implementations without editing the parent test",
+  "prompt": "",
+  "source_notes": "**Answer. **A parent creates a base component through base_driver::type_id::create(). A derived test registers an override before that creation, so the same parent code receives a derived driver through the base-class handle. Virtual methods provide the replacement behavior. The parent must use factory creation, and the replacement must implement the expected contract.\n\n```systemverilog\nfunction void build_phase(uvm_phase phase);\n  base_driver::type_id::set_type_override(stress_driver::get_type());\n  super.build_phase(phase); // Parent may create the environment here.\nendfunction\n```\n\nBoth classes must be factory-registered. If the parent builds an object with new(), an override will not affect it. Reference: [UVM factory reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_factory.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-017",
+  "title": "Explain virtual sequences and how they coordinate multiple sequencers",
+  "prompt": "",
+  "source_notes": "**Answer. **A virtual sequence is a sequence that coordinates other sequences across agents. It can start them serially to impose dependencies or with fork/join to generate concurrent traffic. It obtains sequencer handles from a virtual sequencer or through explicit fields. It does not need its own pin-level driver.\n\n```systemverilog\n// bus_sqr and data_sqr are assigned before this sequence starts.\ntask body();\n  cfg_seq.start(bus_sqr); // Configure before traffic.\n  fork\n    tx_seq.start(data_sqr);\n    poll_seq.start(bus_sqr);\n  join\nendtask\n```\n\nA common setup starts this sequence on null and fills its typed sequencer handles from the test. Use distinct child sequence objects for concurrent starts, and use locks or protocol coordination only where exclusive access is required.",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-018",
+  "title": "Pass a virtual interface from the top-level testbench through uvm_config_db",
+  "prompt": "",
+  "source_notes": "**Answer. **Set the virtual interface before run_test(), then retrieve it in the consumer's build_phase. The type parameter, including any modport or interface parameters, must match on set and get.\n\n```systemverilog\n// Top-level module, after instantiating bus_if bus(clk):\ninitial begin\n  uvm_config_db#(virtual bus_if)::set(\n    null, \"uvm_test_top.env.agent.*\", \"vif\", bus);\n  run_test();\nend\n\n// Driver/monitor class:\nvirtual bus_if vif;\nfunction void build_phase(uvm_phase phase);\n  super.build_phase(phase);\n  if (!uvm_config_db#(virtual bus_if)::get(this, \"\", \"vif\", vif))\n    `uvm_fatal(\"NO_VIF\", \"Missing virtual interface\")\nendfunction\n```\n\nUse a distinct scoped setting for each agent. Reference: [UVM configuration reference](https://github.com/accellera-official/uvm-core/blob/main/src/base/uvm_config_db.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-019",
+  "title": "Explain reactive sequences, driver responses, response queues, and preserving sequence IDs",
+  "prompt": "",
+  "source_notes": "**Answer. **A reactive sequence chooses its next action from observed DUT requests or prior responses, for example when modeling a slave. A driver can return a response through item_done(rsp) or put_response(rsp), depending on its request API and timing. The response must carry the originating request's sequence and transaction IDs so the sequencer can route it to the right sequence.\n\n```systemverilog\n// Driver, after get_next_item(req) and protocol completion:\nrsp = response_t::type_id::create(\"rsp\");\nrsp.set_id_info(req);\nrsp.status = observed_status;\nseq_item_port.item_done(rsp); // Complete item and return response.\n\n// Sequence:\nfinish_item(req);\nget_response(rsp, req.get_transaction_id());\n```\n\nfinish_item() completes the item handshake; it does not consume the response queue. Drain responses with get_response() or enable response_handler(), and choose a queue depth suitable for outstanding traffic. Completing the item and delivering a response are separate steps, even when item_done(rsp) does both in one call. Reference: [UVM sequence reference](https://github.com/accellera-official/uvm-core/blob/main/src/seq/uvm_sequence_base.svh)",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-020",
+  "title": "[Meta] Share 10 units among four recipients with each getting at least one, using constraints",
+  "prompt": "",
+  "source_notes": "**Answer. **Use four bounded positive integers and constrain their total to ten. Bounding each value also prevents arithmetic overflow from creating an unintended solution.\n\n```systemverilog\nclass shares;\n  rand int unsigned amount[4];\n  constraint c {\n    foreach (amount[i]) amount[i] inside {[1:7]};\n    amount.sum() with (int'(item)) == 10;\n  }\nendclass\n```\n\nThe largest legal share is seven because the other three recipients need at least one each. Always check the return value of randomize().",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-021",
+  "title": "[NVIDIA] Constrain a 32-bit word to prevent runs of five identical bits, without post_randomize",
+  "prompt": "",
+  "source_notes": "**Answer. **Check every five-bit window. Disallow both 00000 and 11111, so a longer identical run is also impossible. This follows the note's wording that even a run of five is prohibited.\n\n```systemverilog\nclass no_five;\n  rand bit [31:0] word;\n  constraint c {\n    foreach (word[i])\n      if (i <= 27) {\n        word[i +: 5] != 5'b00000;\n        word[i +: 5] != 5'b11111;\n      }\n  }\nendclass\n```\n\nThere are 28 overlapping windows, beginning at indices 0 through 27. If an interviewer instead permits five identical bits and only forbids six, change the window width to six and the final starting index to 26.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-022",
+  "title": "Split 15 distinct integers into three nonempty queues, preserving each exactly once, using constraints",
+  "prompt": "",
+  "source_notes": "**Answer. **Constrain all output values to come from the source, make the outputs globally unique, and require their total size to equal the source size. With 15 distinct source values, those rules guarantee that every source value appears exactly once.\n\n- Method 1\n\n  ```verilog\n  class split15;\n    int src[$] = '{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};\n    rand int q1[$], q2[$], q3[$];\n    constraint c {\n      \n      q1.size() inside {[1:13]};\n      q2.size() inside {[1:13]};\n      q3.size() inside {[1:13]};\n      \n      q1.size() + q2.size() + q3.size() == 15;\n      \n      foreach (q1[i]) q1[i] inside {src};\n      foreach (q2[i]) q2[i] inside {src};\n      foreach (q3[i]) q3[i] inside {src};\n      \n      foreach (q1[i]) foreach (q1[j])\n        if (i < j) q1[i] != q1[j];\n      foreach (q2[i]) foreach (q2[j])\n        if (i < j) q2[i] != q2[j];\n      foreach (q3[i]) foreach (q3[j])\n        if (i < j) q3[i] != q3[j];\n      \n      foreach (q1[i]) foreach (q2[j]) q1[i] != q2[j];\n      foreach (q1[i]) foreach (q3[j]) q1[i] != q3[j];\n      foreach (q2[i]) foreach (q3[j]) q2[i] != q3[j];\n    }\n  endclass\n  ```\n\n  It uses only constraints. It does not preserve the original order within each queue because the prompt does not require that. If source values can repeat, map source indices instead of enforcing value uniqueness.\n\n- Method 2\n\n  ```verilog\n  class split15_sel;\n    int src[$] = '{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};\n    rand bit [1:0] idx[15];   // queue selector per source position\n    rand int cnt[3];          // how many positions select each queue\n    int q0[$], q1[$], q2[$];\n\n    constraint c {\n      foreach (idx[i]) idx[i] inside {[0:2]};\n      foreach (cnt[k]) cnt[k] == idx.sum() with (int'(item == k));\n      foreach (cnt[k]) cnt[k] >= 1;\n    }\n\n    function void post_randomize();\n      int pool[$];\n      int v;\n      pool = src;                  // copy, so src is not consumed\n      q0.delete(); q1.delete(); q2.delete();\n      foreach (idx[i]) begin\n        v = pool.pop_front();\n        case (idx[i])\n          2'd0: q0.push_back(v);\n          2'd1: q1.push_back(v);\n          2'd2: q2.push_back(v);\n          default: $fatal(1, \"idx out of range\");\n        endcase\n      end\n    endfunction\n  endclass\n  ```\n\n- Method 3\n\n  ```verilog\n  constraint c {\n    q1.size() inside {[1:13]};\n    q2.size() inside {[1:13]};\n    q3.size() inside {[1:13]};\n    q1.size() + q2.size() + q3.size() == 15;\n    foreach (q1[i]) q1[i] inside {src};\n    foreach (q2[i]) q2[i] inside {src};\n    foreach (q3[i]) q3[i] inside {src};\n    unique {q1, q2, q3};\n  }\n  ```",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-023",
+  "title": "In a ten-element array, require one value to appear exactly three times and all others to be distinct",
+  "prompt": "",
+  "source_notes": "**Answer. **Randomize a repeated value and a position mask with exactly three set entries. Masked positions equal the repeated value; all unmasked positions differ from it and from each other.\n\n```systemverilog\nclass triple_repeat;\n  rand int a[10];\n  rand int repeated;\n  rand bit is_repeat[10];\n  constraint c {\n    is_repeat.sum() with (int'(item)) == 3;\n    \n    foreach (a[i]) {\n      if (is_repeat[i]) a[i] == repeated;\n      else a[i] != repeated;\n      foreach (a[j])\n        if (i < j && !is_repeat[i] && !is_repeat[j])\n          a[i] != a[j];\n    }\n  }\nendclass\n```\n\nNo value domain is needed; add a[i] inside {[lo:hi]} if the prompt gives one, with at least eight values in the range. The solution uses eight distinct values: one appearing three times and seven appearing once. Pairwise uniqueness by itself would prohibit the required triple.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-024",
+  "title": "Match parity of every array item to the parity of its index",
+  "prompt": "",
+  "source_notes": "**Answer. **Parity is the least significant bit, so equate each element's low bit to the low bit of its index. This also works for negative signed integers without relying on negative remainder behavior.\n\n```systemverilog\nrand int a[10];\nconstraint parity_c {\n  foreach (a[i]) a[i][0] == i[0];\n}\n```",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-025",
+  "title": "Generate a 32-bit word differing from the previous result in exactly two bit positions",
+  "prompt": "",
+  "source_notes": "**Answer. **The XOR of the new and previous words marks changed positions. Exactly two set bits in that XOR means a Hamming distance of two. Keep previous as non-random state and update it only after a successful randomization.\n\n```systemverilog\nclass two_changes;\n  rand bit [31:0] addr;\n  bit [31:0] addr_prev = 'd3; // it's arbitrary\n  constraint addr_c {\n    $countones(addr ^ addr_prev) == 2;\n  }\n  function void post_randomize();\n    addr_prev = addr;\n  endfunction\nendclass\n```\n\nThe first result is unconstrained by history. For an initial reference value of zero, set have_previous=1 before the first call. A failed randomize() does not call post_randomize(), so history remains intact.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-026",
+  "title": "Manage fork/join_any, selectively cancel one thread, and wait for others",
+  "prompt": "",
+  "source_notes": "**Answer. **join_any returns after the first child finishes. It leaves the others running. To cancel only a selected child, capture its process handle and call `kill();` then `wait fork` for the remaining children. This follows the process-class example in IEEE 1800 section 9.7.\n\n```verilog\ntask automatic selective_cancel();\n  process p[3];\n  fork begin                      // isolate wait fork from caller's children\n    fork\n      begin p[0] = process::self(); work(0); end\n      begin p[1] = process::self(); work(1); end\n      begin p[2] = process::self(); work(2); end\n    join_any\n    wait (p[1] != null);          // handle may not be assigned yet\n    if (p[1].status() != process::FINISHED) p[1].kill();\n    wait fork;                    // wait for the survivors\n  end join\nendtask\n```\n\n`join_any` resumes the parent as soon as any child finishes. If `work(0)` takes zero time, worker 0 can finish before worker 1 has run `process::self()`, and calling `status()` on a null handle is a fatal error. `wait (p[1] != null)` prevents that. If worker 1 was the first finisher, it is already complete and the status check skips `kill()`. The outer `fork begin ... end join` isolates wait fork from unrelated children of the caller. disable fork would cancel all remaining descendants of the calling process, so it is inappropriate for selecting just worker 1.\n\nFor N threads, spawn in a loop with join_none and an automatic copy of the index, because `join_none` children run after the loop variable has moved on. Then wait for the first finisher with p[x].await() or a mailbox.\n\nShorter alternative for a fixed set of threads: name each block and disable the selected one by name.\n\n```verilog\ntask automatic selective_cancel();\n  fork begin\n    fork\n      begin : t0  work(0); end\n      begin : t1  work(1); end\n      begin : t2  work(2); end\n    join_any\n    disable t1;\n    wait fork;\n  end join\nendtask\n```\n\nThis has three limits. First, disable acts on a block's static scope, so it kills every active instance of t1, including those in other concurrent calls of the task. p[1].kill() affects only the one process its handle refers to. Second, threads spawned in a loop share one block name, so you cannot select a single one. Third, if t0 finishes in zero time before t1 starts, disable t1 has nothing to disable and t1 runs to completion. In an interview, give this version for \"three threads, cancel one\", then say you would switch to process handles for reentrant tasks or N threads.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-027",
+  "title": "Explain how loop-index capture affects processes launched using fork/join_none",
+  "prompt": "",
+  "source_notes": "**Answer. **Children created with join_none do not begin executing until the parent suspends or terminates. A child that later reads a shared loop variable can therefore see the final value. Capture the index in an automatic variable in the loop body before the fork.\n\n```verilog\nfor (int i = 0; i < 5; i++) begin\n  automatic int k = i;\n  fork\n    $display(\"k=%0d\", k);\n  join_none\nend\nwait fork;\n// prints k=0 .. k=4 (order not guaranteed)\n\n// Bug: every child reads the shared i after the loop ends\nfor (int i = 0; i < 5; i++)\n  fork\n    $display(\"i=%0d\", i);\n  join_none\n// prints i=5 five times\n```\n\nPutting the capture assignment inside the child is too late, because that child starts after the parent yields. The captured automatic variable belongs to the iteration and remains alive while the spawned process uses it.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-028",
+  "title": "[SpaceX] Generate N even values followed by N odd values for a randomized array",
+  "prompt": "",
+  "source_notes": "**Answer. **For the stated requirement, use a length-2N array. Indices below N are even and the rest are odd. If the interviewer means repeating groups of N even then N odd values in a longer array, use the group index i/N.\n\n```systemverilog\nclass even_then_odd;\n  rand int n;\n  rand int unsigned a[];\n  constraint c {\n    n inside {[1:32]};\n    a.size() == 2*n;\n    foreach (a[i]) {\n      if (i < n) a[i][0] == 0;\n      else       a[i][0] == 1;\n    }\n  }\nendclass\n// For repeating groups, replace the if/else with:\n// a[i][0] == ((i / n) % 2);\n```",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-029",
+  "title": "Generate a contiguous five-bit set pattern under a specified probability distribution",
+  "prompt": "",
+  "source_notes": "**Answer. **Pick the mode first with dist, then constrain the word for that mode. Every draw has exactly five set bits. With 80% probability they form one run (32'h1f shifted to a random start). Otherwise they are scattered, and no five-bit run is allowed.\n\n```verilog\nclass five_bits;\n  rand bit [31:0] word;\n  rand bit run;\n  rand int unsigned start;\n  constraint c {\n    run dist {1 := 80, 0 := 20};\n    solve run before word;\n    start inside {[0:27]};          // 28 legal run positions\n    $countones(word) == 5;\n    if (run) word == 32'h1f << start;\n    else foreach (word[i])\n      if (i <= 27) word != 32'h1f << i; // equivalent: word[i+\"5\"] == 5'b1111\n  }\nendclass\n```\n\nsolve run before word keeps the 80/20 split explicit. There are only 28 run patterns against about 200,000 scattered ones, so the mode must be chosen before the word. If the prompt only needs a single run every time, drop run and keep word == 32'h1f << start. dist sets a probability, so 80% does not mean exactly 8 runs in every 10 calls.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-030",
+  "title": "[NVIDIA] Randomize distinct playing cards with additional suit/color restrictions",
+  "prompt": "",
+  "source_notes": "**Answer. **Encode a card as an integer 0 through 51. suit=id/13 and rank=id%13; ranks can be translated to 1 through 13 for display. Constrain card IDs to be distinct, then add suit or color rules. Here suits 0/1 are black and 2/3 are red, and three cards have distinct suits with exactly two red cards.\n\n```systemverilog\nclass hand3;\n  rand int unsigned id[3];\n  constraint c {\n    foreach (id[i]) {\n      id[i] inside {[0:51]};\n      foreach (id[j]) if (i < j) {\n        id[i] != id[j];\n        (id[i] / 13) != (id[j] / 13);\n      }\n    }\n    id.sum() with (int'((item / 13) >= 2)) == 2;\n  }\nendclass\n```\n\nClarify whether 'type' means rank or suit. Three pairwise distinct colors are impossible in a standard deck because there are only two colors. Two cards can have different colors; three cards can have distinct suits or a specified red/black count. The example picks one feasible reading, so confirm it with the interviewer.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-031",
+  "title": "[NVIDIA] Generate a ten-element array containing exactly one duplicate pair at randomized positions",
+  "prompt": "",
+  "source_notes": "**Answer. **Use the same position-mask technique as the triple-repeat problem, but require exactly two masked positions. The other eight values are all distinct and cannot equal the repeated value.\n\n```systemverilog\nclass one_pair;\n  rand int a[10];\n  rand int repeated;\n  rand bit is_repeat[10];\n  constraint c {\n    is_repeat.sum() with (int'(item)) == 2;\n    \n    foreach (a[i]) {\n      if (is_repeat[i]) a[i] == repeated;\n      else a[i] != repeated;\n      foreach (a[j])\n        if (i < j && !is_repeat[i] && !is_repeat[j])\n          a[i] != a[j];\n    }\n  }\nendclass\n```\n\nThis creates nine distinct values overall. The duplicated positions are random variables. A satisfiable constraint does not prove they are uniformly distributed, so check the distribution over many draws.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-032",
+  "title": "[AMD] Generate exactly one triple duplicate and otherwise distinct elements",
+  "prompt": "",
+  "source_notes": "**Answer. **Use the complete triple_repeat class in direct example 4 above. Its mask contains exactly three set positions, which all take repeated; every other position takes a different value. This guarantees one triple and seven singletons in a ten-element array. For a different length, resize the array and mask together and keep the repetition count at three.",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-033",
+  "title": "[Meta] Constrain a 2D pixel array using each pixel's four immediate neighbors",
+  "prompt": "",
+  "source_notes": "**Answer. **Assume the intended relation is pixel < sum of its existing top, bottom, left, and right neighbors. This example uses a fixed 4x5 image and zero contribution outside the boundary. Cast every neighbor to int before adding, so a sum of four 16-bit pixels cannot overflow a 16-bit expression.\n\n```systemverilog\nclass pixels;\n  rand bit [15:0] p[4][5];\n  constraint c {\n    foreach (p[r,c])\n      int'(p[r][c]) <\n        ((r > 0) ? int'(p[r-1][c]) : 0) +\n        ((r < 3) ? int'(p[r+1][c]) : 0) +\n        ((c > 0) ? int'(p[r][c-1]) : 0) +\n        ((c < 4) ? int'(p[r][c+1]) : 0);\n  }\nendclass\n```\n\nChoose boundary behavior explicitly: available neighbors, fixed padding, wraparound, or interior-only constraints. Scaling a coupled constraint to a full image may be expensive; a constant nonzero image is a simple satisfiable case when each cell has at least two neighbors. A 1x1 image with zero padding has no solution under this strict inequality.\n\n  ### Further practice from the source",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-034",
+  "title": "Sum a ten-element array to 100 without the array sum method",
+  "prompt": "",
+  "source_notes": "**Answer. **Use a prefix-sum array. Each prefix equals the previous prefix plus the next element, and the last prefix equals 100. The example bounds elements to nonnegative values; widen the arithmetic if negative or very large values are allowed.\n\n```systemverilog\nclass total100;\n  rand int unsigned a[10];\n  rand int unsigned prefix[11];\n  constraint c {\n    foreach (a[i]) a[i] inside {[0:100]};\n    foreach (prefix[i]) prefix[i] inside {[0:100]};\n    prefix[0] == 0;\n    foreach (a[i]) prefix[i+1] == prefix[i] + a[i];\n    prefix[10] == 100;\n  }\nendclass\n```\n\nFor a fixed ten-element array, explicitly adding a[0] through a[9] is also correct. Prefix sums scale to a configurable size without using the array sum method.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-035",
+  "title": "Constrain multidimensional arrays to unique values, bounded sums, and neighborhood conditions",
+  "prompt": "",
+  "source_notes": "**Answer. **Flatten coordinates when a reduction over several dimensions would be awkward. For a 3x3x3 cube, index=9*r+3*c+d. Make the flat values unique and constrain the cube to that mapping. For a binary MxN matrix, use a flat binary array and bound its sum. These are separate examples; a binary matrix with more than two cells cannot also have globally unique values.\n\n```systemverilog\nclass unique_cube;\n  rand int flat[27];\n  rand int cube[3][3][3];\n  constraint c {\n    foreach (flat[i]) {\n      flat[i] inside {[0:99]};\n      foreach (flat[j]) if (i < j) flat[i] != flat[j];\n    }\n    foreach (cube[r,c,d]) cube[r][c][d] == flat[9*r+3*c+d];\n  }\nendclass\n\nclass binary_matrix;\n  rand bit flat[12];\n  rand bit m[3][4];\n  constraint c {\n    flat.sum() with (int'(item)) < 7; // Example MAX_SUM=7.\n    foreach (m[r,c]) m[r][c] == flat[4*r+c];\n  }\nendclass\n```\n\nNeighbor inequality uses guarded comparisons. If r+1 is in range, constrain m[r][c]!=m[r+1][c]; do the same for c+1. Each undirected adjacent pair is then checked once. A sum-of-neighbors relation uses widened additions as in the pixel example. Check that the value domain is large enough for the requested uniqueness.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-036",
+  "title": "Avoid repeating a selected color across the next three draws",
+  "prompt": "",
+  "source_notes": "**Answer. **Store the last three successful choices as non-random history. Exclude each stored color during the next randomization, then push the new color and trim the history to three entries. That prevents a selected color from reappearing in the next three draws.\n\n```systemverilog\nclass color_stream;\n  rand int unsigned color;\n  int unsigned history[$];\n  constraint c {\n    color inside {[0:9]};\n    foreach (history[i]) color != history[i];\n  }\n  function void post_randomize();\n    history.push_back(color);\n    if (history.size() > 3) void'(history.pop_front());\n  endfunction\nendclass\n```\n\nAt least four available colors are needed for indefinite generation under this rule. History changes only on successful randomization. randc is different: it prevents repetition over its whole cycle, not specifically a three-draw window.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-037",
+  "title": "Map an input array to a configurable number of nonempty output queues, without missing or duplicating values",
+  "prompt": "",
+  "source_notes": "**Answer. **Map source positions rather than source values. This handles an input that contains repeated values. Represent each output queue by an active prefix of a fixed-capacity row. Constrain lengths to be nonzero for the configured queues, total length to equal the input length, and all active source indices to be distinct. The full source index range and the total count then guarantee exact preservation.\n\n```systemverilog\nclass partition;\n  localparam int M = 15, MAX_Q = 5;\n  int n = 3;                 // Configure in [1:MAX_Q], n <= M.\n  int src[M];               // Fill before randomize().\n  rand int len[MAX_Q];\n  rand int idx[MAX_Q][M];\n  rand int value[MAX_Q][M];\n  constraint c {\n    foreach (len[q]) {\n      if (q < n) len[q] inside {[1:M]};\n      else len[q] == 0;\n    }\n    len.sum() == M;\n    foreach (idx[q,k]) {\n      if (k < len[q]) {\n        idx[q][k] inside {[0:M-1]};\n        value[q][k] == src[idx[q][k]];\n        foreach (idx[r,s])\n          if (s < len[r] && (q < r || (q == r && k < s)))\n            idx[q][k] != idx[r][s];\n      } else {\n        idx[q][k] == 0;\n        value[q][k] == 0;\n      }\n    }\n  }\nendclass\n```\n\nQueue q consists of value[q][0] through value[q][len[q]-1]. Copying that already-solved prefix into an actual queue is representation conversion, not a fix-up of invalid random data. This representation avoids tool-dependent solving of nested variable-size queues. A pure three-queue form is shown in direct example 3. Reject n=0, n>M, or n>MAX_Q before solving.",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-038",
+  "title": "Make a length-300 array satisfy frequency quotas and restricted adjacent repeats",
+  "prompt": "",
+  "source_notes": "**Answer. **Assume values 0 through 4, each occurring more than 40 times, with only zero permitted to repeat immediately. Count occurrences with a reduction that casts the Boolean match to int; otherwise a narrow reduction can overflow.\n\n```systemverilog\nclass quota300;\n  rand int a[300];\n  constraint c {\n    foreach (a[i]) {\n      a[i] inside {[0:4]};\n      if (i > 0 && a[i] != 0) a[i] != a[i-1];\n    }\n    a.sum() with (int'(item == 0)) >= 41;\n    a.sum() with (int'(item == 1)) >= 41;\n    a.sum() with (int'(item == 2)) >= 41;\n    a.sum() with (int'(item == 3)) >= 41;\n    a.sum() with (int'(item == 4)) >= 41;\n  }\nendclass\n```\n\nFor the variant with values 0 through 5, at least 40 of each, and no consecutive zeros, add the sixth quota, use >=40, and replace the adjacent rule with: if(i>0 && a[i]==0) a[i-1]!=0. The required counts must fit in 300; adjacent restrictions may impose further feasibility limits.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-039",
+  "title": "Generate Sudoku, magic squares, eight queens, and knight's tour configurations",
+  "prompt": "",
+  "source_notes": "**Answer. **For Sudoku, constrain every cell to 1 through 9 and make cells in the same row, column, or 3x3 box distinct. This generates a solved grid. It does not generate a puzzle with a unique solution and a chosen difficulty.\n\n```systemverilog\nclass sudoku;\n  rand int x[9][9];\n  constraint c {\n    foreach (x[r,c]) {\n      x[r][c] inside {[1:9]};\n      foreach (x[u,v])\n        if ((r != u || c != v) &&\n            (r == u || c == v || (r/3 == u/3 && c/3 == v/3)))\n          x[r][c] != x[u][v];\n    }\n  }\nendclass\n\n// Normal 3x3 magic square, using each value 1..9 exactly once.\nclass magic3;\n  rand int a[9];\n  constraint c {\n    foreach (a[i]) {\n      a[i] inside {[1:9]};\n      foreach (a[j]) if (i < j) a[i] != a[j];\n    }\n    a[0]+a[1]+a[2] == 15;\n    a[3]+a[4]+a[5] == 15;\n    a[6]+a[7]+a[8] == 15;\n    a[0]+a[3]+a[6] == 15;\n    a[1]+a[4]+a[7] == 15;\n    a[2]+a[5]+a[8] == 15;\n    a[0]+a[4]+a[8] == 15;\n    a[2]+a[4]+a[6] == 15;\n  }\nendclass\n\n// One queen in each row; col[r] gives its column.\nclass queens8;\n  rand int col[8];\n  constraint c {\n    foreach (col[i]) {\n      col[i] inside {[0:7]};\n      foreach (col[j]) if (i < j) {\n        col[i] != col[j];\n        col[i] - col[j] != i - j;\n        col[i] - col[j] != j - i;\n      }\n    }\n  }\nendclass\n\n// Open knight's tour. Each step selects a distinct square.\nclass knight8;\n  rand int r[64], c[64];\n  constraint tour_c {\n    foreach (r[i]) {\n      r[i] inside {[0:7]}; c[i] inside {[0:7]};\n      foreach (r[j]) if (i < j)\n        (r[i] != r[j]) || (c[i] != c[j]);\n      if (i < 63)\n        (((r[i+1]-r[i] == 1) || (r[i+1]-r[i] == -1)) &&\n         ((c[i+1]-c[i] == 2) || (c[i+1]-c[i] == -2))) ||\n        (((r[i+1]-r[i] == 2) || (r[i+1]-r[i] == -2)) &&\n         ((c[i+1]-c[i] == 1) || (c[i+1]-c[i] == -1)));\n    }\n  }\nendclass\n```\n\nA normal NxN magic square uses values 1 through N² and line sum N*(N²+1)/2; use prefix sums for parameterized rows, columns, and diagonals. N=2 is unsatisfiable. For a closed knight's tour, also constrain the last square to be a knight move from the first. The tour's large search space may make pure randomization slow; backtracking with a move-order heuristic is a practical alternative when procedural generation is allowed.",
+  "category": "SV Constraints",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-040",
+  "title": "Apply a distribution based on the previous random value, including parity probabilities",
+  "prompt": "",
+  "source_notes": "**Answer. **Choose the next parity with the conditional probability, then solve the value consistent with that parity. Keep the previous result as state. This example makes the next value even with probability 75% after an odd result and 25% after an even result.\n\n```systemverilog\nclass conditional_parity;\n  rand bit [7:0] value;\n  rand bit choose_even;\n  bit [7:0] previous = 0;\n  bit have_previous = 0;\n  constraint c {\n    if (!have_previous) choose_even dist {1 := 50, 0 := 50};\n    else if (previous[0]) choose_even dist {1 := 75, 0 := 25};\n    else choose_even dist {1 := 25, 0 := 75};\n    solve choose_even before value;\n    value[0] == !choose_even;\n  }\n  function void post_randomize();\n    previous = value;\n    have_previous = 1;\n  endfunction\nendclass\n```\n\nFor other conditional distributions, constrain a selector based on previous, then constrain the result based on that selector. Check statistical results over many draws; an 80% weight does not guarantee exactly eight successes in each ten draws.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-041",
+  "title": "Make the four most recent generated values distinct",
+  "prompt": "",
+  "source_notes": "**Answer. **Exclude the last three successful values from the new draw. That makes every sliding window of four values distinct. Use color_stream above with the desired value domain instead of the color domain. The history starts empty, and it contains at most three values after each update. The domain must have at least four values for generation to continue indefinitely.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-042",
+  "title": "Generate equal-size arrays where one is sorted and the other is a permutation",
+  "prompt": "",
+  "source_notes": "**Answer. **For unique input values, constrain one array to be strictly increasing and make the other a same-sized, unique selection from it. If duplicates are allowed, use a permutation of indices instead so multiplicities are preserved. The following version handles duplicates.\n\n```systemverilog\nclass sorted_and_permuted;\n  rand int a[], b[], pick[];\n  constraint c {\n    a.size() inside {[6:9]};\n    b.size() == a.size();\n    pick.size() == a.size();\n    foreach (a[i]) {\n      a[i] inside {[0:99]};\n      if (i > 0) a[i] >= a[i-1];\n      pick[i] inside {[0:a.size()-1]};\n      b[i] == a[pick[i]];\n      foreach (pick[j]) if (i < j) pick[i] != pick[j];\n    }\n  }\nendclass\n```\n\nUse > instead of >= if 'ascending' means strictly increasing. Membership alone is insufficient when duplicate values are present because it does not preserve their occurrence counts.",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-043",
+  "title": "Constrain dates to leap years and numbers to powers of four",
+  "prompt": "",
+  "source_notes": "**Answer. **A Gregorian leap year is divisible by four, except century years must also be divisible by 400. For a 32-bit power of four, choose an exponent 0 through 15 and set the word to one shifted left by twice that exponent. This includes 1, which is 4⁰, and excludes zero.\n\n```systemverilog\nclass leap_date;\n  rand int year, month, day;\n  constraint c {\n    year inside {[1900:2400]};\n    (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));\n    month inside {[1:12]};\n    day >= 1;\n    if (month == 2) day <= 29;\n    else if (month inside {4,6,9,11}) day <= 30;\n    else day <= 31;\n  }\nendclass\n\nclass power4;\n  rand bit [31:0] value;\n  rand int unsigned exponent;\n  constraint c {\n    exponent inside {[0:15]};\n    value == (32'b1 << (2*exponent));\n  }\nendclass\n```\n\nIf the prompt only requests a year, the month/day constraints are unnecessary. An alternate power-of-four test is nonzero, one-hot, and set only at an even bit position: value!=0; (value & (value-1))==0; (value & 32'haaaa_aaaa)==0.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-044",
+  "title": "Generate weighted bit counts, grouped runs of ones, nonadjacent set bits, or equal counts of ones and zeros",
+  "prompt": "",
+  "source_notes": "**Answer. **Use a helper count with explicit weights for weighted population counts. For grouped ones, choose a run length and legal start. For no adjacent ones, require word & (word<<1) to be zero. Equal ones and zeros in an even-width word means a population count of half its width. These are independent patterns, not simultaneous requirements.\n\n```systemverilog\nclass weighted_count;\n  rand bit [9:0] word;\n  rand int count;\n  constraint c {\n    count dist {[1:10] := 1}; // Equal weight for each count.\n    solve count before word;\n    $countones(word) == count;\n  }\nendclass\n\nclass one_run;\n  rand bit [31:0] word;\n  rand int unsigned start, length;\n  constraint c {\n    length inside {[1:32]};\n    start inside {[0:31]};\n    start + length <= 32;\n    word == (32'hffff_ffff >> (32-length)) << start;\n  }\nendclass\n\nclass separated_ones;\n  rand bit [31:0] word;\n  constraint c { (word & (word << 1)) == 0; }\nendclass\n\nclass balanced_bits;\n  rand bit [31:0] word;\n  constraint c { $countones(word) == 16; }\nendclass\n```\n\nTo require exactly ten nonadjacent ones without $countones, use an unpacked bit array bits[32], bits.sum() with (int'(item))==10, and foreach(bits[i]) if(i>0) !(bits[i] && bits[i-1]); map it to a packed word if needed. := assigns weight to each value in a range, whereas :/ shares a range's total weight. For 'lower two bits equal only 5% of the time', choose a 5/95 equality flag first and constrain (word[1]==word[0]) to it.",
+  "category": "General",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-045",
+  "title": "Constrain instruction sequences to prohibit specified operations within recent valid instructions or overlapping execution intervals",
+  "prompt": "In processor and hardware accelerator verification, constrained-random stimulus generators must accurately model pipeline hazards, structural issue restrictions, and execution unit resource conflicts.\n\nImplement SystemVerilog constraints for the following two classic verification scenarios:\n\n### Part 1: History-Dependent Instruction Stream\nDefine an instruction stream class generating one operation at a time (`ADD`, `SUB`, `MUL`, `NOP`):\n1. **Cycle-Based History Window:** Prohibit generating an `ADD` if an `ADD` occurred within the previous 3 clock cycles. Elapsed clock cycles count regardless of whether an operation was valid or a stall (`NOP` counts toward elapsed cycles).\n2. **Valid-Instruction History Window:** Prohibit generating a `SUB` if a `SUB` occurred within the previous 3 **valid** instructions (`NOP` represents a pipeline bubble/stall and must be **skipped**).\n\n### Part 2: Non-Overlapping Execution Intervals on Shared Resources\nSchedule $N$ multi-cycle operations with random `start` cycles, `finish` cycles, and assigned `resource` IDs:\n- Operations assigned to the same execution unit/resource must **not** have overlapping execution intervals.\n- Treat intervals as half-open $[start, finish)$ so that an operation may begin in the exact cycle that a preceding operation on the same resource finishes.\n\n---\n\n### Concrete Examples\n\n#### Example 1: Part 1 Sequence Generation Walkthrough\n| Cycle | Generated Op | `cycles` Queue (Last 3 cycles) | `valid_ops` Queue (Last 3 valid) | Blocked Next Cycle | Explanation |\n|:---:|:---:|:---|:---|:---|:---|\n| 0 | **ADD** | `[ADD]` | `[ADD]` | `ADD` | ADD enters both cycle & valid queues |\n| 1 | **SUB** | `[ADD, SUB]` | `[ADD, SUB]` | `ADD`, `SUB` | SUB enters both queues |\n| 2 | **NOP** | `[ADD, SUB, NOP]` | `[ADD, SUB]` | `ADD`, `SUB` | NOP advances cycle count, but is skipped by valid ops |\n| 3 | **MUL** | `[SUB, NOP, MUL]` | `[ADD, SUB, MUL]` | `SUB` | 3 cycles passed since cycle 0 ADD, so **ADD is now allowed**; SUB still blocked! |\n| 4 | **ADD** | `[NOP, MUL, ADD]` | `[SUB, MUL, ADD]` | `ADD`, `SUB` | ADD allowed by cycle history; pushes cycle 0 ADD out of valid queue |\n\n#### Example 2: Part 2 Resource Scheduling Timeline\n```text\nCycle:        0   1   2   3   4   5   6   7   8\nResource 0:          [--- Op A ---)[--- Op B ---)      <- Legal: Op B starts when Op A finishes (cycle 5)\nResource 1:              [--- Op C ---)                <- Legal: overlaps in time with Op A/B, but on different resource\n```",
+  "source_notes": "**Answer. **Distinguish elapsed cycles from valid instructions. Maintain a cycle-history window for ADD and a separate history of valid operations for SUB, excluding NOP. Here an ADD is prohibited if any of the previous three cycles contained ADD, and SUB is prohibited if any of the previous three valid instructions contained SUB.\n\n```systemverilog\ntypedef enum int {ADD, MUL, SUB, NOP} op_t;\nclass instruction_stream;\n  rand op_t op;\n  op_t cycles[$], valid_ops[$];\n  constraint c {\n    foreach (cycles[i]) if (cycles[i] == ADD) op != ADD;\n    foreach (valid_ops[i]) if (valid_ops[i] == SUB) op != SUB;\n  }\n  function void post_randomize();\n    cycles.push_back(op);\n    if (cycles.size() > 3) void'(cycles.pop_front());\n    if (op != NOP) begin\n      valid_ops.push_back(op);\n      if (valid_ops.size() > 3) void'(valid_ops.pop_front());\n    end\n  endfunction\nendclass\n\n// Independent example: prohibit overlap for operations sharing a resource.\nrand int start[10], finish[10], resource[10];\nconstraint intervals_c {\n  foreach (start[i]) {\n    start[i] inside {[0:100]};\n    finish[i] inside {[1:110]};\n    finish[i] > start[i];\n    resource[i] inside {[0:3]};\n    foreach (start[j]) if (i < j && resource[i] == resource[j])\n      (finish[i] <= start[j]) || (finish[j] <= start[i]);\n  }\n}\n```\n\nThe interval example treats execution as [start,finish), so one operation may start exactly when another finishes. Clarify whether 'in three cycles' includes the current cycle; if it means a three-cycle window including now, retain only two previous cycles. History must update on the modeled cycle or acceptance event, not on unrelated retries of randomize().",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-046",
+  "title": "Constrain 2D matrices to unique row maxima, unique minima, and boundary-dependent neighboring values",
+  "prompt": "",
+  "source_notes": "**Answer. **Select the position of each row maximum. Every other element in that row must be strictly smaller, and maximum values across rows must differ. Use the same technique with > for a unique minimum. Checking only unequal maximum positions would not make the maximum values different.\n\n```systemverilog\nclass row_maxima;\n  rand int m[3][4];\n  rand int max_col[3];\n  constraint c {\n    foreach (max_col[r]) {\n      max_col[r] inside {[0:3]};\n      foreach (max_col[s]) if (r < s)\n        m[r][max_col[r]] != m[s][max_col[s]];\n    }\n    foreach (m[r,c]) {\n      m[r][c] inside {[0:99]};\n      if (c != max_col[r]) m[r][c] < m[r][max_col[r]];\n    }\n  }\nendclass\n\n// Two 3x3 matrices with a unique minimum in each,\n// and different minimum values between the matrices.\nclass matrix_minima;\n  rand int a[9], b[9];\n  rand int ia, ib;\n  constraint c {\n    ia inside {[0:8]}; ib inside {[0:8]};\n    foreach (a[i]) {\n      a[i] inside {[0:99]}; b[i] inside {[0:99]};\n      if (i != ia) a[i] > a[ia];\n      if (i != ib) b[i] > b[ib];\n    }\n    a[ia] != b[ib];\n  }\nendclass\n```\n\nFor adjacent inequalities, constrain the right neighbor when c+1<C and the lower neighbor when r+1<R. For 'one maximum per subsquare', first define whether subsquares are disjoint blocks or overlapping windows; introduce a winner coordinate for each specified block/window and compare it with every other member. Without that definition, there is no single exact constraint system.",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-047",
+  "title": "Randomize matrix dimensions and perform a 90-degree rotation",
+  "prompt": "",
+  "source_notes": "**Answer. **A clockwise rotation maps input[r][c] to output[c][R-1-r]. The output dimensions are C by R. Counterclockwise rotation maps input[r][c] to output[C-1-c][r]. Rotation is a deterministic transform, so it can be done procedurally after generating the input, or expressed as equalities if both arrays must be part of the solve.\n\n```systemverilog\nclass rotate_matrix;\n  rand int rows, cols;\n  rand int input_m[8][8], output_m[8][8];\n  constraint c {\n    rows inside {[1:8]}; cols inside {[1:8]};\n    foreach (input_m[r,c]) {\n      if (r < rows && c < cols) {\n        input_m[r][c] inside {[0:255]};\n        output_m[c][rows-1-r] == input_m[r][c];\n      } else input_m[r][c] == 0;\n    }\n    foreach (output_m[r,c])\n      if (r >= cols || c >= rows) output_m[r][c] == 0;\n  }\nendclass\n```\n\nThis uses fixed storage with random active dimensions to avoid ragged-array allocation issues. If an odd square is required, add rows==cols and rows%2==1. A 2x3 input with rows [a b c] and [d e f] rotates clockwise to [d a], [e b], [f c]. Four clockwise rotations recover the input.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-048",
+  "title": "Generate a tic-tac-toe board",
+  "prompt": "",
+  "source_notes": "**Answer. **For a legal tic-tac-toe position, encode empty=0, X=1, O=2 and assume X moves first. Require X count to equal O count or exceed it by one, forbid both players winning, and relate any winner to the move counts. These conditions describe reachable standard 3x3 positions when play stops at a win.\n\n```systemverilog\nclass tic_tac_toe;\n  rand int board[9];\n  rand bit xwin, owin;\n  constraint c {\n    foreach (board[i]) board[i] inside {[0:2]};\n    (board.sum() with (int'(item == 1)) ==\n     board.sum() with (int'(item == 2))) ||\n    (board.sum() with (int'(item == 1)) ==\n     (board.sum() with (int'(item == 2))) + 1);\n    xwin == (\n      (board[0]==1 && board[1]==1 && board[2]==1) ||\n      (board[3]==1 && board[4]==1 && board[5]==1) ||\n      (board[6]==1 && board[7]==1 && board[8]==1) ||\n      (board[0]==1 && board[3]==1 && board[6]==1) ||\n      (board[1]==1 && board[4]==1 && board[7]==1) ||\n      (board[2]==1 && board[5]==1 && board[8]==1) ||\n      (board[0]==1 && board[4]==1 && board[8]==1) ||\n      (board[2]==1 && board[4]==1 && board[6]==1));\n    owin == (\n      (board[0]==2 && board[1]==2 && board[2]==2) ||\n      (board[3]==2 && board[4]==2 && board[5]==2) ||\n      (board[6]==2 && board[7]==2 && board[8]==2) ||\n      (board[0]==2 && board[3]==2 && board[6]==2) ||\n      (board[1]==2 && board[4]==2 && board[7]==2) ||\n      (board[2]==2 && board[5]==2 && board[8]==2) ||\n      (board[0]==2 && board[4]==2 && board[8]==2) ||\n      (board[2]==2 && board[4]==2 && board[6]==2));\n    !(xwin && owin);\n    if (xwin) board.sum() with (int'(item == 1)) ==\n              (board.sum() with (int'(item == 2))) + 1;\n    if (owin) board.sum() with (int'(item == 1)) ==\n              board.sum() with (int'(item == 2));\n  }\nendclass\n```\n\nFor a full game, randomize or generate a sequence of legal moves: choose an empty square, alternate players, and stop immediately at a win or draw. A random board with only cell values 0/1/2 can contain impossible move counts or two winners.",
+  "category": "General",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-049",
+  "title": "Verify synchronous and asynchronous FIFO behavior, pointer comparisons, Gray-code crossing, and non-power-of-two depth",
+  "prompt": "",
+  "source_notes": "**Answer. **For a synchronous FIFO, check accepted push/pop operations against a queue and compute occupancy exactly in its clock domain. A counter or wrap-aware pointers can detect empty/full. For a conventional power-of-two asynchronous FIFO, keep binary pointers locally for RAM addressing, convert them to Gray code for crossing, and synchronize each Gray pointer into the opposite clock domain.\n\nFor that conventional design, empty compares the next local read Gray pointer with the synchronized write Gray pointer; full compares the next local write Gray pointer with the synchronized read pointer with its two most significant Gray bits inverted. Confirm whether flags use current or next pointers in the actual RTL. Local one-step Gray transitions must change one bit, but a synchronized pointer may skip several source increments and need not differ by only one bit between destination samples. Flags can be pessimistic because of synchronizer latency. Check CDC structure and physical skew constraints in addition to simulation. A binary counter wrapping directly at a non-power-of-two depth does not generally give a one-bit Gray wrap. Use a reviewed arbitrary-depth scheme or a power-of-two physical ring with separately enforced logical capacity. Changing the modulus alone does not work.",
+  "category": "CDC & Timing",
+  "type": "coding",
+  "difficulty": "Hard",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-050",
+  "title": "Calculate FIFO depth for different producer/consumer clock rates and burst occupancy",
+  "prompt": "",
+  "source_notes": "**Answer. **Size the FIFO from the worst accumulated backlog, not just the ratio of clock frequencies. Build a time trace of arriving words and successful departures, including initial occupancy, burst lengths, consumer startup delay, clock phase, stalls, and CDC visibility latency. Required usable depth is the maximum occupancy in that trace, plus any explicit implementation margin.\n\n```systemverilog\n// Conceptual occupancy calculation:\n// occupancy(t) = initial_occupancy + cumulative_writes(t)\n//                                  - cumulative_reads(t)\n// depth >= max_t occupancy(t)\n```\n\nFor example, an ideal 1 us burst at 100 million words/s with simultaneous draining at 80 million words/s accumulates 20 words. Exact edges, startup delay, and flag latency can increase that requirement. If a continuously running producer is faster than the consumer on average, no finite FIFO can avoid eventual overflow without backpressure or dropping data. Use word throughput, not clock rate alone, when transfers occur only on some cycles.",
+  "category": "Digital Design",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-051",
+  "title": "Explain blocking versus nonblocking assignment scheduling and race conditions",
+  "prompt": "",
+  "source_notes": "**Answer. **A blocking assignment updates its target when the statement executes. A nonblocking assignment evaluates its right-hand side at execution and schedules the target update for the NBA region. In a clocked pipeline, nonblocking assignments let each stage capture the previous stage's old value. Use blocking assignments for combinational calculations and nonblocking assignments for clocked state.\n\n```systemverilog\n// Starting with a=1, b=0, c=0:\nalways_ff @(posedge clk) begin\n  a <= b; b <= c; c <= a;\nend\n// After the edge and NBA updates: a=0, b=0, c=1.\n\n// Independent alternative, same initial values:\nalways @(posedge clk) begin\n  a = b; b = c; c = a;\nend\n// In this one block: a=0, b=0, c=0.\n```\n\nSeparate active-region processes have no guaranteed execution order. A testbench driving a signal with a blocking assignment on the same edge that RTL samples it can race. Use clocking blocks with deliberate skew or drive before the sampling edge. Nonblocking assignment does not by itself make every testbench sampling operation race-free.",
+  "category": "SystemVerilog",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-052",
+  "title": "Test fixed-priority and round-robin arbiters",
+  "prompt": "",
+  "source_notes": "**Answer. **For fixed priority, predict the highest-priority asserted eligible request and compare it with the grant. For round-robin, add a reference priority pointer and update it at the defined service event. Both need one-hot-or-zero grants, no grants to nonrequesters, correct reset state, and stability while a selected transfer stalls.\n\nExercise all requester masks for a small arbiter, persistent contention, intermittent high-priority requests, changing eligibility, reset mid-service, and pointer wraparound. Fixed-priority starvation can be expected behavior; round-robin should bound wait in service opportunities under persistent requests and eventual downstream progress. Cross winner, contention mask, previous winner, and stalls. Measure fairness only under the assumptions the implementation promises.",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-053",
+  "title": "Verify valid/ready pipeline stages and backpressure under stalls",
+  "prompt": "",
+  "source_notes": "**Answer. **A transfer occurs only on valid && ready. A source must keep valid and payload stable while valid is asserted and ready is low. A one-entry elastic stage accepts a new item when it is empty or when the old item leaves in that cycle. Its verification model enqueues accepted inputs and compares accepted outputs.\n\n```systemverilog\n// One-entry elastic stage, all signals in the same clock domain.\nassign in_ready = !out_valid || out_ready;\nalways_ff @(posedge clk or negedge rst_n) begin\n  if (!rst_n) out_valid <= 1'b0;\n  else if (in_ready) begin\n    out_valid <= in_valid;\n    if (in_valid) out_data <= in_data;\n  end\nend\n\nassert property (@(posedge clk) disable iff (!rst_n)\n  out_valid && !out_ready |=> out_valid && $stable(out_data));\n```\n\nTest isolated transfers, full-rate traffic, long and short output stalls, simultaneous input/output transfers, reset while full, and stall release. Check data and every sideband together. This stage has a combinational ready path; a design that must register ready needs enough extra storage, often a skid buffer, to retain transfers already in flight. Interface rules such as AXI's prohibition on combinational input-to-output paths may require that additional structure.\n\n  ### CDC / STA",
+  "category": "Digital Design",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-054",
+  "title": "Select safe CDC methods for slow-to-fast and fast-to-slow crossings",
+  "prompt": "",
+  "source_notes": "**Answer. **For a single level that stays stable long enough, use a destination-domain synchronizer, commonly two flip-flops. A slow-to-fast pulse can be sampled only if its width and the destination clock behavior guarantee capture. A short fast-to-slow pulse can be missed entirely, so use pulse stretching with a stated bound, a toggle scheme with a rate bound, or a request/acknowledge handshake.\n\nA handshake is appropriate when every event must arrive despite variable clock ratios. A toggle can lose events if it changes twice before the destination observes the first change. Use a data-stable handshake or an asynchronous FIFO for multibit payloads; independently synchronizing each data bit does not preserve coherence. Also test stopped clocks and reset recovery, rather than assuming clock ratio alone proves a safe crossing.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-055",
+  "title": "Compare synchronized handshake, recirculation mux, and asynchronous FIFO for wide buses",
+  "prompt": "",
+  "source_notes": "**Answer. **A synchronized request/acknowledge handshake transfers a stable data word with explicit acknowledgment and backpressure. A recirculation mux keeps the destination register unchanged until a synchronized load control tells it to capture the held source data. That mux arrangement still needs a data-stability protocol and timing constraints; it is not sufficient on its own. An asynchronous FIFO buffers multiple words and supports sustained streams with independent clocks.\n\nChoose a handshake for infrequent configuration or status transfers, and an asynchronous FIFO for a stream that needs buffering and throughput. In a bundled-data handshake, hold the payload until acknowledgment and ensure the data reaches the destination before capture. Check reset alignment and do not reuse a handshake slot prematurely. The wide data bus usually bypasses per-bit synchronizers because its coherence comes from holding it stable while the control crosses safely.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-056",
+  "title": "Explain metastability, reset synchronization, reconvergence, and CDC constraint consistency",
+  "prompt": "",
+  "source_notes": "**Answer. **Metastability occurs when a flip-flop samples near a transition and may take longer than usual to settle. Synchronizer stages give extra resolution time and reduce the probability of a metastable value reaching functional logic; they do not eliminate it. RTL simulation cannot measure analog metastability or prove a physical MTBF.\n\nReset may assert asynchronously when required, but deassert it synchronously in each destination clock domain. Check recovery/removal timing and interactions between independently reset domains. Reconvergence occurs when related signals cross through separate synchronizers and later meet with inconsistent latency; transfer them coherently or use a protocol that tolerates the skew. Keep CDC and STA clock/reset definitions consistent. Review clock groups, generated clocks, synchronizer placement, Gray-bus skew/max-delay requirements, reset paths, and justified waivers. A false path is a timing-analysis instruction, not evidence that a crossing is functionally safe.",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-057",
+  "title": "Distinguish setup and hold analysis and debug clock skew",
+  "prompt": "",
+  "source_notes": "**Answer. **Setup checks whether the latest data arrival reaches the capture flip-flop before its setup deadline. Hold checks whether the earliest new data arrival stays away until after the hold deadline. Define skew as capture-clock arrival minus launch-clock arrival. Positive skew helps setup and hurts hold for a simple same-frequency path.\n\n```systemverilog\n// Simplified same-frequency equations, ignoring uncertainty:\n// Setup: T >= t_cq_max + t_data_max + t_setup - skew\n// Hold:  t_cq_min + t_data_min >= t_hold + skew\n```\n\nDebug using actual launch/capture edges, path delays, clock insertion delays, uncertainty, and variation. Setup fixes include shortening logic or adding a pipeline; hold fixes often add minimum data delay or adjust the clock tree. Increasing the clock period helps a simple setup failure but does not fix a same-edge hold failure. Multicycle exceptions need correct hold treatment too.\n\n  ### AXI / interconnect",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-058",
+  "title": "Explain AXI asynchronous crossing and two-master arbitration",
+  "prompt": "",
+  "source_notes": "**Answer. **An AXI clock crossing needs transaction-aware buffering, commonly asynchronous FIFOs for channel payloads and their handshake state. Preserve AW, W, B, AR, and R information, outstanding IDs, burst boundaries, and write-address/data association. Synchronizing each AXI signal independently can corrupt a transaction.\n\nFor two masters targeting one slave, arbitrate accepted address requests, record ownership, and route responses to the correct master. Masters can reuse the same numeric ID, so append a source tag or maintain an ID mapping table. In AXI4, W has no WID and write-data interleaving is absent; keep each write burst associated with its selected address/owner and handle AW/W arriving independently. Test simultaneous masters, colliding IDs, backpressure on each channel, long bursts, fairness, reset, and unmatched address/data timing. Reference: [Arm AXI specification](https://developer.arm.com/documentation/ihi0022/latest/)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-059",
+  "title": "Build and test master-to-slave address routing, fanout, and register slices",
+  "prompt": "",
+  "source_notes": "**Answer. **Decode each accepted address against nonoverlapping slave regions and retain the selected destination for the transaction. Keep that route stable while the address stalls and while the burst completes. Return a decode error for unmapped addresses according to the interconnect contract. Response routing must preserve the original master and transaction identity.\n\nTest both ends of every address region, adjacent regions, unmapped addresses, concurrent destinations, colliding IDs from different masters, all burst sizes/types supported, byte strobes, and independent channel stalls. AXI bursts must not cross a 4 KB boundary; also check any narrower target-region restrictions. For register slices, compare end-to-end accepted traffic to catch loss, duplication, sideband misalignment, and reordering. Check throughput and bubble behavior as well as correctness. Fanout must deliver a transaction only to its selected target unless a separate broadcast operation is specified. Reference: [Arm AXI specification](https://developer.arm.com/documentation/ihi0022/latest/)",
+  "category": "General",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-060",
+  "title": "Compare same-ID versus different-ID outstanding requests and ordering implications",
+  "prompt": "",
+  "source_notes": "**Answer. **AXI transaction IDs identify streams that have ordering requirements. For conventional AXI4, read responses for the same master and ID preserve request order; write responses for the same master and ID preserve write-transaction order. Different IDs can permit out-of-order completion, so the scoreboard tracks expected transactions by master, direction, and ID rather than using one global FIFO.\n\nA single read burst's beats remain ordered and end with RLAST. Read and write directions are separate. Using the same numeric ID does not impose a universal ordering between a read and a write. Cross-direction dependencies require the specified completion/ordering mechanism. Check the specific AXI version and target memory attributes. Reference: [Arm AXI specification](https://developer.arm.com/documentation/ihi0022/latest/)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Easy",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-061",
+  "title": "Compare AXI and APB; explain split transactions",
+  "prompt": "",
+  "source_notes": "**Answer. **AXI has independent read-address, read-data, write-address, write-data, and write-response channels. It supports pipelined traffic, bursts, and, in full AXI, multiple outstanding transactions identified by IDs. APB is a simpler peripheral interface with a setup phase followed by an access phase; it allows wait states but does not provide AXI-style multiple outstanding transactions or bursts.\n\nAPB starts setup with PSEL asserted and PENABLE low, then enters access with PENABLE high; completion occurs when PREADY is high. Address and control remain stable during a waited access. AXI decouples request acceptance from later completion, allowing other requests to proceed while a response is pending. That is often what an interviewer means by a split transaction, but AHB's named SPLIT response is a different protocol mechanism. In an AXI-to-APB bridge, verify serialization, address/data retention, byte strobes where supported, error translation, and backpressure. References: [Arm AXI specification](https://developer.arm.com/documentation/ihi0022/latest/) and [Arm APB specification](https://developer.arm.com/documentation/ihi0024/latest/)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-062",
+  "title": "Analyze a reset during an in-flight AXI memory-mapped burst and potential hangs",
+  "prompt": "",
+  "source_notes": "**Answer. **Reset can erase an accepted address, partial write data, or a pending response. If only one endpoint resets, the other may wait forever for a transaction whose state no longer exists. AXI reset requirements do not define a universal system-level recovery policy for every partially completed transaction, so the reset architecture must say which domains reset together and how abandoned requests are handled.\n\nTest reset before address acceptance, after address acceptance, between write beats, before B, during read responses, and with channel backpressure. Check VALID outputs are cleared as required and reset deassertion follows the local clock rules. For a partial reset, use the specified quiesce, isolation, drain, abort/error, or coordinated-reset mechanism. Clear or reconcile ownership tables, FIFOs, credits, and scoreboards by reset epoch. Do not assume a partially written memory burst is atomic or that reset rolls back earlier writes. A bounded recovery/timeout check detects orphaned requests and hangs. Reference: [Arm AXI specification](https://developer.arm.com/documentation/ihi0022/latest/)",
+  "category": "Protocols",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-063",
+  "title": "Design Verification overview and core test plans: https://www.hardware-interview.com/study",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Verification Planning",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-064",
+  "title": "UVM questions: same page, under Design Verification > UVM",
+  "prompt": "",
+  "source_notes": "",
+  "category": "UVM",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-065",
+  "title": "Constraint problems: same page, under Design Verification > SystemVerilog Testbench & Constraints",
+  "prompt": "",
+  "source_notes": "",
+  "category": "SV Constraints",
+  "type": "concept",
+  "difficulty": "Hard",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-066",
+  "title": "Relevant supporting sections: STA/Static Timing Analysis, Clock Domain Crossing, and Bus Interconnect Design",
+  "prompt": "",
+  "source_notes": "Editorial note: Several sample answers on the original page are informal and may contain incomplete or questionable code. Treat them as interview prompts and verify syntax and semantics with a simulator and the UVM/SystemVerilog specification.",
+  "category": "CDC & Timing",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-067",
+  "title": "[#136 Single Number](https://leetcode.com/problems/single-number/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-068",
+  "title": "[#137 Single Number II](https://leetcode.com/problems/single-number-ii/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-069",
+  "title": "[#190 Reverse Bits](https://leetcode.com/problems/reverse-bits/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-070",
+  "title": "[#191 Number of 1 Bits](https://leetcode.com/problems/number-of-1-bits/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-071",
+  "title": "[#201 Bitwise AND of Numbers Range](https://leetcode.com/problems/bitwise-and-of-numbers-range/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-072",
+  "title": "[#231 Power of Two](https://leetcode.com/problems/power-of-two/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-073",
+  "title": "[#260 Single Number III](https://leetcode.com/problems/single-number-iii/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-074",
+  "title": "[#268 Missing Number](https://leetcode.com/problems/missing-number/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-075",
+  "title": "[#287 Find the Duplicate Number](https://leetcode.com/problems/find-the-duplicate-number/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-076",
+  "title": "[#318 Maximum Product of Word Lengths](https://leetcode.com/problems/maximum-product-of-word-lengths/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-077",
+  "title": "[#476 Number Complement](https://leetcode.com/problems/number-complement/)",
+  "prompt": "",
+  "source_notes": "### Arrays and hash tables",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-078",
+  "title": "[#1 Two Sum](https://leetcode.com/problems/two-sum/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-079",
+  "title": "[#26 Remove Duplicates from Sorted Array](https://leetcode.com/problems/remove-duplicates-from-sorted-array/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-080",
+  "title": "[#27 Remove Element](https://leetcode.com/problems/remove-element/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-081",
+  "title": "[#88 Merge Sorted Array](https://leetcode.com/problems/merge-sorted-array/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-082",
+  "title": "[#169 Majority Element](https://leetcode.com/problems/majority-element/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-083",
+  "title": "[#242 Valid Anagram](https://leetcode.com/problems/valid-anagram/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-084",
+  "title": "[#15 3Sum](https://leetcode.com/problems/3sum/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-085",
+  "title": "[#54 Spiral Matrix](https://leetcode.com/problems/spiral-matrix/)",
+  "prompt": "",
+  "source_notes": "### Stacks and string processing",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-086",
+  "title": "[#13 Roman to Integer](https://leetcode.com/problems/roman-to-integer/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-087",
+  "title": "[#20 Valid Parentheses](https://leetcode.com/problems/valid-parentheses/)",
+  "prompt": "",
+  "source_notes": "### Linked lists",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-088",
+  "title": "[#21 Merge Two Sorted Lists](https://leetcode.com/problems/merge-two-sorted-lists/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-089",
+  "title": "[#83 Remove Duplicates from Sorted List](https://leetcode.com/problems/remove-duplicates-from-sorted-list/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-090",
+  "title": "[#141 Linked List Cycle](https://leetcode.com/problems/linked-list-cycle/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-091",
+  "title": "[#160 Intersection of Two Linked Lists](https://leetcode.com/problems/intersection-of-two-linked-lists/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-092",
+  "title": "[#206 Reverse Linked List](https://leetcode.com/problems/reverse-linked-list/)",
+  "prompt": "",
+  "source_notes": "### Two pointers and binary search",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-093",
+  "title": "[#125 Valid Palindrome](https://leetcode.com/problems/valid-palindrome/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-094",
+  "title": "[#167 Two Sum II - Input Array Is Sorted](https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-095",
+  "title": "[#704 Binary Search](https://leetcode.com/problems/binary-search/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-096",
+  "title": "[#35 Search Insert Position](https://leetcode.com/problems/search-insert-position/)",
+  "prompt": "",
+  "source_notes": "### Design problems",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-097",
+  "title": "[#155 Min Stack](https://leetcode.com/problems/min-stack/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-098",
+  "title": "[#225 Implement Stack using Queues](https://leetcode.com/problems/implement-stack-using-queues/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-099",
+  "title": "[#232 Implement Queue using Stacks](https://leetcode.com/problems/implement-queue-using-stacks/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "coding",
+  "difficulty": "Medium",
+  "language": "systemverilog"
+ },
+ {
+  "id": "hwinterview-100",
+  "title": "[#705 Design HashSet](https://leetcode.com/problems/design-hashset/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-101",
+  "title": "[#706 Design HashMap](https://leetcode.com/problems/design-hashmap/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-102",
+  "title": "[#146 LRU Cache](https://leetcode.com/problems/lru-cache/)",
+  "prompt": "",
+  "source_notes": "### Dynamic programming",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ },
+ {
+  "id": "hwinterview-103",
+  "title": "[#70 Climbing Stairs](https://leetcode.com/problems/climbing-stairs/)",
+  "prompt": "",
+  "source_notes": "",
+  "category": "Coding & Scripting",
+  "type": "concept",
+  "difficulty": "Medium",
+  "language": "text"
+ }
+]

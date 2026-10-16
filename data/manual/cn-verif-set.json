@@ -1,0 +1,489 @@
+{
+ "source": {
+  "id": "cn-verif",
+  "name": "驗證題集"
+ },
+ "questions": [
+  {
+   "title": "定寬陣列、動態陣列、關聯陣列、佇列各自的特點與使用場景？",
+   "answer": "佇列 int q[$] 可在任意位置插入/刪除；定寬陣列編譯期決定大小，分 packed（型別後、名稱前）與 unpacked（名稱後）；動態陣列執行期以 new[] 配置；關聯陣列像 hash，適合超大但稀疏的位址空間，例如 bit [63:0] mem[bit[63:0]]。",
+   "solution": "**Key idea:** 四種陣列差在「大小何時決定」與「如何索引」：定寬（編譯期）、動態（執行期 new[]）、佇列（可伸縮、兩端操作 O(1)）、關聯（稀疏、以 key 索引）。\n\n| 類型 | 宣告 | 大小決定 | 記憶體 | 典型用途 |\n| --- | --- | --- | --- | --- |\n| 定寬 packed | `bit [7:0][3:0] a;` | 編譯期 | 連續 bit 向量 | 可當整數運算、切 byte |\n| 定寬 unpacked | `bit [7:0] a [4];` | 編譯期 | 每元素獨立 | 小型查表、暫存器堆 |\n| 動態陣列 | `int d[]; d = new[n];` | 執行期 | 連續 | 長度可變的 payload |\n| 佇列 | `int q[$];` | 動態伸縮 | 類 linked-list | scoreboard 期望值 FIFO |\n| 關聯陣列 | `bit [31:0] m[bit[63:0]];` | 只存用到的 key | hash/tree | 大位址空間 memory model |\n\n### Explanation\n- **packed** 維度寫在名稱前，整體可視為一個向量；**unpacked** 寫在名稱後。\n- 動態陣列 `new[n](old)` 可擴充並保留舊值；`size()`、`delete()`。\n- 佇列支援 `push_back/push_front/pop_front/insert/delete`，`q[$]` 表示最後一個元素。\n- 關聯陣列用 `exists()`、`first()/next()` 走訪，未寫入的 key 讀取回傳預設值並可能出 warning。\n\n```systemverilog\nbit [31:0] mem [bit [63:0]];        // 稀疏 64-bit 位址記憶體\nint        exp_q[$];                // scoreboard 期望佇列\nbyte       payload[];\ninitial begin\n  payload = new[16];\n  exp_q.push_back(5);\n  mem[64'hFFFF_0000_0000_0000] = 32'hDEAD_BEEF;\n  if (mem.exists(64'h0)) $display(\"hit\");\nend\n```\n\n### Corner cases & pitfalls\n- 關聯陣列 key 用 `int` 是有號數，負位址會讓走訪順序出乎意料；用 `bit [N:0]`。\n- 動態陣列 `new[]` 不帶舊陣列會清空內容。\n\n### Follow-ups\n- 佇列和動態陣列能互相賦值嗎？可以，元素型別相容即可。\n- 關聯陣列 key 可以是 class handle 或 string 嗎？可以，`[string]`、`[my_class]` 皆合法。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "結構體 struct 與聯合體 union 的使用與差異？",
+   "answer": "struct 可由不同資料型別組成並整體操作；union 讓同一塊記憶體以不同型別解讀，例如同一暫存器有時當整數、有時當小數。",
+   "solution": "**Key idea:** `struct` 是「多個欄位並排」，總寬度 = 各欄位相加；`union` 是「多種解讀疊在同一塊儲存」，寬度 = 最大欄位。\n\n| 項目 | struct | union |\n| --- | --- | --- |\n| 記憶體 | 各欄位各自佔空間 | 所有成員共用 |\n| 寬度 (packed) | 欄位寬度總和 | 所有成員必須等寬 |\n| 典型用途 | 封包 header、交易欄位 | 同一暫存器多種視角（raw bits vs 欄位） |\n\n```systemverilog\ntypedef struct packed {\n  bit [3:0] opcode;   // [15:12]\n  bit [3:0] rd;       // [11:8]\n  bit [7:0] imm;      // [7:0]\n} instr_t;\n\ntypedef union packed {\n  bit [15:0] raw;     // 整體視為 16-bit\n  instr_t    f;       // 拆成欄位\n} instr_u;\n\ninstr_u u;\ninitial begin\n  u.raw = 16'h3A5F;\n  $display(\"op=%h rd=%h imm=%h\", u.f.opcode, u.f.rd, u.f.imm); // 3 A 5F\nend\n```\n\n### Explanation\n- `packed struct` 可直接當向量做位元運算、比較、assign 到 bus。\n- `unpacked struct` 可含 `real`、`string` 等非整數型別，但不能當向量。\n- `packed union` 要求每個成員等寬，可安全地以不同格式讀同一份 bit；`tagged union` 會額外記錄目前有效成員。\n\n### Corner cases & pitfalls\n- 原題寫 `struct {bit [2:0] a, int c}`，正確語法是分號分隔：`struct {bit [2:0] a; int c;} name;`。\n- packed 中第一個欄位是 MSB。\n\n### Follow-ups\n- 什麼時候用 typedef？要在多處（port、class）重用同一型別時。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "fork...join、fork...join_any、fork...join_none 的差異？",
+   "answer": "join：全部子執行緒結束才往下；join_any：任一結束即往下；join_none：不等待直接往下。",
+   "solution": "**Key idea:** 三者都會平行啟動內部每個 statement / `begin...end`，差別只在父執行緒「等多少個」才繼續。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"thread A (10ns)\", \"wave\": \"1.0......\" },\n  { \"name\": \"thread B (30ns)\", \"wave\": \"1.....0..\" },\n  { \"name\": \"parent: join\", \"wave\": \"0.....1..\" },\n  { \"name\": \"parent: join_any\", \"wave\": \"0.1......\" },\n  { \"name\": \"parent: join_none\", \"wave\": \"1........\" }\n],\n  \"head\": { \"text\": \"父執行緒何時繼續（1 = 已越過 fork 往下執行）\" } }\n```\n\n| 型式 | 父執行緒繼續時機 | 未結束的子執行緒 |\n| --- | --- | --- |\n| `join` | 全部結束 | 無 |\n| `join_any` | 任一結束 | 繼續在背景跑 |\n| `join_none` | 立即（在下一個 blocking 點後子執行緒才開始） | 繼續在背景跑 |\n\n```systemverilog\nfork\n  begin wait_rsp();  end\n  begin #1000ns; `uvm_error(\"TO\", \"timeout\") end\njoin_any\ndisable fork;   // 殺掉還在跑的另一條（timeout 或 rsp）\n```\n\n### Corner cases & pitfalls\n- `join_none` 在迴圈中 fork 時要用 `automatic` 變數保存迴圈索引，否則全部子執行緒看到最後的 `i`。\n- `disable fork` 會殺掉目前執行緒所有子孫 fork，必要時包一層 `fork begin ... end join` 隔離。\n\n### Follow-ups\n- `wait fork` 做什麼？等待目前執行緒所生出的所有子執行緒結束。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "SystemVerilog 多執行緒之間有哪些同步/通訊方法？",
+   "answer": "mailbox（put/get/peek 傳資料）、event（-> 觸發、@ 或 wait(ev.triggered) 等待）、semaphore（get/put key 控制資源存取，一次可多把）。",
+   "solution": "**Key idea:** event 只做「時間同步」，semaphore 做「資源互斥」，mailbox 做「資料傳遞 + 同步」。\n\n```mermaid\nsequenceDiagram\n  participant GEN as \"generator\"\n  participant MB as \"mailbox\"\n  participant DRV as \"driver\"\n  GEN->>MB: put(tr)\n  DRV->>MB: get(tr) (空則阻塞)\n  DRV-->>GEN: trigger done_ev (event)\n```\n\n| 機制 | 主要 API | 用途 |\n| --- | --- | --- |\n| `event` | `->ev`、`@ev`、`wait(ev.triggered)` | 通知某事發生 |\n| `semaphore` | `new(n)`、`get(k)`、`put(k)`、`try_get` | 多執行緒共用 bus/資源 |\n| `mailbox` | `put/get/peek/try_get/num` | 傳交易物件，可設為 bounded |\n\n```systemverilog\nsemaphore bus_key = new(1);\nmailbox #(packet) mb = new(4);   // bounded: 滿了 put 會阻塞\ntask automatic drive(packet p);\n  bus_key.get(1);   // 搶 bus\n  // ... drive pins ...\n  bus_key.put(1);\nendtask\n```\n\n### Corner cases & pitfalls\n- `@ev` 與 `->ev` 同一 time step 發生時可能錯過；用 `wait(ev.triggered)`。\n- `peek` 不移除資料，`get` 會移除。\n\n### Follow-ups\n- semaphore `put` 超過初始數量會怎樣？會增加 key 數量，不會報錯，要自行保證成對。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "@(signal) 與 wait(signal) 的差異？",
+   "answer": "@ 為邊緣觸發，若事件在程序執行到 @ 前已發生就會錯過；wait 為準位觸發，條件已成立就直接通過，不會遺漏。",
+   "solution": "**Key idea:** `@` 等「變化（edge/event）」；`wait(expr)` 等「條件為真（level）」，若已為真立即通過。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p......\" },\n  { \"name\": \"done\", \"wave\": \"0.1....\" },\n  { \"name\": \"thread reaches stmt\", \"wave\": \"0...1..\" },\n  { \"name\": \"@(posedge done) passes\", \"wave\": \"0......\" },\n  { \"name\": \"wait(done) passes\", \"wave\": \"0...1..\" }\n],\n  \"head\": { \"text\": \"done 已在 thread 到達前拉高：@ 永遠等不到，wait 立即通過\" } }\n```\n\n### Explanation\n- `@(posedge done)`：必須在等待期間看到 0→1 轉換。\n- `wait(done)`：只要 `done==1` 就通過，不需要轉換。\n- 對 `event`：`@ev` 會漏掉同一 time step 早先的觸發，`wait(ev.triggered)` 在整個 time step 內都看得到。\n\n```systemverilog\ninitial begin\n  -> start_ev;              // 先觸發\nend\ninitial begin\n  wait(start_ev.triggered); // 同 time step 內仍能看到\n  $display(\"started\");\nend\n```\n\n### Corner cases & pitfalls\n- `wait(done)` 在 done 一直為 1 時於迴圈中會不斷立即通過，造成 zero-delay 無窮迴圈；配合 `@(posedge clk)`。\n\n### Follow-ups\n- `wait_order` 是什麼？檢查多個 event 依指定順序觸發。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "在 TB 中使用 interface 與 clocking block 有什麼好處？",
+   "answer": "interface 把信號打包，避免每層重複宣告、降低連線錯誤並提高重用；clocking block 定義取樣與驅動時序（採樣提前、驅動延後），避免 TB 與 DUT 之間的競爭。",
+   "solution": "**Key idea:** interface 解決「連線」問題；clocking block 解決「時序競爭（race）」問題：輸入在時鐘前 skew 取樣，輸出在時鐘後 skew 驅動。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p....\" },\n  { \"name\": \"DUT out (cb input)\", \"wave\": \"x=.=.\", \"data\": [\"A\", \"B\"] },\n  { \"name\": \"TB samples\", \"wave\": \"x.=.=\", \"data\": [\"A\", \"B\"] },\n  { \"name\": \"TB drives (output #1)\", \"wave\": \"0.1.0\" }\n],\n  \"head\": { \"text\": \"input 在 posedge 前（#1step）取樣；output 在 posedge 後 skew 驅動\" } }\n```\n\n```systemverilog\ninterface bus_if(input logic clk);\n  logic       valid, ready;\n  logic [7:0] data;\n  clocking cb @(posedge clk);\n    default input #1step output #1;\n    output valid, data;\n    input  ready;\n  endclocking\n  modport tb  (clocking cb);\n  modport dut (input valid, data, output ready);\nendinterface\n```\n\n### Explanation\n- interface：一處宣告、多處使用；可含 modport、task、assertion、coverage。\n- clocking block：TB 以 `vif.cb.valid <= 1;`、`@(vif.cb);` 操作，取樣值是時鐘邊緣前的穩定值，不受 DUT 在同一 time step 更新的影響。\n- class 內透過 `virtual interface` handle 存取。\n\n### Corner cases & pitfalls\n- 對 clocking block output 必須用 `<=`（synchronous drive），不能用 `=`。\n- 混用 `vif.sig` 和 `vif.cb.sig` 會重新引入 race。\n\n### Follow-ups\n- 為什麼 module 也可避免 race？program block 在 reactive region 執行，但 UVM 一般用 clocking block 即可。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "說明物件導向（C++/SV）的三大特性：封裝、繼承、多型",
+   "answer": "封裝：把資料與操作資料的方法包成類別；繼承：由既有類別衍生新類別共用屬性方法；多型：基類 handle 指向衍生物件，經 virtual 方法呼叫到衍生類實作。",
+   "solution": "**Key idea:** 封裝隱藏細節、繼承重用程式碼、多型讓「同一個呼叫」在執行期依物件型別決定行為。\n\n```mermaid\nclassDiagram\n  class packet {\n    #bit data\n    +virtual print()\n  }\n  class err_packet {\n    +bit crc_err\n    +print()\n  }\n  packet <|-- err_packet\n```\n\n| 特性 | SV 語法 | 驗證中的例子 |\n| --- | --- | --- |\n| 封裝 | `local` / `protected` 成員 | transaction 只暴露 API |\n| 繼承 | `class B extends A` | `my_driver extends uvm_driver` |\n| 多型 | `virtual function` + 基類 handle | factory override 換掉 driver/sequence |\n\n```systemverilog\nclass packet;\n  protected bit [7:0] data;\n  virtual function void print(); $display(\"packet %h\", data); endfunction\nendclass\nclass err_packet extends packet;\n  bit crc_err = 1;\n  virtual function void print(); $display(\"ERR packet %h crc=%0b\", data, crc_err); endfunction\nendclass\ninitial begin\n  packet p; err_packet e = new;\n  p = e;\n  p.print();   // 印 \"ERR packet ...\"，因為 print 是 virtual\nend\n```\n\n### Corner cases & pitfalls\n- 若 `print` 非 virtual，`p.print()` 依 handle 型別呼叫基類版本。\n- 基類 handle 不能存取衍生類新增成員（`p.crc_err` 編譯錯誤），需 `$cast`。\n\n### Follow-ups\n- `super.new()` 何時必要？衍生類 `new` 需傳參數給基類時，且必須是第一行。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "SystemVerilog 中什麼情況下必須使用 virtual method？",
+   "answer": "當要依照 handle 實際指向的物件型別來決定呼叫哪個方法時必須宣告 virtual；一般除了 new 以外的方法都宣告為 virtual。",
+   "solution": "**Key idea:** 只要「用基類 handle 呼叫，卻希望執行衍生類版本」就必須 `virtual`，否則是靜態綁定（看 handle 型別）。\n\n| 呼叫方式 | 方法非 virtual | 方法為 virtual |\n| --- | --- | --- |\n| `base_h = derived_obj; base_h.f()` | 呼叫 **base::f** | 呼叫 **derived::f** |\n| `derived_h.f()` | derived::f | derived::f |\n\n```systemverilog\nclass base;\n  function void hello();          $display(\"base\");    endfunction\n  virtual function void vhello(); $display(\"base v\");  endfunction\nendclass\nclass child extends base;\n  function void hello();          $display(\"child\");   endfunction\n  virtual function void vhello(); $display(\"child v\"); endfunction\nendclass\ninitial begin\n  base b; child c = new; b = c;\n  b.hello();   // base   (靜態綁定)\n  b.vhello();  // child v (動態綁定)\nend\n```\n\n### Explanation\n- UVM 的 `build_phase`、`run_phase`、`body()`、`do_copy` 等都是 virtual，factory override 才有意義。\n- 一旦在基類宣告 virtual，衍生類中同名方法自動 virtual，且原型（引數、回傳型別）必須一致。\n- `new()` 不能是 virtual。\n\n### Corner cases & pitfalls\n- 忘記 virtual 時編譯不會報錯，只會「默默」呼叫錯版本，是常見 bug。\n\n### Follow-ups\n- `pure virtual` 是什麼？只在 `virtual class` 中宣告原型，強制子類實作。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "$cast() 向下轉型與直接賦值的差異？",
+   "answer": "衍生類 handle 賦值給基類 handle 可直接賦值；基類 handle 賦給衍生類 handle（向下轉型）必須用 $cast，且只有當基類 handle 實際指向衍生類物件時才會成功。",
+   "solution": "**Key idea:** 向上（child→base）永遠安全，直接賦值；向下（base→child）要 `$cast` 在執行期檢查物件真實型別。\n\n```mermaid\nflowchart LR\n  OBJ[\"child 物件 (heap)\"]\n  BH[\"base handle b\"] --> OBJ\n  CH[\"child handle c\"] --> OBJ\n  BH -->|\"$cast(c, b) 成功\"| CH\n```\n\n| 方向 | 語法 | 檢查時機 |\n| --- | --- | --- |\n| 向上 `b = c;` | 直接賦值 | 編譯期即可確認安全 |\n| 向下 `$cast(c, b)` | 系統函式 | 執行期；b 指向的物件必須是 child（或其子類） |\n\n```systemverilog\nbase  b;\nchild c, c2;\ninitial begin\n  c = new();\n  b = c;                    // upcast OK\n  if (!$cast(c2, b))        // downcast：b 實際指向 child → 成功\n    $fatal(1, \"cast failed\");\n  b = new();                // b 指向純 base 物件\n  if (!$cast(c2, b))        // 失敗，回傳 0\n    $display(\"cannot cast base object to child\");\nend\n```\n\n### Explanation\n- UVM 常見：`$cast(tr, rhs)` 在 `do_copy/do_compare` 中；`$cast(my_seqr, p_sequencer)` 等。\n- `$cast` 當作 task 呼叫失敗時會產生 runtime error；當作 function 使用則回傳 0/1，可自行處理。\n\n### Corner cases & pitfalls\n- 原文說「基類物件賦給衍生類 handle 用 $cast」——若物件真的是 base 物件，$cast 仍會失敗；成功前提是物件本身是衍生型別。\n\n### Follow-ups\n- `$cast` 也能用在 enum：`$cast(state, 3)` 檢查值是否合法。",
+   "category": "SystemVerilog",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "帶約束的隨機類別：權重約束 dist、條件約束、範圍約束的語法與用法",
+   "answer": "dist 有 := 與 :/ 兩種；條件約束用 if-else 或 ->；範圍約束用 inside{[min:max]}，不能寫 min<x<max。",
+   "solution": "**Key idea:** `:=` 給範圍內**每個值**相同權重；`:/` 把權重**平均分給範圍內所有值**。條件約束用 `->` 或 `if`；範圍用 `inside`。\n\n以 `x dist {0 := 40, [1:3] := 60}` 與 `x dist {0 := 40, [1:3] :/ 60}` 比較：\n\n| 值 | `[1:3] := 60` 權重 | 機率 | `[1:3] :/ 60` 權重 | 機率 |\n| --- | --- | --- | --- | --- |\n| 0 | 40 | 40/220 = 18% | 40 | 40% |\n| 1 | 60 | 27% | 20 | 20% |\n| 2 | 60 | 27% | 20 | 20% |\n| 3 | 60 | 27% | 20 | 20% |\n\n```systemverilog\nclass pkt;\n  rand bit [7:0] len;\n  rand bit       is_long;\n  rand bit [1:0] kind;\n  constraint c_kind  { kind dist {0 := 40, [1:3] :/ 60}; }\n  constraint c_range { len inside {[1:64]}; }               // 範圍\n  constraint c_cond  { is_long -> len > 32;                 // 蘊含\n                       if (kind == 0) len < 8; }            // if-else\nendclass\n```\n\n### Explanation\n- 原文「`:/n` 表示每個值權重為 num/n」是錯的：正確是每個值權重 = **n / 範圍元素個數**。\n- `a -> b` 等價於 `!a || b`，是雙向求解，不是「先 a 後 b」。\n- `min < x < max` 會被解析成 `(min<x) < max`，要寫 `x inside {[min:max]}` 或 `x > min && x < max`。\n\n### Corner cases & pitfalls\n- `dist` 不能用在 `randc` 變數上。\n- 權重為 0 表示該值不可能出現。\n\n### Follow-ups\n- `solve a before b` 改變什麼？只改變機率分佈，不改變可行解集合。",
+   "category": "SV Constraints",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "x dist {0:=1, [1:3]:=1}; x 取各值的機率是多少？",
+   "prompt": "```systemverilog\nrand bit [1:0] x;\nconstraint c { x dist {0:=1, [1:3]:=1}; }\n```",
+   "answer": "x 取 0/1/2/3 的機率各為 1/4。",
+   "solution": "**Key idea:** `:=` 讓範圍內每個值都拿到完整權重 1，所以 4 個值權重相同，各 1/4。\n\n| 值 | 權重 | 機率 |\n| --- | --- | --- |\n| 0 | 1 | 1/4 |\n| 1 | 1 | 1/4 |\n| 2 | 1 | 1/4 |\n| 3 | 1 | 1/4 |\n| 總和 | 4 | 1 |\n\n### Explanation\n- 若改成 `x dist {0:=1, [1:3]:/1}`：0 權重 1，1/2/3 各 1/3，總權重 2 → P(0)=1/2，P(1)=P(2)=P(3)=1/6。\n- 常見變形：`{0:=1, [1:3]:/3}` → 每個值都是 1，又回到各 1/4。\n\n```systemverilog\n// 用統計驗證\nint hist[4];\nrepeat (10000) begin\n  void'(obj.randomize());\n  hist[obj.x]++;\nend\nforeach (hist[i]) $display(\"x=%0d : %0d\", i, hist[i]);  // 約 2500 each\n```\n\n### Corner cases & pitfalls\n- 若還有其他約束（例如 `x != 0`）把值排除，剩下的值依權重重新正規化。\n\n### Follow-ups\n- `randc` 的 x 機率？每輪 4 次中 0~3 各出現一次，屬循環而非機率。",
+   "category": "SV Constraints",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "驗證環境中 C 如何存取 DUT 的暫存器？DPI 介面如何使用？",
+   "answer": "SV 透過 DPI-C 與 C 互動：import \"DPI-C\" function int factorial(input int i); input 表示資料由 SV 流向 C，參數型別要兩邊相容；DPI 只能呼叫 C 的靜態/全域函式，要呼叫 C++ 物件方法需包一層靜態函式並傳物件 handle。",
+   "solution": "**Key idea:** C 端不直接看到 DUT；它呼叫 SV `export` 出來的 task（例如 `reg_write`），由 SV 的 driver/RAL 做真正的匯流排存取。SV 呼叫 C 用 `import`，C 呼叫 SV 用 `export`。\n\n```mermaid\nsequenceDiagram\n  participant C as \"C test (fw.c)\"\n  participant SV as \"SV top / RAL\"\n  participant DUT as \"DUT regs\"\n  SV->>C: import: c_main()\n  C->>SV: export: sv_reg_write(addr, data)\n  SV->>DUT: bus write (driver / reg model)\n  C->>SV: export: sv_reg_read(addr)\n  SV->>DUT: bus read\n  DUT-->>SV: rdata\n  SV-->>C: return rdata\n```\n\n```systemverilog\n// SV side\nimport \"DPI-C\" context task c_main();\nexport \"DPI-C\" task sv_reg_write;\nexport \"DPI-C\" task sv_reg_read;\ntask sv_reg_write(input int unsigned addr, input int unsigned data);\n  uvm_status_e st;\n  env.regmodel.default_map.get_reg_by_offset(addr).write(st, data);\nendtask\ntask sv_reg_read(input int unsigned addr, output int unsigned data);\n  uvm_status_e st; uvm_reg_data_t v;\n  env.regmodel.default_map.get_reg_by_offset(addr).read(st, v);\n  data = v;\nendtask\n```\n\n```c\n/* C side */\n#include \"svdpi.h\"\nextern int sv_reg_write(unsigned addr, unsigned data);\nextern int sv_reg_read(unsigned addr, unsigned *data);\nint c_main(void) {\n  unsigned v;\n  sv_reg_write(0x10, 0x1);\n  sv_reg_read(0x14, &v);\n  return 0;\n}\n```\n\n### Explanation\n- `import` 的 function 不耗時；需要耗時（呼叫 export task）要宣告為 `context task`。\n- 引數方向 `input/output/inout`；型別對映如 `int`↔`int`、`bit[31:0]`↔`svBitVecVal`。\n- C++ 成員函式不能直接 import：寫 `extern \"C\"` 包裝函式，以 `chandle` 傳物件指標。\n\n### Corner cases & pitfalls\n- 原文說「參數不能定義為 ref」是對的：DPI 不支援 `ref`。\n- 忘記 `context` 卻在 C 中呼叫 export task → runtime error。\n\n### Follow-ups\n- 後門存取怎麼做？`uvm_hdl_deposit/uvm_hdl_read`（底層也是 DPI/VPI）。",
+   "category": "SystemVerilog",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "談談你對 UVM 驗證方法學的理解",
+   "answer": "UVM 不只是 SV 的類別庫，更重要的是其分工思想：sequence/sequencer/driver/sequence_item 分離，像蓄水池、水、調度站、工廠；各元件獨立而有聯繫，提高重用性。",
+   "solution": "**Key idea:** UVM = 標準化的類別庫 + 方法學：把「產生什麼刺激」「如何驅動」「如何檢查」拆開，再用 factory、config_db、phase、TLM 把它們鬆耦合地組起來，因而可重用、可配置、可擴充。\n\n```mermaid\nflowchart LR\n  SEQ[\"sequence (要做什麼)\"] -->|item| SQR[\"sequencer (仲裁/調度)\"]\n  SQR -->|get_next_item| DRV[\"driver (怎麼做: pin level)\"]\n  DRV --> DUT[\"DUT\"]\n  DUT --> MON[\"monitor (看到什麼)\"]\n  MON -->|analysis port| SCB[\"scoreboard (對不對)\"]\n  MON -->|analysis port| COV[\"coverage (做夠沒)\"]\n```\n\n### Explanation\n- **分層**：sequence 只描述交易內容；driver 只懂協定時序；換測試只換 sequence，換協定只換 agent。\n- **重用**：agent 可在 block→subsystem→SoC 間搬移（active/passive 切換）。\n- **可配置**：`uvm_config_db` 傳 virtual interface 與 config object。\n- **可替換**：factory override 不改原始碼就換掉 driver/transaction。\n- **同步**：phase 機制統一 build/connect/run/report 時序；objection 控制結束。\n- **標準化**：IEEE 1800.2，跨公司、跨 VIP 互通。\n\n### Corner cases & pitfalls\n- 面試時別只說「它是個 library」，要能舉例說明 sequence 機制、factory、phase 解決了什麼問題。\n\n### Follow-ups\n- UVM 的缺點？學習曲線陡、小 block 可能 overkill、模擬效能負擔。\n- 比喻：sequence＝蓄水池產生水（item），sequencer＝調度站，driver＝工廠只管處理送來的水。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "UVM 驗證環境的結構以及各元件之間的關係",
+   "answer": "UVM TB 由 component（driver/monitor/sequencer/agent/scoreboard/model/env/test/top，形成樹狀結構）與 object（sequence_item、config 等）組成；元件透過 TLM 通訊，driver/monitor 透過 interface 與 DUT 連接，top 呼叫 run_test 啟動 test。",
+   "solution": "**Key idea:** component 組成固定的階層樹（有 phase），object 是在樹中流動的資料/設定；元件之間以 TLM port 連線，與 DUT 之間以 virtual interface 連線。\n\n```mermaid\nflowchart TB\n  TOP[\"tb_top (module): DUT + interface + run_test()\"] --> TEST[\"uvm_test\"]\n  TEST --> ENV[\"uvm_env\"]\n  ENV --> IAGT[\"in_agent (active)\"]\n  ENV --> OAGT[\"out_agent (passive)\"]\n  ENV --> RM[\"reference model\"]\n  ENV --> SCB[\"scoreboard\"]\n  IAGT --> SQR[\"sequencer\"]\n  IAGT --> DRV[\"driver\"]\n  IAGT --> IMON[\"monitor\"]\n  OAGT --> OMON[\"monitor\"]\n  IMON -->|analysis| RM\n  RM -->|expected| SCB\n  OMON -->|actual| SCB\n```\n\n### Explanation\n- **component**：`uvm_component` 子類，`new(name, parent)` 建立樹；擁有 phase、config_db 階層路徑。\n- **object**：`uvm_sequence_item`、`uvm_sequence`、config object，生命週期短、沒有 phase。\n- **連線**：`seq_item_port ↔ seq_item_export`（driver↔sequencer）、`analysis_port → analysis_imp/tlm_analysis_fifo`（monitor→RM/scoreboard）。\n- **DUT 介面**：top 將 interface 以 `uvm_config_db#(virtual my_if)::set` 放入，driver/monitor 在 build_phase `get`。\n\n### Corner cases & pitfalls\n- passive agent 只建 monitor，不建 driver/sequencer。\n- reference model 與 scoreboard 通常用 `uvm_tlm_analysis_fifo` 緩衝，避免 write() 中阻塞。\n\n### Follow-ups\n- 為什麼 test 是樹根之下的第一層？`run_test()` 依 `+UVM_TESTNAME` 由 factory 建立，名稱固定為 `uvm_test_top`。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "舉例說明 UVM 常用機制與 phase 的關係，phase 機制的作用",
+   "answer": "UVM 有 factory、field automation、phase、sequence、config_db 等機制。phase 有 9 個主 phase 加 12 個 run-time 小 phase；除 run_phase 為 task 外其餘為 function；build 與 final 自頂向下，其餘自底向上；run_phase 與 12 個小 phase 平行，不建議混用。",
+   "solution": "**Key idea:** phase 讓所有元件依同一順序 build→connect→run→report，保證「先建立再連線、全部連完才開始模擬」。function phase 不耗時，只有 run 類 phase 是 task。\n\n```mermaid\nflowchart TB\n  B[\"build_phase (top-down)\"] --> C[\"connect_phase (bottom-up)\"]\n  C --> E[\"end_of_elaboration_phase\"]\n  E --> S[\"start_of_simulation_phase\"]\n  S --> RUN[\"run_phase (task)\"]\n  S --> RT[\"reset→configure→main→shutdown (各含 pre/post, 共 12 個 task phase)\"]\n  RUN --> X[\"extract_phase\"]\n  RT --> X\n  X --> CK[\"check_phase\"]\n  CK --> RP[\"report_phase\"]\n  RP --> F[\"final_phase (top-down)\"]\n```\n\n| 類別 | phase | 型別 | 執行順序 |\n| --- | --- | --- | --- |\n| build-time | build | function | top-down |\n| | connect, end_of_elaboration, start_of_simulation | function | bottom-up |\n| run-time | run + 12 個 sub-phase | task | 平行（各元件同時跑） |\n| cleanup | extract, check, report | function | bottom-up |\n| | final | function | top-down |\n\n### Explanation\n- build 必須 top-down：父元件先建立並 set config，子元件才能 get。\n- 同一 phase 在所有元件完成後才進下一 phase；run-time phase 由 objection 決定何時結束。\n- 其他常用機制：factory（`type_id::create`、override）、config_db、sequence、objection、TLM、report（`uvm_info`）。\n\n### Corner cases & pitfalls\n- run_phase 與 main_phase 同時使用是合法的（兩者平行），但若 objection 只在其中一個 raise，另一個會被提前結束，容易混淆；團隊一般擇一使用。\n\n### Follow-ups\n- phase jump 怎麼做？`phase.jump(uvm_reset_phase::get())`，僅限 run-time sub-phase。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "UVM phase 中的 domain 是什麼概念？",
+   "answer": "domain 用來將元件分組使其 run-time phase 獨立執行；預設 9 個主 phase 屬 common domain，12 個小 phase 屬 uvm domain。可把兩個 driver 放在不同 domain，使其 reset/main phase 各自推進（只對 12 個小 phase 有效）。",
+   "solution": "**Key idea:** 同一 domain 中所有元件的 run-time sub-phase 是「齊步走」的；放在不同 domain 後，各自的 reset/main/shutdown 可以不同步推進，例如一個 interface 重新 reset 不影響另一個。\n\n```mermaid\nflowchart LR\n  subgraph uvm_domain\n    A1[\"drvA reset\"] --> A2[\"drvA main\"] --> A3[\"drvA shutdown\"]\n  end\n  subgraph my_domain\n    B1[\"drvB reset\"] --> B2[\"drvB main\"] --> B3[\"drvB shutdown\"]\n  end\n  CM[\"common domain: build ... run ... report\"]\n```\n\n```systemverilog\nclass my_env extends uvm_env;\n  uvm_domain dom_b;\n  function void connect_phase(uvm_phase phase);\n    dom_b = new(\"dom_b\");\n    agt_b.set_domain(dom_b);   // agt_b 及其子元件的 sub-phase 獨立\n  endfunction\nendclass\n```\n\n### Explanation\n- `common` domain：build、connect…run、extract…final（所有元件共享）。\n- `uvm` domain：12 個 run-time sub-phase（pre_reset…post_shutdown）。\n- 自訂 domain 後，`phase.jump()` 只影響該 domain 內的元件。\n- 不同 domain 在 run-time 結束時仍會在 extract 前同步。\n\n### Corner cases & pitfalls\n- 只對 run-time sub-phase 有效，run_phase 不受影響。\n- `set_domain(dom, hier=1)` 預設會套用到所有子元件。\n\n### Follow-ups\n- 使用場景？多個獨立時鐘/reset 的介面，各自要做 reset-on-the-fly 測試時。",
+   "category": "UVM",
+   "difficulty": "Hard",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "uvm_component 與 uvm_object 的關係與差異？",
+   "answer": "uvm_component 也是由 uvm_object 衍生，但多了 phase 機制與樹狀階層等屬性；component 用來搭 TB 階層，object 用於交易與配置。",
+   "solution": "**Key idea:** `uvm_component` 繼承自 `uvm_object`（經 `uvm_report_object`），額外擁有 parent/children 階層、phase、config_db 路徑；它在 build 時建立後一直存在到模擬結束。\n\n```mermaid\nclassDiagram\n  uvm_void <|-- uvm_object\n  uvm_object <|-- uvm_report_object\n  uvm_report_object <|-- uvm_component\n  uvm_object <|-- uvm_transaction\n  uvm_transaction <|-- uvm_sequence_item\n  uvm_sequence_item <|-- uvm_sequence_base\n  uvm_component <|-- uvm_driver\n  uvm_component <|-- uvm_monitor\n```\n\n| 項目 | uvm_object | uvm_component |\n| --- | --- | --- |\n| 建構子 | `new(string name=\"\")` | `new(string name, uvm_component parent)` |\n| 註冊巨集 | `` `uvm_object_utils `` | `` `uvm_component_utils `` |\n| phase | 無 | 有 build/connect/run… |\n| 階層 | 無 parent | 有，`get_full_name()` 為樹路徑 |\n| 生命週期 | 動態產生、可多次 | elaboration 時建立，固定 |\n| 例子 | transaction、sequence、config | driver、monitor、env、test |\n\n### Explanation\n- component 只能在 build_phase（含之前）建立；之後不能新增元件。\n- object 可隨時 `create`，常透過 TLM 在元件間傳遞。\n\n### Corner cases & pitfalls\n- sequence 雖然有 `body()`、可以耗時，但它是 object，沒有 phase；需透過 `starting_phase`/`get_starting_phase()` 處理 objection。\n\n### Follow-ups\n- 為何 component 需要 parent？建立樹以便 phase 遍歷、config_db 路徑比對與 report 階層。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "UVM TLM 通訊介面的分類與用法？peek 與 get 的差異？",
+   "answer": "TLM 分 port、export、imp；操作有 put、get、peek、transport、analysis。peek 查看資料但不移除，get 取得後移除；imp 只能當終點；transport 為雙向；analysis 可連多個 imp（廣播）。",
+   "solution": "**Key idea:** port 是「發起者」，export 是「中繼」，imp 是「實作者（終點）」。`get` 會把交易從來源移除，`peek` 只看不拿。\n\n```mermaid\nflowchart LR\n  P[\"port (initiator, 方)\"] --> E[\"export (中繼, 圓)\"] --> I[\"imp (target, 實作 put/get)\"]\n  AP[\"analysis_port\"] --> I1[\"analysis_imp 1\"]\n  AP --> I2[\"analysis_imp 2\"]\n  AP --> I3[\"(可不連)\"]\n```\n\n| 類型 | 方向 | 阻塞 | 一對多 | 目標需實作 |\n| --- | --- | --- | --- | --- |\n| put | initiator→target | blocking/nonblocking | 否 | `put()` / `try_put()` `can_put()` |\n| get | target→initiator | 同上 | 否 | `get()` / `try_get()` `can_get()` |\n| peek | target→initiator，不移除 | 同上 | 否 | `peek()` / `try_peek()` |\n| transport | 雙向 req/rsp | 同上 | 否 | `transport()` / `nb_transport()` |\n| analysis | 廣播 | 非阻塞 function | 是 (0~N) | `write()` |\n\n```systemverilog\nclass scb extends uvm_scoreboard;\n  uvm_tlm_analysis_fifo #(tr) exp_fifo, act_fifo;\n  task run_phase(uvm_phase phase);\n    tr e, a;\n    forever begin\n      act_fifo.get(a);        // 取出並移除\n      exp_fifo.peek(e);       // 只看，留在 fifo\n      if (a.compare(e)) exp_fifo.get(e);\n    end\n  endtask\nendclass\n```\n\n### Corner cases & pitfalls\n- analysis `write()` 是 function，不能耗時；若接收端需要耗時處理，用 `uvm_tlm_analysis_fifo` 解耦。\n- 連線方向：`port.connect(export/imp)`，從 initiator 往 target 呼叫 connect。\n\n### Follow-ups\n- driver 為何先 `get_next_item` 再 `item_done`？等同 peek+get 的兩步握手，讓 sequence 知道 item 已完成。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "analysis port 可以不連接，或連接多個 imp 嗎？",
+   "answer": "都可以。analysis port 類似廣播，可同時對多個 imp 送交易，各 imp 需實作 write()。put/get/peek port 只能一對一且必須實作對應函式；tlm fifo 內含 analysis_export 等，直接連即可。",
+   "solution": "**Key idea:** `uvm_analysis_port` 內部維護一個 subscriber 清單，`write(t)` 時逐一呼叫；清單為空也合法（0 個），所以 monitor 可在沒有 scoreboard 的環境重用。\n\n```mermaid\nflowchart LR\n  MON[\"monitor.ap\"] -->|write| SCB[\"scoreboard.imp\"]\n  MON -->|write| COV[\"coverage subscriber\"]\n  MON -->|write| FIFO[\"uvm_tlm_analysis_fifo.analysis_export\"]\n```\n\n```systemverilog\n`uvm_analysis_imp_decl(_exp)\n`uvm_analysis_imp_decl(_act)\nclass my_scb extends uvm_scoreboard;\n  uvm_analysis_imp_exp #(tr, my_scb) exp_imp;\n  uvm_analysis_imp_act #(tr, my_scb) act_imp;\n  function void write_exp(tr t); exp_q.push_back(t); endfunction\n  function void write_act(tr t); /* compare */ endfunction\nendclass\n// env.connect_phase\nin_mon.ap.connect(scb.exp_imp);\nout_mon.ap.connect(scb.act_imp);\nout_mon.ap.connect(cov.analysis_export);   // 同一 port 再連一個\n```\n\n| port 種類 | 未連接 | 連多個 |\n| --- | --- | --- |\n| analysis port | OK | OK（廣播） |\n| put/get/peek port | 預設 min_size=1，未連報錯 | 不行（max_size=1） |\n\n### Corner cases & pitfalls\n- 同一個 component 收兩個 analysis 來源要用 `` `uvm_analysis_imp_decl `` 產生不同 write_xxx。\n- 廣播傳的是同一個 handle，接收端若修改物件會影響其他訂閱者，應先 `clone()`。\n\n### Follow-ups\n- `uvm_subscriber` 是什麼？內建一個 `analysis_export` 並要求實作 `write()` 的便利基類。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "virtual sequencer 和 sequencer 的差異？為什麼要用 virtual sequencer？",
+   "answer": "virtual sequencer 用於協調多個 agent 的 sequencer，它只保存底層 sequencer 的 handle，本身不傳 item、不連 driver；sequencer 面向單一 driver 的 sequence 群。",
+   "solution": "**Key idea:** 多個介面的刺激需要「互相配合」（例如先設定暫存器再送資料）時，用 virtual sequence 在一處編排，virtual sequencer 只是提供各子 sequencer handle 的容器。\n\n```mermaid\nflowchart TB\n  VSEQ[\"virtual sequence (body 中編排)\"] --> VSQR[\"virtual sequencer (僅含 handle)\"]\n  VSQR -.->|p_sequencer.apb_sqr| ASQR[\"apb sequencer\"] --> ADRV[\"apb driver\"]\n  VSQR -.->|p_sequencer.axi_sqr| XSQR[\"axi sequencer\"] --> XDRV[\"axi driver\"]\n```\n\n```systemverilog\nclass v_sqr extends uvm_sequencer;\n  `uvm_component_utils(v_sqr)\n  apb_sequencer apb_sqr;\n  axi_sequencer axi_sqr;\n  function new(string n, uvm_component p); super.new(n, p); endfunction\nendclass\n\nclass top_vseq extends uvm_sequence;\n  `uvm_object_utils(top_vseq)\n  `uvm_declare_p_sequencer(v_sqr)\n  task body();\n    cfg_seq  c = cfg_seq::type_id::create(\"c\");\n    data_seq d = data_seq::type_id::create(\"d\");\n    c.start(p_sequencer.apb_sqr);          // 先設定\n    fork d.start(p_sequencer.axi_sqr); join // 再送資料\n  endtask\nendclass\n// env.connect_phase: vsqr.apb_sqr = apb_agt.sqr; vsqr.axi_sqr = axi_agt.sqr;\n```\n\n| 項目 | sequencer | virtual sequencer |\n| --- | --- | --- |\n| 連 driver | 是 | 否 |\n| 傳 item | 是 | 否 |\n| 內容 | arbitration、item FIFO | 子 sequencer handle |\n\n### Corner cases & pitfalls\n- 子 sequencer handle 必須在 connect_phase 賦值，否則 null。\n- 也可以不用 virtual sequencer，直接在 test 中把 sequencer handle 塞給 virtual sequence。\n\n### Follow-ups\n- 什麼是 `p_sequencer` vs `m_sequencer`？m_sequencer 是基類 handle，p_sequencer 是巨集宣告的具體型別 handle。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "virtual sequence 和 virtual sequencer 中的 virtual 是什麼意思？",
+   "answer": "virtual 代表它不實際傳遞 item、不連接 driver，只是協調各 sequencer 的中央路由器；virtual sequence 組織不同 sequencer 上的 sequence。",
+   "solution": "**Key idea:** 這裡的 virtual 與 `virtual function` 無關，意思是「虛擬、不直接產生 item」：virtual sequence 不產生自己的 item，而是啟動其他 sequence；virtual sequencer 不接 driver。\n\n| | 一般 sequence | virtual sequence |\n| --- | --- | --- |\n| body 內容 | `start_item/finish_item` 產生 item | `sub_seq.start(sqr)` 啟動其他 sequence |\n| 執行在 | 實體 sequencer | virtual sequencer 或 `null` |\n| 目的 | 單一介面刺激 | 跨介面編排、同步 |\n\n```mermaid\nflowchart LR\n  V[\"virtual sequence\"] -->|start on| S1[\"agent1.sqr\"]\n  V -->|start on| S2[\"agent2.sqr\"]\n  V -->|start on| S3[\"agent3.sqr\"]\n```\n\n```systemverilog\ntask body();\n  fork\n    rst_seq.start(p_sequencer.rst_sqr);\n    traffic_seq.start(p_sequencer.data_sqr);\n  join\nendtask\n```\n\n### Explanation\n- virtual sequencer 是 `uvm_sequencer` 的子類（沒有 item 型別參數），所以 virtual sequence 可以透過 `p_sequencer` 拿到所有子 sequencer。\n- 可重用：換頂層 test 只需換 virtual sequence。\n\n### Corner cases & pitfalls\n- 在 virtual sequence 中呼叫 `start_item` 會失敗，因為 virtual sequencer 沒有連 driver。\n\n### Follow-ups\n- objection 該放哪？通常在 test 或頂層 virtual sequence raise/drop。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "為什麼要把 sequence、sequencer、driver 分開實作？好處是什麼？",
+   "answer": "過去在 SV TB 中常由 driver（或 generator+driver）負責產生、轉換、發送資料，重用性低且臃腫；UVM 將 sequence、sequencer、driver、sequence_item 拆開，各自專注，重用性高。",
+   "solution": "**Key idea:** 「刺激內容」與「協定時序」解耦：driver 只寫一次，test 透過替換 sequence 產生無數情境；sequencer 提供仲裁讓多個 sequence 共用一個 driver。\n\n```mermaid\nsequenceDiagram\n  participant SEQ as \"sequence\"\n  participant SQR as \"sequencer\"\n  participant DRV as \"driver\"\n  DRV->>SQR: get_next_item()\n  SEQ->>SQR: start_item(req) (等待仲裁)\n  SEQ->>SQR: finish_item(req) (已 randomize)\n  SQR-->>DRV: req\n  DRV->>DRV: drive pins\n  DRV->>SQR: item_done()\n  SQR-->>SEQ: finish_item 返回\n```\n\n| 角色 | 職責 | 換測試時是否要改 |\n| --- | --- | --- |\n| sequence_item | 交易欄位 + 約束 | 偶爾（擴充約束） |\n| sequence | 產生 item 的順序/情境 | 是（主要變動點） |\n| sequencer | 仲裁、排隊 | 否 |\n| driver | item → pin 時序 | 否 |\n\n### Explanation\n- 多個 sequence 可同時在一個 sequencer 上跑（`fork`），sequencer 依 arbitration 交給 driver。\n- sequence 可階層化（sequence 呼叫 sequence）、可加入 sequence library。\n- driver 換協定版本，不影響上層 sequence。\n\n### Corner cases & pitfalls\n- driver 忘記 `item_done()` → sequence 卡在 `finish_item`。\n\n### Follow-ups\n- 什麼是 response？driver 用 `item_done(rsp)` 或 `put_response`，sequence 用 `get_response` 取得。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "簡述一個 slave VIP（或 UVM TB）的資料流（dataflow）",
+   "answer": "top 呼叫 run_test 啟動 testcase，經 phase 機制層次化執行；driver 要求 item，sequence 的 body 產生隨機 item 經 sequencer 給 driver，driver 轉成介面信號；monitor 採集轉成 item 送 model 與 scoreboard 比較。",
+   "solution": "**Key idea:** slave VIP 的特點是「被動回應」：monitor 先偵測到 master 的請求，再由 slave sequence 依請求產生回應，driver 把回應驅動回匯流排。\n\n```mermaid\nsequenceDiagram\n  participant M as \"DUT (master)\"\n  participant MON as \"slave monitor\"\n  participant SQR as \"slave sequencer\"\n  participant SEQ as \"slave response seq\"\n  participant DRV as \"slave driver\"\n  M->>MON: addr/ctrl phase\n  MON->>SQR: request (analysis port / fifo)\n  SEQ->>SQR: get request (peek)\n  SEQ->>SEQ: 查 memory model 產生 rsp\n  SEQ->>DRV: rsp item (start/finish_item)\n  DRV->>M: drive rdata/ready/resp\n  MON->>MON: 收集完整交易 → scoreboard / coverage\n```\n\n### Explanation\n1. `tb_top` 中 `run_test()` 建立 test → env → agent；config_db 傳 virtual interface。\n2. slave monitor 偵測 master 發起的 transfer，透過 `request_fifo` 傳給 sequencer。\n3. 常駐（forever）的 slave sequence 取出請求，讀/寫內部 memory model，產生回應 item（可隨機化 wait state、error response）。\n4. driver 依協定時序驅動 `ready/rdata/resp`。\n5. monitor 同時把完整交易廣播給 scoreboard / coverage。\n\n```systemverilog\ntask slave_seq::body();\n  forever begin\n    p_sequencer.req_fifo.get(req_tr);         // 來自 monitor\n    rsp = ahb_item::type_id::create(\"rsp\");\n    start_item(rsp);\n    assert(rsp.randomize() with { wait_cycles inside {[0:3]}; });\n    if (!req_tr.write) rsp.rdata = mem.read(req_tr.addr);\n    else               mem.write(req_tr.addr, req_tr.wdata);\n    finish_item(rsp);\n  end\nendtask\n```\n\n### Corner cases & pitfalls\n- slave 回應延遲必須符合協定（如 AHB HREADY 最長 wait 數），否則 DUT 端 assertion 失敗。\n\n### Follow-ups\n- master VIP 的資料流有何不同？由 sequence 主動發起，不需等待 monitor 的請求。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "為什麼要避免使用絕對路徑？如何避免？",
+   "answer": "絕對路徑是硬編碼，重用性差，修改需多處更動易出錯；應逐層傳遞或使用萬用字元。",
+   "solution": "**Key idea:** 絕對階層路徑（如 `tb_top.dut.u_core.reg_a` 或 `\"uvm_test_top.env.agt.drv\"`）把 TB 綁死在某一個階層上，block 升到 SoC 後就壞掉；改用相對路徑、`this` 作 context、萬用字元與 config object。\n\n| 寫法 | 例子 | 重用性 |\n| --- | --- | --- |\n| 絕對路徑 | `set(null, \"uvm_test_top.env.i_agt.drv\", \"vif\", vif)` | 差：階層一變就失效 |\n| 相對 + this | `set(this, \"env.i_agt.*\", \"vif\", vif)` | 好：只依賴子樹 |\n| 萬用字元 | `set(this, \"*agt*\", \"cfg\", cfg)` | 好，但小心匹配過多 |\n| config object | env cfg 內含子 agent cfg，逐層 get/set | 最好，集中管理 |\n\n```systemverilog\n// test\nfunction void build_phase(uvm_phase phase);\n  env_cfg = env_config::type_id::create(\"env_cfg\");\n  uvm_config_db#(env_config)::set(this, \"env\", \"cfg\", env_cfg);\nendfunction\n// env\nfunction void build_phase(uvm_phase phase);\n  if (!uvm_config_db#(env_config)::get(this, \"\", \"cfg\", cfg))\n    `uvm_fatal(\"CFG\", \"no env cfg\")\n  uvm_config_db#(agent_config)::set(this, \"i_agt\", \"cfg\", cfg.i_agt_cfg);\nendfunction\n```\n\n### Explanation\n- 後門存取 RTL 時，用 RAL 的 `add_hdl_path` 分段設定（root path + 相對 slice），只改 root 即可搬移。\n- SVA/bind 用 `bind` 到 module 型別而非實例路徑。\n\n### Corner cases & pitfalls\n- 萬用字元 `\"*\"` 會匹配到不該收到的元件，導致設定互相覆蓋。\n\n### Follow-ups\n- config_db 優先順序？build 期間越上層的 set 優先；同層後 set 覆蓋先 set。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "如何在 driver 中使用 interface？為什麼要用 virtual interface？",
+   "answer": "interface 不宣告為 virtual 不能直接在 class（driver）中使用，因為 interface 是實體；driver 中宣告 virtual interface，透過 config_db 從上層取得 handle。",
+   "solution": "**Key idea:** interface 是 module 世界的靜態實體，class 是動態物件，class 中不能直接例化 interface；`virtual interface` 是指向實體 interface 的 handle，可由 config_db 在執行期傳入。\n\n```mermaid\nflowchart LR\n  TOP[\"tb_top: my_if vif_inst(clk)\"] -->|\"config_db set(vif_inst)\"| DB[\"uvm_config_db\"]\n  DB -->|\"get in build_phase\"| DRV[\"driver: virtual my_if vif\"]\n  DB --> MON[\"monitor: virtual my_if vif\"]\n  DRV -->|vif.cb.data <= ...| PINS[\"DUT pins\"]\n```\n\n```systemverilog\nmodule tb_top;\n  my_if vif_inst(clk);\n  dut u_dut(.clk(clk), .data(vif_inst.data), .valid(vif_inst.valid));\n  initial begin\n    uvm_config_db#(virtual my_if)::set(null, \"uvm_test_top.env.agt*\", \"vif\", vif_inst);\n    run_test();\n  end\nendmodule\n\nclass my_driver extends uvm_driver #(my_item);\n  virtual my_if vif;\n  function void build_phase(uvm_phase phase);\n    super.build_phase(phase);\n    if (!uvm_config_db#(virtual my_if)::get(this, \"\", \"vif\", vif))\n      `uvm_fatal(\"NOVIF\", \"virtual interface not set\")\n  endfunction\n  task run_phase(uvm_phase phase);\n    forever begin\n      seq_item_port.get_next_item(req);\n      @(vif.cb); vif.cb.valid <= 1; vif.cb.data <= req.data;\n      seq_item_port.item_done();\n    end\n  endtask\nendclass\n```\n\n### Explanation\n- 好處：driver 與特定實例解耦，同一 driver 可驅動多個 interface 實例（多個 agent）。\n- `set` 一定要在 `run_test()` 之前（或同一 time 0）執行。\n\n### Corner cases & pitfalls\n- `get` 失敗沒檢查 → vif 為 null，run_phase 才 crash；務必 `uvm_fatal`。\n- 參數化 interface 時 virtual 型別也要帶相同參數。\n\n### Follow-ups\n- 可以傳 modport 嗎？可以：`virtual my_if.tb vif`。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "你了解 UVM 的 factory 與 callback 機制嗎？",
+   "answer": "factory 可方便替換 TB 中實例或型別：先註冊、用 type_id::create 建立、再以 override 替換。callback 也提升重用並可產生特殊激勵，與 factory 不同在於類別不變，只換內部 callback 函式。步驟：在元件中嵌入 callback hook、定義 uvm_callback 類、擴充之、在環境中建立並註冊。",
+   "solution": "**Key idea:** factory 是「整個物件換掉」（type/instance override）；callback 是「物件不變，在預留的 hook 插入額外行為」，可疊加多個。\n\n```mermaid\nflowchart LR\n  subgraph Factory\n    C1[\"create(drv)\"] --> F[\"factory lookup\"] --> D2[\"err_driver (override)\"]\n  end\n  subgraph Callback\n    DRV[\"driver.run_phase\"] -->|\"uvm_do_callbacks(pre_drive)\"| CB1[\"cb: inject_err\"]\n    DRV --> CB2[\"cb: add_delay\"]\n  end\n```\n\n| 項目 | factory override | callback |\n| --- | --- | --- |\n| 替換單位 | 整個 class | 某個 hook 函式 |\n| 原元件需預留 | 用 `type_id::create` 建立 | 需呼叫 `` `uvm_do_callbacks `` |\n| 可疊加 | 一次一個 override | 可註冊多個 callback |\n| 典型用途 | 換 transaction / driver | 錯誤注入、統計、延遲 |\n\n```systemverilog\n// 1. 定義 callback 基類\nclass drv_cb extends uvm_callback;\n  virtual task pre_drive(my_driver drv, my_item it); endtask\nendclass\n// 2. driver 中註冊並呼叫\nclass my_driver extends uvm_driver #(my_item);\n  `uvm_register_cb(my_driver, drv_cb)\n  task run_phase(uvm_phase phase);\n    forever begin\n      seq_item_port.get_next_item(req);\n      `uvm_do_callbacks(my_driver, drv_cb, pre_drive(this, req))\n      drive(req);\n      seq_item_port.item_done();\n    end\n  endtask\nendclass\n// 3. 擴充並在 test 中加入\nclass err_cb extends drv_cb;\n  task pre_drive(my_driver drv, my_item it); it.crc ^= 1; endtask\nendclass\n// test.connect_phase:\n//   err_cb cb = new(\"cb\"); uvm_callbacks#(my_driver, drv_cb)::add(env.agt.drv, cb);\n// factory 例子:\n//   my_item::type_id::set_type_override(err_item::get_type());\n```\n\n### Corner cases & pitfalls\n- factory override 必須在目標物件 `create` 之前設定（通常在 test build_phase）。\n- 用 `new()` 而非 `type_id::create()` 建立的物件無法 override。\n\n### Follow-ups\n- instance override 怎麼寫？`set_inst_override_by_type(\"env.agt.drv\", ...)`。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "OVM 和 UVM 有什麼差異？",
+   "answer": "UVM 基本繼承 OVM 並做改進，例如 sequence/sequencer 的註冊方式改變：OVM 註冊 sequence 時會與 sequencer 綁定、加入 sequencer 的靜態陣列（類似現在的 sequence library）。",
+   "solution": "**Key idea:** UVM 1.0 以 OVM 2.1.1 為基礎，加入 VMM 的一些概念（callback、RAL），並新增 run-time phase、TLM2、objection 改良、config_db/resource_db；後續成為 IEEE 1800.2 標準。\n\n| 項目 | OVM | UVM |\n| --- | --- | --- |\n| 來源 | Mentor + Cadence | Accellera（OVM + VMM 概念） |\n| phase | build/connect/run/... | 加入 12 個 run-time sub-phase、domain、phase jump |\n| 設定 | `set_config_*` | `uvm_config_db` / `uvm_resource_db`（型別安全） |\n| 暫存器 | 無官方（外掛 OVM_RGM） | 內建 RAL（`uvm_reg`） |\n| TLM | TLM1 | TLM1 + TLM2（generic payload、socket） |\n| sequence 註冊 | `ovm_sequence_utils` 綁定 sequencer、存入 sequencer 靜態清單 | `uvm_object_utils`，不綁 sequencer；`uvm_sequence_library` 另外提供 |\n| 結束模擬 | `global_stop_request()` | objection + `drain_time` |\n| callback | 無 | `uvm_callback` |\n| 標準化 | 無 | IEEE 1800.2-2017/2020 |\n\n### Explanation\n- 原文提到的差異正確：OVM `ovm_sequence_utils(seq, sequencer)` 會把 sequence 綁到 sequencer 的 sequence 清單；UVM 改為 `default_sequence` 或 `start()` 指定。\n- UVM 中 `uvm_sequence_utils` / `uvm_update_sequence_lib` 已 deprecated。\n\n### Corner cases & pitfalls\n- 舊專案遷移時常需替換 `ovm_` → `uvm_`，並把 `set_config_int` 換成 config_db。\n\n### Follow-ups\n- UVM 1.1 與 1.2 差異？1.2 引入 `uvm_coreservice`、starting_phase 改為 get/set、report message 改進。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "UVM 中各 component 是如何組織執行的？串行還是平行？透過什麼機制調度？",
+   "answer": "元件透過 new 時指定 parent 形成樹狀結構；透過 phase 機制層次化執行：各元件之間平行，phase 之間串行，同一 phase 所有元件都完成才進下一個；build 與 final 自頂向下。",
+   "solution": "**Key idea:** 「phase 之間串行、元件之間在同一 task phase 內平行」。function phase 依樹的遍歷順序逐一呼叫；task phase（run）則對每個元件 fork 一個執行緒，由 objection 決定何時結束。\n\n```mermaid\nflowchart TB\n  subgraph build_phase_top_down\n    T1[\"test\"] --> E1[\"env\"] --> A1[\"agent\"] --> D1[\"driver / monitor\"]\n  end\n  subgraph connect_phase_bottom_up\n    D2[\"driver / monitor\"] --> A2[\"agent\"] --> E2[\"env\"] --> T2[\"test\"]\n  end\n  subgraph run_phase_parallel\n    R1[\"driver.run\"]\n    R2[\"monitor.run\"]\n    R3[\"scoreboard.run\"]\n  end\n  build_phase_top_down --> connect_phase_bottom_up --> run_phase_parallel\n```\n\n### Explanation\n- **階層**：`new(name, parent)` 決定父子；`uvm_root` 是最上層，test 名為 `uvm_test_top`。\n- **調度者**：`uvm_phase` 的 phase scheduler（由 `run_test()` 啟動）。\n- **function phase**：同一 phase 內依 top-down 或 bottom-up 逐個呼叫，屬串行。\n- **task phase**：scheduler 對每個元件 `fork` 呼叫 `run_phase`，所有元件平行執行；當所有 objection drop 且 drain time 結束，phase 結束並 kill 剩餘執行緒。\n\n### Corner cases & pitfalls\n- 同層兄弟元件的執行順序依名稱字典序，不應依賴。\n- 沒有任何 objection → run_phase 在 time 0 就結束。\n\n### Follow-ups\n- 怎麼看階層？`uvm_top.print_topology()`。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "UVM 中如何啟動一個 sequence？",
+   "answer": "常用 default_sequence（透過 config_db 設定給 sequencer 的某個 phase）或呼叫 seq.start(sequencer, parent_sequence)；通常在 sequence 或 test 中 raise/drop objection。",
+   "solution": "**Key idea:** 兩種主流方法：(1) 在 test 中顯式 `seq.start(sqr)`（最常用、最可控）；(2) 用 config_db 設定 `default_sequence`，在指定 phase 自動啟動。另有 `` `uvm_do `` 系列巨集在 sequence 內啟動子 sequence。\n\n```mermaid\nsequenceDiagram\n  participant TEST as \"test.main_phase\"\n  participant SEQ as \"my_seq\"\n  participant SQR as \"sequencer\"\n  TEST->>TEST: phase.raise_objection(this)\n  TEST->>SEQ: seq.start(env.agt.sqr)\n  SEQ->>SQR: pre_body / body (start_item ... finish_item)\n  SEQ-->>TEST: body 結束返回\n  TEST->>TEST: phase.drop_objection(this)\n```\n\n```systemverilog\n// 方法 1：start()\ntask my_test::main_phase(uvm_phase phase);\n  my_seq seq = my_seq::type_id::create(\"seq\");\n  phase.raise_objection(this);\n  if (!seq.randomize()) `uvm_error(\"RND\", \"fail\")\n  seq.start(env.agt.sqr);          // start(sequencer, parent_seq=null, priority=-1, call_pre_post=1)\n  phase.drop_objection(this);\nendtask\n\n// 方法 2：default_sequence\nfunction void my_test::build_phase(uvm_phase phase);\n  super.build_phase(phase);\n  uvm_config_db#(uvm_object_wrapper)::set(this, \"env.agt.sqr.main_phase\",\n                                          \"default_sequence\", my_seq::type_id::get());\nendfunction\n```\n\n### Corner cases & pitfalls\n- default_sequence 方式需在 sequence 的 `pre_start/post_start` 中用 `starting_phase`（UVM1.2 為 `get_starting_phase()`）raise/drop objection。\n- 在 `run_phase` 用 default_sequence 時路徑要寫 `\"...sqr.run_phase\"`。\n\n### Follow-ups\n- `start_item/finish_item` 與 `start` 的差別？前者送 item，後者啟動 sequence。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "config_db 的作用是什麼？使用時各參數的含義？",
+   "answer": "config_db 用來傳遞參數提升可配置性，主要傳 virtual interface、單一變數（int/string/enum）、config object 三種。四個參數：context（父/根）、相對路徑、欄位名稱（set/get 必須一致）、值/變數。例：set(uvm_root::get(), \"uvm_test_top.c1\", \"vif\", vif)；get(this, \"\", \"vif\", vif)。",
+   "solution": "**Key idea:** `uvm_config_db#(T)::set(cntxt, inst_name, field_name, value)`；實際比對路徑 = `cntxt.get_full_name() + \".\" + inst_name`，get 端用自己的全路徑去匹配，`field_name` 與型別 `T` 必須完全一致。\n\n| 參數 | set | get |\n| --- | --- | --- |\n| `#(T)` | 值的型別 | 必須與 set 相同 |\n| `cntxt` | 起點元件（`this` 或 `null`=uvm_root） | 通常 `this` |\n| `inst_name` | 相對路徑，可用 `*` | 通常 `\"\"`（自己） |\n| `field_name` | 鍵 | 必須相同字串 |\n| `value` | 要傳的值 | 輸出變數（inout） |\n\n```mermaid\nflowchart LR\n  S[\"test: set(this, env.agt.drv, vif, v)\"] --> K[\"key = uvm_test_top.env.agt.drv : vif\"]\n  G[\"driver: get(this, '', vif, vif)\"] --> K2[\"key = uvm_test_top.env.agt.drv : vif\"]\n  K --- K2\n```\n\n```systemverilog\n// tb_top\nuvm_config_db#(virtual my_if)::set(null, \"uvm_test_top.*\", \"vif\", vif_inst);\n// test\nuvm_config_db#(int)::set(this, \"env.agt.sqr.*\", \"num_pkts\", 100);\nuvm_config_db#(agt_cfg)::set(this, \"env.agt\", \"cfg\", cfg);\n// driver\nif (!uvm_config_db#(virtual my_if)::get(this, \"\", \"vif\", vif))\n  `uvm_fatal(\"CFG\", \"vif not found\")\n```\n\n### Explanation\n- 三類常見內容：virtual interface、scalar（int/enum/string）、config object（大量參數打包）。\n- 優先權：build 階段上層 set 優先於下層；同一 context 後 set 覆蓋先 set。\n\n### Corner cases & pitfalls\n- 型別不一致（`int` vs `bit[31:0]`）也會 get 失敗。\n- 用 `+UVM_CONFIG_DB_TRACE` 追蹤 set/get。\n\n### Follow-ups\n- `uvm_resource_db` 與 config_db 差異？resource_db 不考慮元件階層，config_db 是其上的階層包裝。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "若把模組的暫存器介面由 APB 改為 AXI-Lite，在暫存器模型的使用上需要改什麼？",
+   "answer": "原文：APB 簡單無突發；AXI 分五通道各有握手並支援突發，因此總線傳輸、reg item 都要修改，並加入突發與回應機制。",
+   "solution": "**Key idea:** RAL 本身（reg block、field、address map、mirror）**與匯流排無關**；只需替換 **adapter**（reg2bus/bus2reg）、**bus agent** 與 **predictor 連線**。暫存器欄位定義與 reg sequence 都不需要改。\n\n```mermaid\nflowchart LR\n  RS[\"reg sequence: reg.write / read\"] --> RM[\"reg model (不變)\"]\n  RM --> MAP[\"default_map (不變, 可能改 n_bytes)\"]\n  MAP --> AD[\"adapter: apb_adapter → axil_adapter\"]\n  AD --> SQR[\"APB sqr → AXI-Lite sqr\"]\n  MON[\"AXI-Lite monitor\"] --> PRED[\"uvm_reg_predictor (改 bus type 參數)\"] --> RM\n```\n\n| 項目 | 是否修改 | 說明 |\n| --- | --- | --- |\n| `uvm_reg`/`uvm_reg_block` 定義 | 否 | 欄位、存取屬性不變 |\n| reg sequence / test | 否 | 仍呼叫 `write/read/mirror` |\n| adapter | 是 | `reg2bus` 產生 AXI-Lite item；`bus2reg` 取 `rdata`、`resp` |\n| predictor | 是 | `uvm_reg_predictor#(axil_item)` 接 AXI monitor |\n| map 設定 | 可能 | `set_sequencer(axil_sqr, axil_adapter)`；位元組寬度、對齊 |\n| `provides_responses` | 依 driver | AXI driver 若回傳 response 設 1 |\n\n```systemverilog\nclass axil_adapter extends uvm_reg_adapter;\n  `uvm_object_utils(axil_adapter)\n  function new(string name = \"axil_adapter\"); super.new(name); supports_byte_enable = 1; endfunction\n  function uvm_sequence_item reg2bus(const ref uvm_reg_bus_op rw);\n    axil_item it = axil_item::type_id::create(\"it\");\n    it.write = (rw.kind == UVM_WRITE);\n    it.addr  = rw.addr;\n    it.wdata = rw.data;\n    it.wstrb = rw.byte_en;\n    return it;\n  endfunction\n  function void bus2reg(uvm_sequence_item bus_item, ref uvm_reg_bus_op rw);\n    axil_item it;\n    if (!$cast(it, bus_item)) `uvm_fatal(\"CAST\", \"bad item\")\n    rw.kind   = it.write ? UVM_WRITE : UVM_READ;\n    rw.addr   = it.addr;\n    rw.data   = it.write ? it.wdata : it.rdata;\n    rw.status = (it.resp == 2'b00) ? UVM_IS_OK : UVM_NOT_OK;   // OKAY vs SLVERR/DECERR\n  endfunction\nendclass\n```\n\n### Corner cases & pitfalls\n- AXI-Lite **不支援 burst**（每次一個 beat），原文說「加入突發」不正確；但要處理 AW/W 通道分離、`BRESP/RRESP` 錯誤回應與 `WSTRB`。\n- AXI-Lite 讀寫可同時進行，`reg.read` 與 `reg.write` 平行時要注意 predictor 時序。\n\n### Follow-ups\n- explicit vs auto prediction？explicit 由 monitor+predictor 更新 mirror，較能反映其他 master 的存取。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "你的驗證平台為什麼要使用 RAL（暫存器模型）？",
+   "answer": "暫存器是模組間互動的窗口；必須先確保暫存器讀寫正確。RAL 獨立於 TB，可透過前門/後門存取控制 DUT；UVM 內建許多 RAL sequence 協助檢查，提升重用性與覆蓋率。",
+   "solution": "**Key idea:** RAL 提供「以名稱而非位址存取暫存器」的抽象層 + 一份 mirror 值，讓測試與匯流排解耦、可自動檢查、可前門/後門切換，並附內建檢查 sequence。\n\n| 不用 RAL | 用 RAL |\n| --- | --- |\n| `bus_write(32'h0010, 32'h1)` 硬寫位址 | `regmodel.ctrl.en.set(1); regmodel.ctrl.update(st);` |\n| 位址改變要改所有 test | 只改 reg model（常由 IP-XACT/Excel 生成） |\n| 換匯流排要改 sequence | 只換 adapter |\n| 手寫 reset 值、RW 檢查 | `uvm_reg_hw_reset_seq`、`uvm_reg_bit_bash_seq`、`uvm_reg_access_seq` |\n| 無法快速 init 大量 reg | 後門 `poke/peek` 零模擬時間 |\n\n```mermaid\nflowchart LR\n  T[\"test / sequence\"] -->|\"ctrl.write()\"| RAL[\"reg model + mirror\"]\n  RAL -->|frontdoor| AD[\"adapter → bus agent\"] --> DUT[\"DUT regs\"]\n  RAL -->|backdoor hdl_path| DUT\n  MON[\"bus monitor\"] --> PR[\"predictor\"] --> RAL\n```\n\n### Explanation\n- **mirror/desired 值**：scoreboard、reference model 可直接讀 `get_mirrored_value()` 得知配置。\n- **coverage**：RAL 可自動產生暫存器欄位 covergroup。\n- **可攜**：同一 reg model 用在 block 與 SoC（加 offset map）。\n\n### Corner cases & pitfalls\n- 特殊欄位（W1C、RC、易變的 status）要正確設 access policy 與 `volatile`，否則 mirror 檢查誤報。\n\n### Follow-ups\n- `update()` 與 `write()` 差異？update 只在 desired≠mirrored 時才寫。",
+   "category": "UVM",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "如何確保電路完全正確？做了哪些驗證？corner case 如何解決？",
+   "answer": "依 spec 列功能點規劃 testcase 與 sequence；跑通後檢查 code/function/assertion coverage，分析未覆蓋原因（例如 code 低 function 高表示 case/coverpoint 寫少，code 高 function 低表示設計或測試不完整），補 case 或修 DUT、換 seed；覆蓋率不再增長時分析缺失刺激寫定向測試補 corner case，最後做多 seed regression。",
+   "solution": "**Key idea:** 沒有「完全正確」，只有「有證據的足夠信心」：以 **verification plan → 隨機 + 定向刺激 → 自動檢查 → 覆蓋率收斂 → regression** 的閉環來量化。\n\n```mermaid\nflowchart LR\n  SPEC[\"spec 功能點\"] --> VP[\"verification plan (feature → test / cover / assert)\"]\n  VP --> TB[\"TB + checker (scoreboard, SVA)\"]\n  TB --> RUN[\"random regression (多 seed)\"]\n  RUN --> COV[\"code + functional + assertion coverage\"]\n  COV -->|hole| ANA[\"分析 hole\"]\n  ANA -->|\"約束調整 / 定向 test\"| RUN\n  ANA -->|\"不可達 → waiver\"| SIGN[\"sign-off\"]\n  COV -->|\"100% & no fail\"| SIGN\n```\n\n| 覆蓋率狀況 | 可能原因 | 處理 |\n| --- | --- | --- |\n| code 低、functional 高 | covergroup 不完整；或 RTL 有死碼 | 補 coverpoint；與 designer 確認死碼 |\n| code 高、functional 低 | 刺激多樣性不足、約束太緊；或功能沒實作 | 放寬約束、寫定向 test；確認 RTL |\n| 兩者都高 | 驗證可信度較高 | 仍需 review checker 是否完整 |\n\n### Explanation\n- **corner case 來源**：邊界值（0、max、wrap-around）、同時事件（讀寫同址、FIFO 同拍滿/空）、reset 中途、背壓、錯誤注入。\n- 手段：約束加權偏向邊界、cross coverage 找組合 hole、assertion 守住協定、形式驗證處理難以隨機到的狀態。\n- 最後：regression 全通過、bug 收斂曲線趨平、覆蓋率 review 與 waiver。\n\n### Corner cases & pitfalls\n- 覆蓋率 100% 但 checker 不完整仍會漏 bug——「有刺激到」≠「有檢查到」。\n\n### Follow-ups\n- 如何判斷可以 tape-out？覆蓋率目標達成、bug rate 收斂、所有 waiver 經 review。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "請描述你所驗證的模組功能（例：AHB SRAM 控制器）",
+   "answer": "範例：驗證基於 AHB 匯流排的 SRAM 模組：作為 AHB slave 支援單週期讀寫、8/16/32-bit 寬度、連續/非連續、INCR4 等；SRAM 端支援依位址低功耗片選與 memory BIST 切換。",
+   "solution": "**Key idea:** 用「功能 → 介面 → 驗證重點 → 結果」的結構介紹，並主動帶出你做了哪些驗證決策。\n\n| STAR | 範例回答（AHB-SRAM） |\n| --- | --- |\n| Situation | SoC 中的 AHB-SRAM 控制器：AHB slave 介面 + 4 塊 8K×8 SRAM，支援低功耗片選與 BIST 模式。 |\n| Task | 我負責 block-level UVM 驗證：建 TB、寫 test plan、達成 coverage sign-off。 |\n| Action | 建 AHB master agent + SRAM memory model；scoreboard 比對讀回資料；SVA 檢查 HREADY/HRESP 協定；coverpoint 涵蓋 HSIZE(8/16/32) × HBURST(SINGLE/INCR/INCR4) × 位址邊界；定向 test 測 BIST 切換與片選功耗信號。 |\n| Result | 發現 2 個 bug（byte 寫入時 bank 選擇錯誤、BIST 切換時 HREADY 未拉低）；功能覆蓋率 100%、code 覆蓋率 98%（剩餘 waiver）。 |\n\n```mermaid\nflowchart LR\n  AHB[\"AHB master agent\"] --> DUT[\"ahb_sram_if\"]\n  DUT --> B0[\"SRAM bank0\"]\n  DUT --> B1[\"SRAM bank1\"]\n  DUT --> B2[\"SRAM bank2\"]\n  DUT --> B3[\"SRAM bank3\"]\n  MON[\"AHB monitor\"] --> SCB[\"scoreboard + memory model\"]\n  MON --> COV[\"coverage\"]\n```\n\n### Explanation\n- 先講模組做什麼，再講你驗證的重點與方法，最後講成果（bug 數、覆蓋率）。\n- 準備好被追問的細節：AHB pipeline（address/data phase 錯開一拍）、HSIZE 對 byte lane 的影響、低功耗片選如何檢查。\n\n### Corner cases & pitfalls\n- 不要只背功能清單，要說明「為什麼這樣驗」。\n\n### Follow-ups\n- 寫入 8-bit 時哪些 byte lane 有效？由 `HADDR[1:0]` 與 `HSIZE` 決定。",
+   "category": "Behavioral",
+   "difficulty": "Easy",
+   "type": "behavioral",
+   "language": "text"
+  },
+  {
+   "title": "談談驗證的思想：驗證人員與設計人員的思考差異？",
+   "answer": "驗證以目標驅動：按時、保質、低成本地找出盡可能多的 bug；目前常用覆蓋率驅動的隨機驗證。設計關注如何以 RTL 實現功能；驗證關注設計是否有 bug、在哪裡、如何產生刺激找出 bug。",
+   "solution": "**Key idea:** 設計者證明「它能動」，驗證者證明「它在所有合法情境下都不會錯」；驗證要從 spec 獨立出發（不看 RTL 實作寫期望值），並用覆蓋率量化完成度。\n\n| 面向 | 設計人員 | 驗證人員 |\n| --- | --- | --- |\n| 出發點 | 如何實現功能、面積/時序/功耗 | spec 是否被正確實現 |\n| 思維 | 建構性（make it work） | 破壞性（make it break） |\n| 參考 | 自己的微架構 | spec（獨立解讀，避免共同誤解） |\n| 產出 | RTL | test plan、TB、checker、coverage |\n| 成功指標 | 合成/時序收斂 | bug 被找到、覆蓋率收斂 |\n\n```mermaid\nflowchart LR\n  SPEC[\"spec\"] --> D[\"designer 解讀 → RTL\"]\n  SPEC --> V[\"verifier 獨立解讀 → reference model / checker\"]\n  D --> CMP[\"比較\"]\n  V --> CMP\n  CMP -->|mismatch| BUG[\"討論: RTL bug 或 spec 模糊\"]\n```\n\n### Explanation\n- **CDV（Coverage-Driven Verification）**：約束隨機產生大量情境，覆蓋率告訴你還缺什麼，再用定向 test 補洞。\n- 驗證要「左移」：越早找到 bug 成本越低。\n- 獨立性很重要：若驗證人員照 RTL 寫 model，會把同樣的錯誤複製過去。\n\n### Corner cases & pitfalls\n- 只追求覆蓋率數字而忽視 checker 品質。\n\n### Follow-ups\n- spec 模糊時怎麼辦？與 architect/designer 確認並回寫 spec，避免各自解讀。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "你寫過 assertion 嗎？assertion 分幾種？簡述用法",
+   "answer": "分立即斷言與並行（concurrent）斷言。立即斷言與時序無關，例如 randomize 失敗報錯；並行斷言檢查時序關係，也可做覆蓋。用法三層：sequence 描述信號關係、property 組合 sequence 加觸發條件、assert/cover 呼叫 property；可寫在 DUT 內、bind、或 interface 中。",
+   "solution": "**Key idea:** immediate assertion 像程序中的 `if` 檢查，當下求值；concurrent assertion 在時鐘邊緣取樣，可描述跨週期的時序行為。\n\n| 種類 | 寫法 | 求值時機 | 用途 |\n| --- | --- | --- | --- |\n| immediate | `assert (expr) else $error(...)` | 執行到該行時 | randomize 檢查、程序內不變式 |\n| deferred immediate | `assert final (expr)` | time step 結束 | 避免 glitch 誤報 |\n| concurrent | `assert property (@(posedge clk) ...)` | 每個時鐘邊緣 | 協定、時序關係 |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p......\" },\n  { \"name\": \"req\", \"wave\": \"010....\" },\n  { \"name\": \"gnt\", \"wave\": \"0..10..\" },\n  { \"name\": \"check\", \"wave\": \"x.=.=..\", \"data\": [\"start\", \"pass\"] }\n],\n  \"head\": { \"text\": \"req |-> ##[1:3] gnt : req 後 1~3 拍內必須 gnt\" } }\n```\n\n```systemverilog\nsequence s_gnt; ##[1:3] gnt; endsequence\nproperty p_req_gnt;\n  @(posedge clk) disable iff (!rst_n)\n    req |-> s_gnt;\nendproperty\na_req_gnt: assert property (p_req_gnt) else `uvm_error(\"SVA\", \"gnt timeout\")\nc_req_gnt: cover  property (p_req_gnt);\n\n// immediate\ninitial assert (tr.randomize()) else $fatal(1, \"randomize failed\");\n\n// 不改 RTL：bind 到 module\nbind arbiter arb_sva u_sva (.*);\n```\n\n### Explanation\n- 三層結構：`sequence`（時序片段）→ `property`（含蘊含 `|->`/`|=>`、disable iff）→ `assert/assume/cover`。\n- 放置位置：RTL 內、interface 內、或用 `bind` 外掛。\n\n### Corner cases & pitfalls\n- `|->` 前件不成立時 property 為 vacuous pass，要搭配 cover 確認真的有觸發。\n\n### Follow-ups\n- assume 有什麼用？形式驗證中約束輸入；模擬中當作 assert 檢查。",
+   "category": "SVA",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "SVA 中 and、intersect、or、throughout 的差異？",
+   "answer": "and：兩序列起點相同，終點可不同；intersect：起點與終點都相同；or：任一滿足即可；throughout（原文寫「滿足前面要求才能執行後面」）。",
+   "solution": "**Key idea:** `and` 要兩邊都匹配（結束點取較晚者）；`intersect` 要兩邊都匹配且**長度相同**；`or` 任一匹配；`expr throughout seq` 要求 expr 在 seq 整段期間**持續為真**。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p......\" },\n  { \"name\": \"s1: a ##1 b\", \"wave\": \"0=.0...\", \"data\": [\"s1 (2 cycles)\"] },\n  { \"name\": \"s2: a ##[1:3] c\", \"wave\": \"0=..0..\", \"data\": [\"s2 (3 cycles)\"] },\n  { \"name\": \"s1 and s2\", \"wave\": \"0=..0..\", \"data\": [\"ends at later\"] },\n  { \"name\": \"s1 intersect s2\", \"wave\": \"0......\" },\n  { \"name\": \"en throughout s2\", \"wave\": \"0=..0..\", \"data\": [\"en=1 all cycles\"] }\n],\n  \"head\": { \"text\": \"s1 長 2 拍、s2 長 3 拍：and 匹配於第 3 拍；intersect 長度不同→不匹配\" } }\n```\n\n| 運算子 | 起點 | 終點 | 意義 |\n| --- | --- | --- | --- |\n| `s1 and s2` | 相同 | 兩者較晚者 | 兩者皆匹配 |\n| `s1 intersect s2` | 相同 | 必須相同 | 皆匹配且等長 |\n| `s1 or s2` | 相同 | 任一 | 任一匹配 |\n| `e throughout s` | s 起點 | s 終點 | s 期間 e 恆為 1 |\n| `s1 within s2` | — | — | s1 完整落在 s2 區間內 |\n\n```systemverilog\n// burst 期間 valid 必須一直為高，且 burst 在 4 拍完成\nproperty p_burst;\n  @(posedge clk) start |-> (valid throughout (##[1:$] last))\n                           intersect (##3 1'b1);\nendproperty\n```\n\n### Explanation\n- 原文對 throughout 的描述不正確：它不是「先後」，而是「整段期間持續成立」，常用於「傳輸期間 enable 不可掉」。\n- `intersect` 常用來限制一個不定長序列的長度。\n\n### Corner cases & pitfalls\n- `and`/`or` 用在 property 層級（布林）與 sequence 層級意義略有不同；sequence `and` 才有「終點取較晚」的語意。\n\n### Follow-ups\n- `first_match` 用途？從多個可能匹配中只取最早的一個，避免多重 thread。",
+   "category": "SVA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "SVA 中 a[*3]、a[->3]、a[=3] 的差異？",
+   "answer": "a[*3]：連續重複 3 次，中間不可間隔；a[->3]：goto 重複 3 次，中間可間隔，但最後一次 a 必須緊接後續序列；a[=3]：非連續重複 3 次，中間與之後都可有間隔。",
+   "solution": "**Key idea:** `[*n]` 連續；`[->n]` goto：第 n 次 a 出現的那一拍就是序列結束點；`[=n]` non-consecutive：第 n 次 a 之後還可以有任意多拍 a=0，才接下一個序列。\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"clk\", \"wave\": \"p..........\" },\n  { \"name\": \"a\", \"wave\": \"010.1010...\" },\n  { \"name\": \"b (case 1)\", \"wave\": \"0.....10...\" },\n  { \"name\": \"b (case 2)\", \"wave\": \"0........10\" }\n],\n  \"head\": { \"text\": \"a 在第 1,4,6 拍為 1。a[->3] ##1 b 只接受 case 1；a[=3] ##1 b 兩者都接受\" } }\n```\n\n| 寫法 | 等價展開 | a 之間可間隔 | 最後一次 a 與下個序列 |\n| --- | --- | --- | --- |\n| `a[*3]` | `a ##1 a ##1 a` | 否 | 緊接 |\n| `a[->3]` | `(!a[*0:$] ##1 a)[*3]` | 是 | 緊接（結束於第 3 個 a） |\n| `a[=3]` | `a[->3] ##1 !a[*0:$]` | 是 | 之後可再等任意拍（a 須為 0） |\n\n```systemverilog\n// req 後，在第 3 次 ack 的下一拍必須 done\nassert property (@(posedge clk) req |-> ack[->3] ##1 done);\n// req 後，總共 3 次 ack，之後某時 done（期間不能再 ack）\nassert property (@(posedge clk) req |-> ack[=3] ##1 done);\n```\n\n### Explanation\n- 原文正確，補充：`[=3]` 在第 3 次 a 之後的等待期間 a 必須保持 0，否則就是第 4 次了。\n- 範圍寫法 `a[*1:3]`、`a[->1:2]` 也合法。\n\n### Corner cases & pitfalls\n- `a[*0]` 為空序列，與 `##1` 搭配時長度計算容易出錯。\n\n### Follow-ups\n- `$` 在 `[*1:$]` 中表示無上限，屬 liveness 類 property，模擬結束時可能未完成。",
+   "category": "SVA",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "你們專案中會考慮哪些 coverage？",
+   "answer": "三類：code coverage（line、condition、FSM、toggle/跳轉、branch）、functional coverage（自寫 covergroup/coverpoint 覆蓋資料、位址、控制信號）、assertion coverage（時序關係是否都有發生）。",
+   "solution": "**Key idea:** code coverage 是「RTL 被執行到多少」（自動產生），functional coverage 是「spec 功能點被測到多少」（人工定義），assertion/cover property 是「時序情境是否發生過」。\n\n| 類別 | 子項 | 問的問題 |\n| --- | --- | --- |\n| Code | line / statement | 每行是否執行過 |\n| | branch | 每個 if/case 分支是否走過 |\n| | condition / expression | 布林子條件是否各自影響結果 |\n| | toggle | 每個 bit 是否 0→1、1→0 |\n| | FSM | 每個狀態與轉移是否到達 |\n| Functional | covergroup / coverpoint / cross | 封包長度、類型 × 模式組合 |\n| Assertion | `cover property` | 背壓、back-to-back、重試等情境 |\n\n```systemverilog\ncovergroup cg_pkt @(posedge clk iff vld);\n  cp_len : coverpoint len { bins small = {[1:8]}; bins mid = {[9:63]}; bins max = {64}; }\n  cp_kind: coverpoint kind;\n  x_len_kind: cross cp_len, cp_kind;\nendgroup\ncover property (@(posedge clk) vld && !rdy ##1 vld && rdy);  // 背壓後成功\n```\n\n### Explanation\n- toggle 原文寫「跳轉」，指信號翻轉；FSM coverage 含 state 與 transition。\n- functional coverage 依 verification plan 寫，與 spec 對應，才能做 sign-off。\n\n### Corner cases & pitfalls\n- 只看總百分比會掩蓋重要 hole；要 review 每個 bin。\n\n### Follow-ups\n- 什麼是 MC/DC？每個條件都要獨立地改變判斷結果，比 condition coverage 更嚴格。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "coverage 通常不會直接到 100%，發現 condition 未被覆蓋時該怎麼做？",
+   "answer": "查看覆蓋率報告定位未覆蓋條件，判斷是前提條件未滿足還是根本遺漏情境，再撰寫對應 case 覆蓋。",
+   "solution": "**Key idea:** 先「分類」再「處理」：可達但沒刺激到 → 改約束/寫定向 test；不可達（設計上不可能或常數綁定）→ 與設計確認後 exclusion/waiver；可能是 bug → 開 issue。\n\n```mermaid\nflowchart TB\n  H[\"condition hole: (a || b&&c) 中 b 未獨立影響\"] --> Q1{\"在設計上可達嗎?\"}\n  Q1 -->|\"否 (tie-off / 參數)\"| W[\"與 designer 確認 → exclusion + 註解\"]\n  Q1 -->|是| Q2{\"是 TB 限制嗎?\"}\n  Q2 -->|\"約束太緊\"| C[\"放寬約束 / 加權\"]\n  Q2 -->|\"情境難碰\"| D[\"寫定向 test 或 cover property\"]\n  Q2 -->|\"不是 TB 問題\"| B[\"懷疑 RTL bug, 開 issue\"]\n  C --> R[\"重跑 regression, merge coverage\"]\n  D --> R\n```\n\n### Explanation\n1. 在報告（如 `urg`/IMC）找到該 condition 的未覆蓋 term 與所需值組合。\n2. 從該行往回追，找讓前提成立的條件（例如需先進入某個 FSM state）。\n3. 調整 sequence 或加 `cover property` 確認情境真的發生。\n4. 重跑並 merge，確認 hole 消失；不可達的寫入 exclusion 檔並記錄理由。\n\n### Corner cases & pitfalls\n- 不要為了湊覆蓋率直接 exclude；每個 waiver 都要經 review。\n- 冗餘邏輯（如 `a || a&&b`）造成不可達 condition，應回饋 designer 簡化。\n\n### Follow-ups\n- condition coverage 100% 代表沒 bug 嗎？不代表，只代表每個條件被激發過，結果是否正確要靠 checker。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "functional coverage 與 code coverage 的差異，以及各自對專案的意義？",
+   "answer": "功能覆蓋率針對 spec 功能點；code coverage 針對 RTL 執行完備度（line/condition/FSM/toggle/branch）。兩者缺一不可：功能高 code 低可能 covergroup 或 case 寫太少、或有冗餘碼；功能低 code 高可能設計遺漏功能或 covergroup 冗餘。兩者都高才較可靠。",
+   "solution": "**Key idea:** code coverage 告訴你「RTL 哪裡沒被跑到」（無法發現缺少的功能）；functional coverage 告訴你「spec 哪些情境沒被測到」（依賴你定義得是否完整）。兩者互補。\n\n| 面向 | Code coverage | Functional coverage |\n| --- | --- | --- |\n| 來源 | 工具自動從 RTL 推導 | 工程師依 spec 手寫 covergroup / cover property |\n| 衡量 | 程式碼被執行程度 | 功能情境被觸發程度 |\n| 能發現 | 未測到的程式碼、死碼 | 未測到的功能組合 |\n| 不能發現 | RTL 缺少的功能 | 未被定義的情境 |\n| 依賴 | RTL 實作 | verification plan 品質 |\n\n| | Code 低 | Code 高 |\n| --- | --- | --- |\n| **Functional 高** | covergroup 不足、死碼或未列入 plan 的功能 | 可信度較高 |\n| **Functional 低** | 剛開始，刺激不足 | 刺激組合不足或功能缺失 / plan 不完整 |\n\n### Explanation\n- 功能高、code 低：covergroup 定義不夠、或 RTL 有死碼/冗餘、或有未列入 plan 的功能。\n- 功能低、code 高：刺激只走過程式碼但沒觸發特定組合（cross）；或 RTL 根本沒實作某功能。\n\n### Corner cases & pitfalls\n- 原文提到「covergroup 寫冗餘」：bins 定義不合理（含不可能值）會讓 functional 永遠到不了 100%，要用 `ignore_bins/illegal_bins`。\n\n### Follow-ups\n- 哪個先開始收集？兩者同時收集；sign-off 前都要 review。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "驗證加密與解密模組時，資料先加密再解密，若輸入與輸出相同，能否說明兩模組功能正確？",
+   "answer": "不能。若未在中間插 monitor 檢查，可能加密、解密都沒工作，輸入輸出仍相同；也可能兩者以互補方式錯誤而碰巧還原。應分開驗證再整合，或在中間插 monitor 檢查。",
+   "solution": "**Key idea:** round-trip（encrypt→decrypt 還原）只證明兩者「互為反函數」，不證明它們實現了**標準**演算法。兩個 bypass 或兩個對稱錯誤都能通過。\n\n```mermaid\nflowchart LR\n  P[\"plaintext\"] --> ENC[\"encrypt DUT\"] --> C[\"ciphertext\"] --> DEC[\"decrypt DUT\"] --> P2[\"plaintext'\"]\n  C --> MON[\"monitor: 比對 golden model (C model / NIST vector)\"]\n  P2 --> CMP[\"P == P'? (只是必要條件)\"]\n```\n\n| 失效情境 | round-trip 結果 | 中間檢查結果 |\n| --- | --- | --- |\n| 兩模組都 bypass | P'=P ✔ (誤判) | C=P ✘ 抓到 |\n| 加密 key schedule 錯，解密用同樣錯的 key schedule | P'=P ✔ (誤判) | C≠golden ✘ 抓到 |\n| 加密位元順序反轉，解密也反轉 | P'=P ✔ (誤判) | ✘ 抓到 |\n| 加密正確、解密錯 | P'≠P ✘ | C 正確，定位到解密 |\n\n### Explanation\n- 正確做法：\n  1. 各自做 block-level 驗證，用 golden reference model（如 OpenSSL/C model）或標準測試向量（NIST KAT）比對。\n  2. 整合時在 ciphertext 介面加 monitor，與 reference 比對中間值。\n  3. round-trip 可作為額外 sanity check（必要條件，非充分條件）。\n- 也要測 key 變更、不同模式（ECB/CBC/CTR）、padding、back-to-back。\n\n### Corner cases & pitfalls\n- 若 reference model 與 RTL 由同一人依同一誤解撰寫，仍會共模錯誤；要用第三方標準向量。\n\n### Follow-ups\n- 類似情境？編碼/解碼（8b10b、CRC 產生與檢查）、壓縮/解壓縮都同理。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "你做驗證時的流程是怎樣的？",
+   "answer": "1. 讀 spec，弄清功能與介面時序；2. 依功能點規劃 TB 架構、case 與覆蓋/檢查方式並列清單；3. 搭 TB 與基本 sequence/test，確保可正常運行；4. 依清單寫 sequence 與 case、仿真、收集覆蓋率；5. 分析覆蓋率報告，補定向 case、換 seed；6. 多 seed regression；7. 總結。",
+   "solution": "**Key idea:** spec → plan → TB → test → coverage closure → regression → sign-off，每一步都有可檢查的產出。\n\n```mermaid\nflowchart LR\n  A[\"1. 讀 spec, 釐清功能/介面時序\"] --> B[\"2. verification plan: 功能點 → test / cover / assertion\"]\n  B --> C[\"3. 建 TB (agent, RM, scoreboard), smoke test\"]\n  C --> D[\"4. 隨機 + 定向 test, debug\"]\n  D --> E[\"5. coverage 分析, 補洞\"]\n  E --> D\n  E --> F[\"6. regression (多 seed, nightly)\"]\n  F --> G[\"7. review & sign-off 報告\"]\n```\n\n| 階段 | 產出 | 檢查點 |\n| --- | --- | --- |\n| spec 研讀 | 問題清單 | 與 designer/架構師對齊 |\n| plan | vPlan（feature list） | review 通過 |\n| TB | 可跑的環境、sanity test | smoke test pass |\n| test 開發 | test list、bug report | bug 追蹤系統 |\n| coverage closure | coverage 報告、waiver | 目標達成 |\n| regression | pass rate | 連續 N 天 100% pass |\n\n### Explanation\n- 在 TB 開發同時寫 SVA，早期就能抓協定錯誤。\n- 先寫 reference model 與 scoreboard，再大量隨機；否則跑再多也沒檢查。\n\n### Corner cases & pitfalls\n- RTL 變更後要重跑 regression，coverage 要以最新 RTL 重新 merge。\n\n### Follow-ups\n- 怎麼估時？依 feature 數與複雜度，TB 約 30%，test + debug 約 50%，closure 約 20%。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "text"
+  },
+  {
+   "title": "你在驗證過程中遇到過什麼難點？重點是什麼？",
+   "answer": "難點：搭建高重用、可配置的 TB（哪些參數放 config、哪些放 transaction）；正確理解時序以寫 driver/monitor/sequence/assertion；最後提高覆蓋率需要構思 corner case，並要能自動化判斷正確性。",
+   "solution": "**Key idea:** 回答時挑一個具體技術難點，用 STAR 說清楚「難在哪、你怎麼解、學到什麼」，而不是泛泛列舉。\n\n| STAR | 範例回答 |\n| --- | --- |\n| Situation | AHB-SRAM 驗證後期，functional coverage 卡在 92%，剩餘 hole 是「INCR4 burst 跨 bank 邊界且中間插入 BUSY」。 |\n| Task | 在一週內關閉 hole，並確認不是 TB 或 RTL 問題。 |\n| Action | 1) 分析約束：位址隨機範圍與 burst 對齊約束互相排斥，跨 bank 機率幾乎為 0。2) 新增 `addr_near_boundary` 加權約束與 BUSY 插入旋鈕。3) 加 `cover property` 確認情境發生。4) 跑 200 seeds regression。 |\n| Result | coverage 達 100%，並發現 1 個 RTL bug：跨 bank 時 bank-select 晚一拍更新，導致第 3 beat 寫入錯 bank。 |\n\n```wavedrom\n{ \"signal\": [\n  { \"name\": \"HCLK\", \"wave\": \"p.....\" },\n  { \"name\": \"HTRANS\", \"wave\": \"=====.\", \"data\": [\"NSEQ\", \"SEQ\", \"BUSY\", \"SEQ\", \"SEQ\"] },\n  { \"name\": \"HADDR\", \"wave\": \"=.=.=.\", \"data\": [\"0x1FF8\", \"0x1FFC\", \"0x2000\"] },\n  { \"name\": \"bank_sel\", \"wave\": \"=...=.\", \"data\": [\"0\", \"1 (late!)\"] }\n],\n  \"head\": { \"text\": \"跨 bank 邊界的 INCR4 burst 中 bank_sel 晚一拍\" } }\n```\n\n### Explanation\n- 其他常見難點與重點：TB 架構可配置性（config object 分層）、協定時序理解（driver/monitor/SVA 正確性）、自動化檢查（scoreboard 完整性）。\n- 重點：結果要量化（覆蓋率、bug 數、節省時間）。\n\n### Corner cases & pitfalls\n- 避免說「沒有遇到困難」；也避免把責任推給他人。\n\n### Follow-ups\n- 如果再做一次會怎麼改？一開始就在 vPlan 中列出邊界情境並設計對應約束旋鈕。",
+   "category": "Behavioral",
+   "difficulty": "Medium",
+   "type": "behavioral",
+   "language": "text"
+  },
+  {
+   "title": "你在驗證過程中發現過哪些 bug？如何發現的？",
+   "answer": "範例：1) 衍生 config 類未傳到 env，get 失敗時默默使用基類預設值，導致配置無效——應在 get 失敗時報 fatal；2) 時序理解錯誤導致仿真卡在等待某信號/事件，可由列印訊息定位；3) 未設定 drain time，最後一筆激勵未送出就結束；4) run_phase 與 reset_phase 混用，phase jump 無效。",
+   "solution": "**Key idea:** 挑「編譯會過但結果錯」的 bug，說明現象 → 定位方法 → 根因 → 預防措施。TB bug 與 RTL bug 都可以講，但最好至少有一個 RTL bug。\n\n| bug | 現象 | 定位 | 根因 / 修正 |\n| --- | --- | --- | --- |\n| config 未傳遞 | 改配置無效 | `+UVM_CONFIG_DB_TRACE`，印 cfg | get 失敗時默默用預設值 → 改成 `uvm_fatal` |\n| 時序錯誤卡死 | 模擬 hang 到 timeout | 印 driver 狀態、看波形等待點 | driver 等 `ready` 錯一拍 → 按協定修正 |\n| 最後一筆沒比對 | scoreboard 少一筆 | 波形最後交易未完成就結束 | 未設 drain time → `phase.phase_done.set_drain_time(this, 100ns)` |\n| run/main phase 混用 | phase jump 無效 | 印 phase 資訊 | 統一使用 sub-phase 或 run_phase |\n\n```systemverilog\n// 預防 1：get 失敗要大聲報錯\nif (!uvm_config_db#(env_cfg)::get(this, \"\", \"cfg\", cfg))\n  `uvm_fatal(\"NOCFG\", \"env_cfg not set — check test build_phase\")\n\n// 預防 3：drain time\ntask main_phase(uvm_phase phase);\n  phase.raise_objection(this);\n  seq.start(env.agt.sqr);\n  phase.phase_done.set_drain_time(this, 200ns);\n  phase.drop_objection(this);\nendtask\n\n// 預防 4：scoreboard 在 check_phase 檢查剩餘\nfunction void check_phase(uvm_phase phase);\n  if (exp_q.size() != 0) `uvm_error(\"SCB\", $sformatf(\"%0d expected items never seen\", exp_q.size()))\nendfunction\n```\n\n### Explanation\n- 用 STAR 描述其中一個，並強調你建立了什麼防護（fatal、check_phase、assertion）避免再犯。\n\n### Corner cases & pitfalls\n- 只說「時序看錯」太空泛；要說具體哪個信號、差幾拍。\n\n### Follow-ups\n- 怎麼區分 TB bug 與 RTL bug？對照 spec 與波形，獨立確認期望值來源。",
+   "category": "Behavioral",
+   "difficulty": "Medium",
+   "type": "behavioral",
+   "language": "systemverilog"
+  },
+  {
+   "title": "你的驗證環境是什麼？目錄結構長什麼樣？",
+   "answer": "使用 UVM 搭建 TB，在 VCS 上仿真；目錄包含 RTL、doc、tb、sim、script 等部分。",
+   "solution": "**Key idea:** 清楚分離 RTL、TB（可重用 agent 與 env）、test、模擬執行目錄與腳本，讓 regression 與重用容易。\n\n```bash\nproject/\n├── doc/                 # spec、vPlan、coverage 報告\n├── rtl/                 # DUT 原始碼 + filelist (rtl.f)\n├── tb/\n│   ├── agents/\n│   │   └── ahb_agent/   # ahb_if.sv, ahb_item.sv, ahb_driver.sv, ahb_monitor.sv, ahb_agent_pkg.sv\n│   ├── env/             # env.sv, scoreboard.sv, ref_model.sv, coverage.sv, env_pkg.sv\n│   ├── reg/             # RAL model (自動生成)\n│   ├── seq_lib/         # sequences\n│   ├── tests/           # base_test.sv, test_*.sv\n│   ├── sva/             # assertions + bind\n│   └── tb_top.sv\n├── sim/                 # 執行目錄, log, waveform (fsdb), coverage db (simv.vdb)\n└── scripts/             # Makefile, run.py, regression list\n```\n\n| 工具 | 用途 |\n| --- | --- |\n| VCS / Xcelium | 編譯模擬 |\n| Verdi | 波形 debug |\n| URG / IMC | 覆蓋率 merge 與報告 |\n| Makefile / Python | 編譯、跑單一 test、regression |\n\n```bash\n# 典型 Makefile 目標\nvcs -full64 -sverilog -ntb_opts uvm-1.2 -f rtl/rtl.f -f tb/tb.f -cm line+cond+fsm+tgl+branch -kdb\n./simv +UVM_TESTNAME=ahb_rand_test +ntb_random_seed=1234 -cm line+cond+fsm+tgl+branch\nurg -dir simv.vdb -report cov_report\n```\n\n### Corner cases & pitfalls\n- 每個 agent 打成 package，避免 include 順序問題。\n\n### Follow-ups\n- regression 如何管理？Python/腳本平行派送到 LSF，收集 pass/fail 與 coverage merge。",
+   "category": "Verification Planning",
+   "difficulty": "Easy",
+   "type": "concept",
+   "language": "bash"
+  },
+  {
+   "title": "分析 code coverage 時，if (a || (b && c)) 有哪些條件需要覆蓋？請用表格列出每種條件下 a、b、c 的值（無關的用 * 表示）",
+   "answer": "原文（部分無法辨識）：a=1 時 b/c 無關；a=0、b=1、c=1 …",
+   "solution": "**Key idea:** condition coverage 要求每個子條件都「單獨」把結果翻轉過（類 MC/DC）。對 `a || (b && c)` 共需下列 4 種向量。\n\n| # | a | b | c | 結果 | 用途 |\n| --- | --- | --- | --- | --- | --- |\n| 1 | 1 | * | * | 1 | a 為真單獨使結果為真 |\n| 2 | 0 | 1 | 1 | 1 | b&&c 為真使結果為真 |\n| 3 | 0 | 0 | * | 0 | b 為假 → 結果假（與 #2 比較顯示 b 的影響） |\n| 4 | 0 | 1 | 0 | 0 | c 為假 → 結果假（與 #2 比較顯示 c 的影響） |\n\n### Explanation\n- **a 的影響**：#1 vs #3（或 #4），只有 a 改變，結果 1→0。\n- **b 的影響**：#2 vs #3，a=0、c 同為 1 時，b 由 1→0 結果翻轉（#3 中 c 可設為 1）。\n- **c 的影響**：#2 vs #4，只有 c 改變，結果翻轉。\n- 因為 `||`、`&&` 短路，`*` 表示該項不被求值或不影響結果。\n- 工具（VCS `-cm cond`）預設以「每個 term 為 0 與 1 時是否影響結果」列報告，即上表的 4 列。\n\n```verilog\n// 對應的 directed 刺激\ninitial begin\n  {a,b,c} = 3'b1_00; #10;   // #1\n  {a,b,c} = 3'b0_11; #10;   // #2\n  {a,b,c} = 3'b0_01; #10;   // #3 (b=0, c=1)\n  {a,b,c} = 3'b0_10; #10;   // #4\nend\n```\n\n### Corner cases & pitfalls\n- 只跑 #1 與 #3 能達成 branch coverage 100%，但 condition coverage 不完整。\n\n### Follow-ups\n- 若是 `a && b || c`？同理：需要 a、b、c 各自翻轉結果的配對，共 4 組向量。",
+   "category": "Verification Planning",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "verilog"
+  },
+  {
+   "title": "分享 UVM 專案 debug 的心得：常見的 TB 問題有哪些？",
+   "answer": "1) config 參數傳遞失敗應報錯；2) 32-bit 資料用 int（有號）導致關聯陣列索引出錯，應用 bit[31:0]；3) 介面信號設定錯導致一直等待；4) 結束前設 drain time；5) scoreboard 除了統計 match/mismatch，還要比對期望數量；6) 時序問題逐步對照時序圖分析 driver/monitor；7) run_phase 與 main_phase 不要混用。",
+   "solution": "**Key idea:** 大部分 TB bug 是「沉默失敗」：沒報錯但結果錯或沒比到。對策是讓 TB 在異常時**大聲失敗**，並在結束時檢查「該比對的數量」。\n\n| 問題 | 根因 | 對策 |\n| --- | --- | --- |\n| 配置改了沒效 | config_db get 失敗用預設 | get 失敗 `uvm_fatal` |\n| 關聯陣列索引怪異 | 32-bit 位址用 `int`（有號） | 用 `bit [31:0]` / `longint unsigned` |\n| 模擬卡住 | 等待條件時序錯 | 加 timeout watchdog、看波形 |\n| 少比最後一筆 | 未設 drain time | `set_drain_time` 或 scoreboard 等待空 |\n| 0 mismatch 但其實沒送資料 | 只數 mismatch | check_phase 比對 expected 數量 |\n| phase 行為怪 | run_phase 與 sub-phase 混用 | 擇一使用 |\n\n```systemverilog\nclass my_scb extends uvm_scoreboard;\n  int n_match, n_mismatch, n_expected;\n  function void check_phase(uvm_phase phase);\n    if (n_match == 0)\n      `uvm_error(\"SCB\", \"no transaction compared — stimulus or monitor broken?\")\n    if (n_match + n_mismatch != n_expected)\n      `uvm_error(\"SCB\", $sformatf(\"expected %0d, compared %0d\", n_expected, n_match + n_mismatch))\n  endfunction\nendclass\n\n// watchdog\ntask run_phase(uvm_phase phase);\n  #10ms `uvm_fatal(\"TIMEOUT\", \"simulation hang\")\nendtask\n```\n\n### Explanation\n- `int` 為 32-bit 有號，`32'hFFFF_0000` 存入後為負值；作為關聯陣列 key 時排序與比較都會出錯。\n- 原文說 run_phase/main_phase 混用問題「還未解決」：實際上兩者可共存，問題通常是 objection 只在其中一個 raise；統一使用一種即可避免。\n\n### Corner cases & pitfalls\n- 全域 timeout 可用 `uvm_top.set_timeout(10ms)` 或 `+UVM_TIMEOUT`。\n\n### Follow-ups\n- 如何快速定位 hang？`+UVM_OBJECTION_TRACE` 看誰沒 drop objection。",
+   "category": "UVM",
+   "difficulty": "Medium",
+   "type": "concept",
+   "language": "systemverilog"
+  },
+  {
+   "title": "Perl 正規表示式的常見用法？",
+   "solution": "**Key idea:** Perl 以 `=~` 套用 `m//`（比對）、`s///`（替換）、`tr///`（字元轉換），捕獲群組存到 `$1, $2...`，修飾字 `i g m s x` 控制行為。\n\n| 語法 | 意義 | 例子 |\n| --- | --- | --- |\n| `\\d \\w \\s` | 數字、字元、空白 | `/\\d+/` |\n| `^ $` | 行首、行尾 | `/^ERROR/` |\n| `.* .*?` | 貪婪 / 非貪婪 | `/<(.*?)>/` |\n| `( )` | 捕獲 | `$1` |\n| `(?: )` | 不捕獲群組 | |\n| `/i /g` | 不分大小寫、全域 | `s/foo/bar/g` |\n\n```perl\n#!/usr/bin/perl\nuse strict; use warnings;\nmy %err_cnt;\nwhile (my $line = <STDIN>) {\n    # 例：UVM_ERROR tb/scb.sv(120) @ 1500ns: uvm_test_top.env.scb [SCB] mismatch\n    if ($line =~ /^UVM_(ERROR|FATAL)\\s+\\S+\\s+@\\s+(\\d+)\\w*:\\s+\\S+\\s+\\[(\\w+)\\]/) {\n        my ($sev, $time, $id) = ($1, $2, $3);\n        $err_cnt{\"$sev:$id\"}++;\n    }\n    (my $clean = $line) =~ s/\\s+$//;     # 去尾端空白\n}\nprintf \"%-20s %d\\n\", $_, $err_cnt{$_} for sort keys %err_cnt;\n```\n\n### Explanation\n- 列表情境下 `my @all = ($str =~ /(\\d+)/g);` 取出所有數字。\n- `tr/a-z/A-Z/` 轉大寫並回傳替換個數。\n\n### Corner cases & pitfalls\n- `.*` 貪婪可能吃太多，用 `.*?`。\n- 比對失敗時 `$1` 保留舊值，務必在 `if` 內使用。\n\n### Follow-ups\n- 如何多行比對？使用 `/s`（讓 `.` 匹配換行）與 `/m`（^$ 匹配每行）。",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  },
+  {
+   "title": "Perl 中純量、陣列與雜湊（hash）如何表示？",
+   "solution": "**Key idea:** sigil 表示「取用的形式」：`$` 單一值、`@` 列表、`%` 鍵值對。取陣列/雜湊的單一元素時用 `$`。\n\n| 型別 | 宣告 | 取元素 | 大小 |\n| --- | --- | --- | --- |\n| scalar | `my $x = 5;` | `$x` | — |\n| array | `my @a = (1,2,3);` | `$a[0]`、`$a[-1]` | `scalar(@a)`、`$#a`（最後索引） |\n| hash | `my %h = (clk=>1, rst=>0);` | `$h{clk}` | `scalar(keys %h)` |\n| array ref | `my $ar = [1,2];` | `$ar->[0]` | `scalar(@$ar)` |\n| hash ref | `my $hr = {a=>1};` | `$hr->{a}` | |\n\n```perl\nuse strict; use warnings;\nmy $name  = \"dut\";\nmy @sigs  = (\"clk\", \"rst_n\", \"data\");\nmy %width = (clk => 1, rst_n => 1, data => 32);\npush @sigs, \"valid\";  $width{valid} = 1;\nforeach my $s (@sigs) {\n    printf \"%-6s : %2d bit\\n\", $s, $width{$s};\n}\nprint \"exists\\n\" if exists $width{data};\ndelete $width{valid};\nmy @slice = @width{qw(clk data)};   # hash slice → (1, 32)\n```\n\n### Explanation\n- 陣列函式：`push/pop/shift/unshift/splice/sort/reverse/join/split`。\n- 雜湊函式：`keys/values/each/exists/delete`。\n\n### Corner cases & pitfalls\n- 在純量情境下 `@a` 回傳元素個數。\n- 雜湊無序；需排序輸出用 `sort keys %h`。\n\n### Follow-ups\n- 多維資料怎麼存？用參考：`$h{$blk}{$reg} = $val;`（hash of hash）。",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  },
+  {
+   "title": "Perl 迴圈控制語句有哪三個？有哪些迴圈？",
+   "solution": "**Key idea:** 迴圈控制三個：`next`（跳過本次，類似 C 的 continue）、`last`（跳出迴圈，類似 break）、`redo`（重做本次，不重新判斷條件）。迴圈有 `for`、`foreach`、`while`、`until`、`do-while/until`。\n\n| 關鍵字 | 作用 | C 對應 |\n| --- | --- | --- |\n| `next` | 進入下一次迭代 | `continue` |\n| `last` | 結束迴圈 | `break` |\n| `redo` | 重新執行本次迴圈體（不重新求條件） | 無 |\n\n| 迴圈 | 例子 |\n| --- | --- |\n| `for` (C 式) | `for (my $i=0; $i<10; $i++) {...}` |\n| `foreach` | `foreach my $f (@files) {...}` |\n| `while` | `while (my $l = <FH>) {...}` |\n| `until` | `until ($done) {...}` |\n| `do {...} while` | 至少執行一次 |\n\n```perl\nuse strict; use warnings;\nmy @lines = (\"# comment\", \"PASS t1\", \"FAIL t2\", \"END\", \"PASS t3\");\nLINE: foreach my $l (@lines) {\n    next LINE if $l =~ /^#/;      # 跳過註解\n    last LINE if $l eq \"END\";     # 遇到 END 結束\n    print \"$l\\n\";\n}\n# 輸出: PASS t1 / FAIL t2\n```\n\n### Corner cases & pitfalls\n- `do {} while` 不是真正的迴圈區塊，內部不能用 `next/last`。\n- 巢狀迴圈用 label（如 `LINE:`）指定跳出哪一層。\n\n### Follow-ups\n- 後置修飾：`print for @a;`、`$i++ while $i < 10;`。",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  },
+  {
+   "title": "Perl 的條件控制語句有哪些？",
+   "solution": "**Key idea:** `if/elsif/else`、`unless`（if not）、後置修飾（`stmt if cond`）、三元運算子、以及 `&&`/`||`/`or`/`and` 短路。\n\n| 語法 | 例子 |\n| --- | --- |\n| `if / elsif / else` | `if ($x > 0) {...} elsif ($x == 0) {...} else {...}` |\n| `unless` | `unless (-e $file) { die \"missing\" }` |\n| 後置 | `print \"ok\\n\" if $pass;` |\n| 三元 | `my $s = $pass ? \"PASS\" : \"FAIL\";` |\n| 短路 | `open(my $fh, '<', $f) or die \"can't open $f: $!\";` |\n\n```perl\nuse strict; use warnings;\nmy ($err, $warn) = (0, 3);\nif ($err > 0) {\n    print \"FAIL\\n\";\n} elsif ($warn > 0) {\n    print \"PASS with $warn warnings\\n\";\n} else {\n    print \"CLEAN PASS\\n\";\n}\nprint \"check log\\n\" unless $err == 0;\n```\n\n### Explanation\n- 真偽：`0`、`'0'`、`''`、`undef`、空列表為假，其他為真。\n- 數字比較 `== != < >`；字串比較 `eq ne lt gt`。\n\n### Corner cases & pitfalls\n- 用 `==` 比字串會被轉成數字（多半為 0），造成誤判；`use warnings` 會提示。\n- Perl 沒有 `else if`，要寫 `elsif`。\n\n### Follow-ups\n- 有 switch 嗎？舊版有 `given/when`（實驗性，不建議），一般用 hash dispatch table。",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  },
+  {
+   "title": "Perl 子程式（subroutine）如何定義與呼叫？",
+   "solution": "**Key idea:** 用 `sub name {...}` 定義；參數透過 `@_` 傳入（是別名），以 `return` 或最後一個運算式回傳；傳陣列/雜湊時用參考避免被攤平。\n\n```perl\nuse strict; use warnings;\n\nsub max_of {\n    my @nums = @_;                 # 複製參數\n    my $m = shift @nums;\n    for (@nums) { $m = $_ if $_ > $m }\n    return $m;\n}\n\nsub count_fail {\n    my ($results_ref) = @_;        # 傳入 hash 參考\n    return scalar grep { $results_ref->{$_} eq 'FAIL' } keys %$results_ref;\n}\n\nmy %res = (t1 => 'PASS', t2 => 'FAIL', t3 => 'FAIL');\nprint max_of(3, 9, 4), \"\\n\";       # 9\nprint count_fail(\\%res), \"\\n\";      # 2\n```\n\n| 項目 | 說明 |\n| --- | --- |\n| 參數 | `@_`，`$_[0]` 是呼叫者變數的別名 |\n| 取參數 | `my ($a, $b) = @_;` 或 `shift` |\n| 回傳 | `return` 列表或純量；`wantarray` 判斷情境 |\n| 傳陣列 | `foo(\\@a)`，內部 `@$ref` |\n| 呼叫 | `foo(1,2)`、`&foo(1,2)`（舊式） |\n\n### Corner cases & pitfalls\n- `foo(@a, @b)` 會把兩個陣列攤平成一個列表，無法分辨邊界；用參考。\n- 修改 `$_[0]` 會改到呼叫者的變數。\n\n### Follow-ups\n- 怎麼做模組？`package My::Util; ... 1;` 並 `use My::Util;`。",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  },
+  {
+   "title": "Perl 如何讀寫檔案與操作資料夾？",
+   "solution": "**Key idea:** 檔案用三引數 `open(my $fh, MODE, $path)`，模式 `<` 讀、`>` 覆寫、`>>` 附加；資料夾用 `opendir/readdir/closedir`，或 `glob`、`File::Find`。\n\n| 操作 | 語法 |\n| --- | --- |\n| 讀檔 | `open(my $fh, '<', $f) or die $!; while (<$fh>) {...}` |\n| 寫檔 | `open(my $fh, '>', $f); print $fh \"text\\n\";` |\n| 附加 | `open(my $fh, '>>', $f);` |\n| 檔案測試 | `-e` 存在、`-f` 檔案、`-d` 目錄、`-s` 大小 |\n| 列目錄 | `opendir(my $dh, $d); my @f = readdir($dh);` |\n| 建/刪目錄 | `mkdir`、`rmdir`、`File::Path::make_path` |\n| 搬/刪檔 | `rename`、`unlink` |\n\n```perl\nuse strict; use warnings;\nmy $dir = \"sim/logs\";\nopendir(my $dh, $dir) or die \"cannot open $dir: $!\";\nmy @logs = grep { /\\.log$/ && -f \"$dir/$_\" } readdir($dh);\nclosedir($dh);\n\nopen(my $out, '>', \"summary.txt\") or die $!;\nforeach my $log (sort @logs) {\n    open(my $in, '<', \"$dir/$log\") or die $!;\n    my $status = \"PASS\";\n    while (my $l = <$in>) {\n        if ($l =~ /UVM_(ERROR|FATAL)\\s*:\\s*[1-9]/) { $status = \"FAIL\"; last }\n    }\n    close($in);\n    printf $out \"%-30s %s\\n\", $log, $status;\n}\nclose($out);\n```\n\n### Corner cases & pitfalls\n- `readdir` 會包含 `.` 與 `..`，並且只回傳檔名（不含路徑）。\n- 一定要檢查 `open` 是否成功（`or die \"...$!\"`）。\n\n### Follow-ups\n- 遞迴搜尋？`use File::Find; find(sub { print $File::Find::name if /\\.sv$/ }, \"tb\");`",
+   "category": "Coding & Scripting",
+   "difficulty": "Easy",
+   "type": "coding",
+   "language": "text"
+  }
+ ]
+}

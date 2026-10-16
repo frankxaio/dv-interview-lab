@@ -1,0 +1,95 @@
+# DV answers 117-144: SystemVerilog Constraints & Randomization
+@category: SV Constraints
+
+- **117. Transaction Constraints and Burst Statistics**
+  - Put legality constraints in the transaction and traffic-distribution choices in the sequence/test. Bound burst length, size, address, and payload size; enforce alignment and boundary rules. Use `dist` for desired weights, but sample resulting distributions because constraints can bias outcomes. Coverage should include lengths, command types, alignment, and crossings. Exact constraints require the transaction fields and protocol.
+- **118. Constraint: Address Alignment with CMD Signal**
+  - Use a conditional constraint, for example `if (cmd==WRITE) addr % ALIGN == 0;`, with ALIGN nonzero. For power-of-two alignment, constrain the low address bits to zero. If other commands need different alignment, state those branches explicitly. Bound command values and address range, check randomize return status, and cover each command/alignment combination.
+- **119. Constraint: Dynamic Array Sum and 2D Array Row Constraint**
+  - Constrain dynamic-array size and elements, then use `a.sum() with (int'(item)) == target;` so small element widths do not truncate the total. For each 2D row, constrain its size/value range and sum if supported by the simulator, or use a compatible helper representation. Check feasibility before invoking the solver. The target and row rules are missing here.
+- **120. Constraint: Various Array Constraints**
+  - Use `size()` for dynamic arrays, foreach for per-element/range relations, pairwise inequality or `unique` for uniqueness, and widened reduction methods for sums/counts. Bound sizes before applying pairwise constraints to control solver cost. Check feasibility, randomize success, and corner distributions. The title alone does not specify a unique set of constraints.
+- **121. SV Constraint: 1D/2D Array Size, Value, and Ordering**
+  - Constrain dynamic dimensions first, values second, and ordering with adjacent relations such as `foreach(a[i]) if(i>0) a[i]>=a[i-1];`. For a 2D array, define whether ordering applies per row, per column, or flattened. Strict order needs enough distinct legal values. Fixed packed dimensions are declared in the type, not randomized with size().
+- **122. SV Constraint: Dynamic Array with Sum Equal to 20**
+  - Declare `rand int a[];`, constrain `a.size()` to a legal bounded range, constrain elements, and use `a.sum() with (longint'(item)) == 20;`. The widening avoids overflow for large values. Decide whether negative values are allowed; without bounds the solver has a much wider space. Test minimum/maximum lengths and check every randomization result.
+- **123. SV Constraint: Non-Overlapping Rectangle Regions in 2D Array**
+  - For positive-width axis-aligned rectangles, constrain x/y bounds and require each pair to be disjoint: `x1+w1<=x2 || x2+w2<=x1 || y1+h1<=y2 || y2+h2<=y1`. These are half-open bounds, so touching edges is allowed. Change inequalities if touching is forbidden. Widen additions and check packing feasibility.
+- **124. SV Constraint: Exactly One Consecutive Run of 1s in 16-bit Value**
+  - Choose start s and length l with `0<=s<16`, `1<=l<=16`, and `s+l<=16`, then constrain the vector to a widened mask `((32'h1<<l)-1)<<s`. This creates exactly one nonempty contiguous run. Alternatively, on a 17-bit zero-extended value, require exactly two transitions against its shifted copy. Specify whether the all-zero value is excluded.
+- **125. SV Constraint: rand bit Array with Odd Number of 1s**
+  - For a bit array, constrain `a.sum() with (int'(item)) % 2 == 1`, plus a legal size. For a packed vector, `$countones(v)%2==1` or reduction XOR equal to 1 expresses odd parity. Widen array sums because summing bit elements without casting can truncate. Verify count parity independently after randomization.
+- **126. SV Constraint: 300-Element Array, Values 0-5, Each = 40 Times, No Consecutive 0s**
+  - As stated, the constraint is impossible: six values appearing 40 times each account for only 240 elements, not 300. Clarify whether the array has 240 entries, each value occurs 50 times, or 60 entries may use additional values. Only then add count constraints and `if(i>0) !(a[i]==0 && a[i-1]==0)`. Do not hide the contradiction with a solver workaround.
+- **127. SV Constraint: 300-Element Array, 0 May Repeat, Non-Zero Values Must Not Be Consecutive**
+  - Clarify whether adjacent nonzero values cannot be equal or whether no two nonzero elements may be adjacent. For no equal adjacent nonzero values, use `if(i>0 && a[i]!=0 && a[i-1]!=0) a[i]!=a[i-1];`. For no adjacent nonzeros at all, require `a[i]==0 || a[i-1]==0`. Zero repetition remains allowed in both interpretations.
+- **128. SV Constraint: Memory Access with Excluded Range**
+  - For a forbidden half-open interval [L,H), a single address must satisfy `addr<L || addr>=H`. A whole access of n bytes must satisfy `addr+n<=L || addr>=H`, with n>0, widened addition, and address-space bounds. Merely excluding the starting address does not prevent overlap. Include alignment and legal transfer sizes.
+- **129. SV Constraint: Repeatedly Randomize Non-Overlapping Memory Regions Until Full**
+  - Maintain allocated intervals outside the randomized transaction. Constrain each new positive-size region to fit the address space and not overlap any prior region, then update the allocator only after successful randomization. Stop when no legal fit remains, not only when total allocated bytes equals capacity. Random sizes can fragment space; use fixed slots or a free-interval allocator if exact filling is required.
+- **130. SV Constraint: Symmetric Array Using Helper Function**
+  - If symmetry means transpose symmetry, constrain `a[i][j]==a[j][i]` on a square array. If it means mirror symmetry, use the correct reflected index. Prefer direct foreach relations. A helper function in a constraint can impose solve-order restrictions and must be side-effect free; do not assume the solver inverts arbitrary procedural code.
+- **131. Constraint Inheritance and constraint_mode()**
+  - Inherited constraints are active together. A derived constraint block with the same name replaces the inherited block; a different name adds restrictions. `constraint_mode(0)` disables a selected block, while `rand_mode(0)` freezes a variable. Inline constraints add to active constraints and do not automatically override conflicting hard constraints. Inspect solver failure before changing modes.
+- **132. Consecutive Uniqueness & Cross-Array Common Element**
+  - Adjacent uniqueness is `if(i>0) a[i]!=a[i-1]`; it is weaker than global uniqueness. For two arrays sharing exactly one distinct value, explicitly choose a shared value and constrain membership plus all other cross-array pairs to differ, accounting for duplicates within each array. If only at least one common element is required, a selected matching index pair suffices.
+- **133. std::randomize Return Value Bug**
+  - `std::randomize(...)` returns 1 for success and 0 for failure. Write `if (!std::randomize(x) with {...}) $fatal(...)`; do not treat zero as success or ignore the result. Failure does not mean a legal new value was generated. Distinguish std::randomize variables from object.randomize and check which constraints are actually active.
+- **134. Sudoku 9x9 Grid Constraint**
+  - Constrain every cell to 1..9. Require pairwise uniqueness within each row, column, and 3x3 box. For two distinct cells in the same unit, values must differ. Add clue constraints only where a given cell is nonzero. Check conflicting clues and solver performance. Multiple solutions are legal unless the task requires uniqueness of the entire puzzle.
+- **135. Dynamic Array - Sum, Consecutive Ones, Unique in Range**
+  - Combine bounded size, widened sum, and value-range constraints. If exactly one run of consecutive ones is required, introduce start/length and map each position to 1 inside the run and 0 outside. If only a certain number of adjacent pairs is required, count that instead. Global uniqueness of a bit array severely limits size; confirm these are separate exercises before combining them.
+- **136. Static Array Uniqueness - With and Without unique**
+  - For a fixed array, `unique {a};` expresses distinct elements when supported. Without unique, use `foreach(a[i]) foreach(a[j]) if(i<j) a[i]!=a[j];`. Bound the element range to contain at least as many values as elements. Pairwise constraints scale quadratically, so use a shuffled legal set for large permutation tasks if allowed.
+- **137. Alternating READ/WRITE Transactions Using post_randomize**
+  - Keep a non-rand next-command state, constrain cmd to that state, then toggle the state in post_randomize. Successful calls alternate READ and WRITE. Do not overwrite cmd afterward in a way that breaks related randomized constraints. Define the initial command and reset behavior. Failed randomization must not advance the expected alternation.
+- **138. 1D Array - Unique Elements Without unique, Sum Constraint**
+  - Use pairwise `a[i]!=a[j]` for i<j, bound size/range, and a widened `a.sum()` constraint. Check that the requested sum lies between the minimum and maximum sums of the permitted number of distinct elements. Sorted construction plus shuffle can be an alternative if procedural generation is allowed; it may have a different distribution.
+- **139. 1KB Address Space - Non-Overlapping 32-byte Stride Regions**
+  - A 1KB space contains 32 aligned 32-byte slots. Represent a region by a slot index 0..31 and address `slot*32`. Unique slot indices guarantee nonoverlap for 32-byte regions. For variable lengths, constrain full interval disjointness instead. Limit the number of simultaneous regions and account for whether 1KB is the entire space or an offset within larger memory.
+- **140. 8-bit Vector - No Cyclic Right Shift**
+  - To reject rotations of reference r, constrain v different from each of its eight circular rotations, including rotation zero if equality is forbidden. If two generated values must not be rotations, compare all rotations of one against the other. Symmetric references can have fewer than eight distinct rotations.
+- **141. Generate 4-bit Value with Exactly 4 Ones - No countones**
+  - A 4-bit vector with exactly four ones has only one legal value: `v==4'b1111`. If the intended width is larger, sum individually widened bits to four, or use an allowed helper count. Do not present a randomized distribution for a singleton solution.
+- **142. Array with if-else Constraint, then shuffle()**
+  - Solve the conditional value constraints first, check success, then call `a.shuffle()`. Shuffling preserves the multiset and sum, but can violate ordering, adjacency, or index-dependent constraints. Use shuffle only when those positional conditions are irrelevant, or revalidate after it.
+- **143. 7x7 Pixel Image - No All-D 3x3 Submatrix (Parameterized)**
+  - For every legal top-left coordinate of a 3x3 window, require at least one of its nine pixels to differ from D. Bound the pixel alphabet and parameterized dimensions, and skip windows when either dimension is smaller than three. A nested constraint or explicit nine-term OR can express the condition. Verify every overlapping window independently.
+- **144. Overriding a Constraint in Child Class - Three Methods**
+  - Three useful approaches are a same-name derived constraint block, disabling the inherited block with constraint_mode and adding a replacement, or declaring a base default as soft so an inline/derived constraint can supersede it. These have different semantics. An inline hard constraint alone cannot override a conflicting inherited hard constraint.
+
+# DV answers 145-160: SystemVerilog Assertions
+@category: SVA
+
+- **146. SVA: Analyze a Complex Property**
+  - Identify clock and disable condition, then expand each delay/repetition into sampled-cycle obligations. Distinguish implication, sequence concatenation, overlapping matches, and strong/weak completion. Check vacuous passes when the antecedent never occurs. Build a cycle table with one passing and one failing trace before claiming a specific interpretation.
+- **147. SVA: Glitch Detection - Signal HIGH for Less Than 2.5 ns**
+  - Use event timestamps to measure actual pulse width: record `$realtime` on the rising edge and check `$realtime-rise_time >= 2.5ns` on the falling edge. Track whether a valid rise was observed, define reset and initial-high behavior, and use sufficient timeprecision. A posedge-clocked assertion misses glitches between samples. Add a watchdog if a maximum width is also required.
+- **148. SVA: valid Must Remain High Until ready**
+  - A standard sampled rule is `valid && !ready |=> valid && $stable(payload)`, with reset disabled. It repeats for each stalled cycle and includes the cycle when ready finally rises. If only valid persistence is required, omit payload stability. Add a bounded-progress requirement only if the protocol guarantees eventual ready; otherwise indefinite backpressure can be legal.
+- **149. SVA: Sequence Assertion - cat Followed by 3 or 4 dogs**
+  - Assuming cat and dog are one-cycle Boolean events and dogs must be consecutive starting next cycle: `cat |=> dog[*3:4]`. This allows a 3- or 4-cycle match; it does not forbid a fifth dog or force exactly four when a fourth occurs. Exact-length behavior needs an ending condition such as !dog plus clear overlap rules.
+- **150. SVA: Clock Period Verification - Within 5% of Expected Period**
+  - On each eligible clock edge, measure the interval from the prior edge using realtime. Check `0.95*expected <= measured && measured <= 1.05*expected`. Skip the first edge, define reset and whether the expected period is fixed for the interval, and add a no-edge watchdog for a stopped clock. Period checking alone does not verify duty cycle.
+- **151. SVA: Clock Period Check When expected_clock_period Is Async**
+  - An asynchronous expected period can change mid-interval. Define whether a change takes effect immediately, at the next edge, or only after a stable-mode handshake. Snapshot the accepted expectation for each interval or suppress the explicitly permitted transition interval. Do not compare a completed interval with an unrelated latest value.
+- **152. SVA: APB Protocol Assertion - PSEL to PENABLE to PREADY**
+  - APB setup has PSEL=1 and PENABLE=0; the following cycle enters access with both high. While PREADY is low, keep address/control/write data stable and stay in access. Completion occurs when PSEL&&PENABLE&&PREADY. The next cycle must leave access, though PSEL may stay high for back-to-back transfers. Add PSLVERR and PSTRB rules for the relevant APB version.
+- **153. SVA: B Toggles 2 Cycles After A Toggles**
+  - For a change in A requiring a change in B two sampled cycles later: `$changed(A) |-> ##2 $changed(B)`. This does not prohibit earlier or extra B toggles; add separate properties if required. Define simultaneous triggers, reset history, and whether X transitions count. Use `$rose`/`$fell` instead when only one edge polarity should trigger.
+- **154. req => ack Handshake Protocol**
+  - Clarify whether req/ack are pulses or a four-phase level handshake. For a level protocol, req rises, ack eventually rises, req falls, then ack falls. Check bounded response latency if guaranteed, persistence before acknowledgement, and no unsolicited ack. For pipelined requests, an outstanding counter or tagged model is needed instead of a single pending bit.
+- **155. AHB-Lite Burst Must Not Cross 1KB Boundary**
+  - AHB bursts must not cross a 1KB address boundary. Track accepted beats, HSIZE, HBURST, and start address, while accounting for HREADY stalls and address/control pipelining. Compute the last byte of incrementing bursts or each accepted address; wrapping bursts use their defined wrap window. A start-address-only assertion is insufficient.
+- **156. Check Clock Frequency is 100 MHz**
+  - 100MHz has a 10ns period. Measure successive edges with realtime and compare to 10ns using the specified tolerance and timeprecision. Check high and low widths separately for duty cycle, and add a timeout because a period checker triggered only by edges cannot detect a permanently stopped clock.
+- **157. Simple Fell-Triggered Assertion**
+  - `$fell(a)` detects a sampled transition from 1 to 0 according to four-state sampling semantics. For example, `$fell(a) |=> b` requires b on the following sample. Define reset and establish valid past history before evaluating startup transitions.
+- **158. Complete req-ack Handshake Suite**
+  - Check request detection, legal acknowledgement, required latency bounds, request persistence, acknowledgement pulse/level width, cleanup order, and reset cancellation. Add coverage for minimum/maximum latency and consecutive handshakes. Use a pending flag for one outstanding request or a queue/counter for several. Avoid claiming completion from a suite that permits vacuous passes with no requests.
+- **159. Detect Short Glitch Pulses Shorter Than 2.5 ns**
+  - Measure rise-to-fall duration with realtime rather than only a slower reference clock. Flag widths below 2.5ns, including narrow pulses between reference edges. Specify startup/reset behavior, event polarity, and X/Z treatment. Sufficient timeprecision is necessary.
+- **160. req/gnt 4-Way Handshake - Concurrent and always Block**
+  - For four-phase req/gnt, enforce req rise before gnt rise, req high until gnt, req fall after grant, then gnt fall before a new request. Encode sampled obligations with SVA and model states IDLE, WAIT_GRANT, WAIT_REQ_LOW, WAIT_GRANT_LOW procedurally. Specify timeouts and legal same-cycle transitions so both implementations check the same protocol.
+- **361. Immediate assertion vs Concurrent Assertion**
+  - An immediate assertion executes procedurally when control reaches it and checks a Boolean expression, typically `assert(expr)`. A concurrent assertion describes behavior across sampled events using sequences/properties, such as `assert property (@(posedge clk) req |=> ack)`. It samples/evaluates in defined assertion regions. Choose immediate for local procedural checks and concurrent for temporal protocol rules.
